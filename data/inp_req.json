@@ -1,0 +1,25 @@
+{
+    "contextId":"6baa3490-69d6-48fc-b5d4-3994e3e8fae0",
+    "segments": [
+        {
+            "id": "68c21d251c294f6ba2134a02090f2477",
+            "originalText": "The server mentoring the scope meeting Scopes then introduced or somewhere meaning the same user will be able to access multiple meetings. Meaning if multiple routes will be the same token. You can see this meeting this meeting on this meetings. Yeah, and we will have some default expiry like one day by default will expire all of those meaning will remove those meetings Scopes from the same token. If the token is experiment handle will not expire the tokens from the server will just remove the Scopes beating Scopes from the discussion with the client.",
+            "filteredText": "The server mentoring the scope meeting Scopes then introduced or somewhere meaning the same user will be able to access multiple meetings. Meaning if multiple routes will be the same token. You can see this meeting this meeting on this meetings. Yeah, and we will have some default expiry like one day by default will expire all of those meaning will remove those meetings Scopes from the same token. If the token is experiment handle will not expire the tokens from the server will just remove the Scopes beating Scopes from the discussion with the client.",
+            "confidence": 0.88761485,
+            "startTime": "2019-01-29T05:33:10Z",
+            "endTime": "2019-01-29T05:33:45Z",
+            "duration": 35,
+            "recordingId": "263e0e1c35684530ab4696c28c4e442a",
+            "spokenBy": "394d6dd0-7dbe-4d77-92c6-2af7f8314329",
+            "languageCode": "en-US",
+            "transcriber": "google_speech_api",
+            "status": "completed",
+            "transcriptId": "e62bba58-b959-4aab-af7e-a75737fd736c",
+            "createdAt": "2019-01-29T06:18:40.976667049Z",
+            "updatedAt": "2019-01-29T06:19:02.764071846Z",
+            "deletedAt": null,
+            "deleted": false,
+            "tenantId": "932daeaf-6ae7-44ed-8d8d-f0b6feedc3aa"
+        }
+    ]
+}
