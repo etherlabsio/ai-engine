@@ -48,9 +48,9 @@ class Manager:
     async def subscribe(self, topic, handler, queued=True):
         sid = None
         if queued is True:
-            sid = await self.conn.subscribe(topic, self.queueName, self.message_handler)
+            sid = await self.conn.subscribe(topic, self.queueName, self.message_handler(handler))
         else:
-            sid = await self.conn.subscribe(topic, cb=self.message_handler)
+            sid = await self.conn.subscribe(topic, cb=self.message_handler(handler))
         self.subscriptions[topic] = sid
 
     async def unsubscribe(self, topic):
@@ -79,3 +79,5 @@ class Manager:
                     }
                 }).encode())
                 log.error("failed to process message", subject=msg.subject, data=msg.data, err=e)
+
+        return handle
