@@ -1,0 +1,31 @@
+[[source]]
+url = "https://pypi.python.org/simple"
+verify_ssl = true
+name = "pypi"
+
+
+[packages]
+sanic = "*"
+asyncio-nats-client = "==0.8.2"
+textblob = "==0.15.1"
+tornado = "*"
+langdetect = "==1.0.7"
+six = "==1.10.0"
+structlog = "*"
+pydgraph = "*"
+pandas = "*"
+"iso8601" = "*"
+sklearn = "*"
+spacy = "*"
+nltk = "*"
+networkx = "*"
+python-dotenv = "*"
+
+[dev-packages]
+pylint = "*"
+"autopep8" = "*"
+rope = "*"
+
+[requires]
+python_version = "3.7"
+

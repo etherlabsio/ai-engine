@@ -1,0 +1,25 @@
+{
+    "contextId":"6baa3490-69d6-48fc-b5d4-3994e3e8fae0",
+    "segments": [
+        {
+            "id": "700eb2da8e0540f19e096c784f9439fc",
+            "originalText": "This basically that's what's happening for authorization and adding one more. Thing it's not a proxy. Then we have to alter this district with them. How much going to work good with it?. ",
+            "filteredText": "This basically that's what's happening for authorization and adding one more. Thing it's not a proxy. Then we have to alter this district with them. How much going to work good with it?. ",
+            "confidence": 0.8742696249999999,
+            "startTime": "2019-01-29T06:04:05Z",
+            "endTime": "2019-01-29T06:04:25Z",
+            "duration": 20,
+            "recordingId": "511838624ca3468a9fdf887405ee6c8a",
+            "spokenBy": "7eeb4d50-dba0-4cf8-a393-0d93a5ad2c69",
+            "languageCode": "en-US",
+            "transcriber": "google_speech_api",
+            "status": "completed",
+            "transcriptId": "e62bba58-b959-4aab-af7e-a75737fd736c",
+            "createdAt": "2019-01-29T06:04:28.298584706Z",
+            "updatedAt": "2019-01-29T06:04:49.729087848Z",
+            "deletedAt": null,
+            "deleted": false,
+            "tenantId": "932daeaf-6ae7-44ed-8d8d-f0b6feedc3aa"
+        }
+    ]
+}
