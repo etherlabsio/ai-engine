@@ -19,8 +19,8 @@ class NATSTransport:
         self.subscriptions = []
         self.queueName = "io.etherlabs.ether.keyphrase_service"
         self.subscription_handlers = {
-            "io.etherlabs.ether.keyphrase_service.extract_keyphrases": self.extract_segment_keyphrases,
-            "io.etherlabs.ether.keyphrase_service.keyphrases_for_context_instance": self.extract_instance_keyphrases,
+            "io.etherlabs.ether.keyphrase_service.*.extract_keyphrases": self.extract_segment_keyphrases,
+            "io.etherlabs.ether.keyphrase_service.*.keyphrases_for_context_instance": self.extract_instance_keyphrases,
             "io.etherlabs.ether.keyphrase_service.reset_keyphrases": self.reset_keyphrases,
         }
 
@@ -35,7 +35,7 @@ class NATSTransport:
 
         async def closed_cb():
             log.info("Connection to NATS is closed.")
-            await asyncio.sleep(0.001, loop=loop)
+            await asyncio.sleep(0.1, loop=loop)
             loop.stop()
 
         async def reconnected_cb():
@@ -112,3 +112,4 @@ class NATSTransport:
         output = kpe.reset_keyphrase_graph(request)
         await self.nc.publish(msg.reply, json.dumps(output).encode())
         pass
+    

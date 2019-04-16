@@ -44,7 +44,8 @@ if __name__ == '__main__':
     asyncio.set_event_loop_policy(uvloop.EventLoopPolicy())
 
     devEnv = "dev"
-    active_env = os.environ.get("ACTIVE_ENV", devEnv)
+    defEnv = "staging"
+    active_env = os.environ.get("ACTIVE_ENV", defEnv)
 
     # setup_logger()
 
