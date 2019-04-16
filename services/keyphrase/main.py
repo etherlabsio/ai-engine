@@ -7,6 +7,12 @@ import os
 import argparse
 import signal
 import structlog
+from dotenv import load_dotenv
+load_dotenv()
+
+ACTIVE_ENV = os.getenv("ACTIVE_ENV")
+NATS_URL = os.getenv("NATS_URL")
+DEFAULT_ENV = os.getenv("DEF_ENV")
 
 log = structlog.getLogger(__name__)
 
@@ -38,18 +44,14 @@ def run_http_server():
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='arguments for keyphrase_service')
-    parser.add_argument("--nats_url", type=str, default="nats://localhost:4222", help="nats server url")
+    parser.add_argument("--nats_url", type=str, default=NATS_URL, help="nats server url")
     args = parser.parse_args()
 
     asyncio.set_event_loop_policy(uvloop.EventLoopPolicy())
 
-    devEnv = "dev"
-    defEnv = "staging"
-    active_env = os.environ.get("ACTIVE_ENV", defEnv)
-
     # setup_logger()
 
-    if active_env == devEnv:
+    if ACTIVE_ENV == DEFAULT_ENV:
         run_http_server()
     else:
         run_nats_listener(args)

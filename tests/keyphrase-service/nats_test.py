@@ -5,12 +5,18 @@ from nats.aio.utils import new_inbox
 import argparse
 import os
 import uvloop
+from dotenv import load_dotenv
+load_dotenv()
+
+ACTIVE_ENV = os.getenv("ACTIVE_ENV")
+NATS_URL = os.getenv("NATS_URL")
+DEFAULT_ENV = os.getenv("DEF_ENV")
 
 
 async def publish_keyphrase():
     nc = NATS()
-    topic = "io.etherlabs.ether.keyphrase_service.extract_keyphrases"
-    await nc.connect(servers=["nats://192.168.7.146:4222"])
+    topic = "io.etherlabs.ether.keyphrase_service.instanceID.extract_keyphrases"
+    await nc.connect(servers=[nats_url])
     test_json = read_json(single_json_file)
     await nc.request(topic, json.dumps(test_json).encode())
     # await nc.flush()
@@ -18,8 +24,8 @@ async def publish_keyphrase():
 
 async def publish_chapter_keyphrase():
     nc = NATS()
-    topic = "io.etherlabs.ether.keyphrase_service.extract_keyphrases"
-    await nc.connect(servers=["nats://192.168.7.146:4222"])
+    topic = "io.etherlabs.ether.keyphrase_service.instanceID.extract_keyphrases"
+    await nc.connect(servers=[nats_url])
     test_json = read_json(multi_json_file)
     await nc.request(topic, json.dumps(test_json).encode())
     # await nc.flush()
@@ -27,8 +33,8 @@ async def publish_chapter_keyphrase():
 
 async def publish_instance_keyphrase():
     nc = NATS()
-    topic = "io.etherlabs.ether.keyphrase_service.keyphrases_for_context_instance"
-    await nc.connect(servers=["nats://192.168.7.146:4222"])
+    topic = "io.etherlabs.ether.keyphrase_service.instanceID.keyphrases_for_context_instance"
+    await nc.connect(servers=[nats_url])
     test_json = read_json(multi_json_file)
     await nc.request(topic, json.dumps(test_json).encode())
     # await nc.flush()
@@ -38,7 +44,7 @@ async def publish_instance_keyphrase():
 async def reset_keyphrase():
     nc = NATS()
     topic = "io.etherlabs.ether.keyphrase_service.reset_keyphrases"
-    await nc.connect(servers=["nats://192.168.7.146:4222"])
+    await nc.connect(servers=[nats_url])
     test_json = read_json(multi_json_file)
     await nc.request(topic, json.dumps(test_json).encode())
     # await nc.flush()
@@ -54,7 +60,9 @@ def read_json(json_file):
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='topic arguments for keyphrase_service')
     parser.add_argument("--topics", type=str, default="pub_chapter", help="publish keyphrase graph")
+    parser.add_argument("--nats_url", type=str, default=NATS_URL, help="nats server url")
     args = parser.parse_args()
+    nats_url = args.nats_url
 
     asyncio.set_event_loop_policy(uvloop.EventLoopPolicy())
     loop = asyncio.get_event_loop()

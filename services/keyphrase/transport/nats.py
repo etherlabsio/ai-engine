@@ -18,10 +18,15 @@ class NATSTransport:
         self.url = url
         self.subscriptions = []
         self.queueName = "io.etherlabs.ether.keyphrase_service"
+        self.topics = [
+            "io.etherlabs.ether.keyphrase_service.*.extract_keyphrases",
+            "io.etherlabs.ether.keyphrase_service.*.keyphrases_for_context_instance",
+            "io.etherlabs.ether.keyphrase_service.reset_keyphrases"
+        ]
         self.subscription_handlers = {
-            "io.etherlabs.ether.keyphrase_service.*.extract_keyphrases": self.extract_segment_keyphrases,
-            "io.etherlabs.ether.keyphrase_service.*.keyphrases_for_context_instance": self.extract_instance_keyphrases,
-            "io.etherlabs.ether.keyphrase_service.reset_keyphrases": self.reset_keyphrases,
+            "extract_keyphrases": self.extract_segment_keyphrases,
+            "keyphrases_for_context_instance": self.extract_instance_keyphrases,
+            "reset_keyphrases": self.reset_keyphrases,
         }
 
     async def close(self):
@@ -57,7 +62,7 @@ class NATSTransport:
         log.info("connected to nats server", url=self.url)
 
     async def subscribe(self):
-        for topic in self.subscription_handlers:
+        for topic in self.topics:
             sid = await self.nc.subscribe(topic, self.queueName, self.message_handler)
             self.subscriptions.append(sid)
 
@@ -66,7 +71,9 @@ class NATSTransport:
             subject = msg.subject
             reply = msg.reply
             log.info("received nats message", subject=subject, reply=reply, data=msg.data)
-            handle = self.subscription_handlers[subject]
+            topic_function = subject.split('.')[-1]
+
+            handle = self.subscription_handlers[str(topic_function)]
             await handle(msg)
             # log.info("Reached here ...")
         except Exception as e:
@@ -112,4 +119,3 @@ class NATSTransport:
         output = kpe.reset_keyphrase_graph(request)
         await self.nc.publish(msg.reply, json.dumps(output).encode())
         pass
-    

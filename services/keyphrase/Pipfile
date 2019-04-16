@@ -19,6 +19,7 @@ sklearn = "*"
 spacy = "*"
 nltk = "*"
 networkx = "*"
+python-dotenv = "*"
 
 [dev-packages]
 pylint = "*"
