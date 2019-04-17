@@ -23,10 +23,10 @@ def run_nats_listener(args):
 
     def shutdown():
         log.info("received interrupt; shutting down")
-        loop.create_task(n.close())
+        loop.create_task(n.close_connection())
 
     loop.run_until_complete(n.connect())
-    loop.run_until_complete(n.subscribe())
+    loop.run_until_complete(n.context_subscribe())
 
     for sig in [signal.SIGTERM, signal.SIGINT]:
         loop.add_signal_handler(sig, shutdown)
