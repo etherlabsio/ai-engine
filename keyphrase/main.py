@@ -16,7 +16,6 @@ DEFAULT_ENV = os.getenv("DEF_ENV")
 
 log = structlog.getLogger(__name__)
 
-
 def run_nats_listener(args):
     loop = asyncio.get_event_loop()
     n = NATSTransport(loop, url=args.nats_url)
@@ -30,12 +29,10 @@ def run_nats_listener(args):
 
     for sig in [signal.SIGTERM, signal.SIGINT]:
         loop.add_signal_handler(sig, shutdown)
-
     try:
         loop.run_forever()
     finally:
         loop.close()
-
 
 def run_http_server():
     loop = asyncio.get_event_loop()

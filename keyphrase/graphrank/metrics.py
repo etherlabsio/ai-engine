@@ -3,7 +3,6 @@ import logging
 
 logger = logging.getLogger(__name__)
 
-
 class GraphSolvers(object):
     """
     Class for computing various graph properties

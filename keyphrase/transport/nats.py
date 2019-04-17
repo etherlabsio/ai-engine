@@ -10,7 +10,6 @@ from graphrank import extract_keyphrases as kpe
 
 log = structlog.getLogger(__name__)
 
-
 class NATSTransport:
     def __init__(self, loop, subHandlers={}, url="nats://localhost:4222"):
         self.nc = NATS()

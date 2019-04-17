@@ -203,34 +203,23 @@ def compute_keyphrases(req_data):
 
     logger.info("Number of nodes: {}; Number of edges: {}".format(meeting_graph.number_of_nodes(), meeting_graph.number_of_edges()))
     keyphrase_list = get_custom_keyphrases(graph=meeting_graph)
-
     return keyphrase_list
 
 
 def get_pim_keyphrases(req_data, n_kw=5):
     keyphrase_list = compute_keyphrases(req_data)
     segment_keyphrases = segment_search(input_json=req_data, keyphrase_list=keyphrase_list, top_n=n_kw)
-
     return segment_keyphrases
-
 
 def get_chapter_keyphrases(req_data, n_kw=5):
     keyphrase_list = compute_keyphrases(req_data)
     chapter_keyphrases = chapter_segment_search(input_json=req_data, keyphrase_list=keyphrase_list, top_n=n_kw)
-
     return chapter_keyphrases
-
 
 def get_instance_keyphrases(req_data, n_kw=5):
     keyphrase_list = compute_keyphrases(req_data)
     instance_keyphrases = [words for words, score in keyphrase_list]
-
-    result = {
-            'keyphrases': instance_keyphrases[:n_kw]
-    }
-
-    return result
-
+    return { "keyphrases": instance_keyphrases[:n_kw] }
 
 def reset_keyphrase_graph(req_data):
     logger.info(
