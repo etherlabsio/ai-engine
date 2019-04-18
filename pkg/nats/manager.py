@@ -27,6 +27,7 @@ class Manager:
         async def closed_cb():
             log.info("connection to NATS is closed.")
             await asyncio.sleep(0.1, loop=loop)
+            self.loop.stop()
 
         async def reconnected_cb():
             log.info("connected to NATS at {}...".format(self.conn.connected_url.netloc))
@@ -54,19 +55,18 @@ class Manager:
         self.subscriptions[topic] = sid
 
     async def unsubscribe(self, topic):
-        if not self.subscriptions.has_key(topic):
-            pass
-        sid = self.subscriptions.get(topic)
-        await self.conn.unsubscribe(sid)
-        self.subscriptions.pop(topic)
+        if topic in self.subscriptions.keys():
+            sid = self.subscriptions.get(topic)
+            await self.conn.unsubscribe(sid)
+            self.subscriptions.pop(topic)
 
-    async def message_handler(self, cb):
+    def message_handler(self, cb):
         async def handle(msg):
             try:
                 subject = msg.subject
                 reply = msg.reply
                 log.info("received nats message", subject=subject, reply=reply, data=msg.data)
-                await cb(self, msg)
+                await cb(msg)
             except Exception as e:
                 send = self.conn.publish
                 if  reply:
