@@ -3,6 +3,8 @@ import sys
 from datetime import datetime
 from pythonjsonlogger import jsonlogger
 
+# usage: in each file import the logging package and call logger = logging.getLogger()
+
 class CustomJsonFormatter(jsonlogger.JsonFormatter):
     def add_fields(self, log_record, record, message_dict):
         super(CustomJsonFormatter, self).add_fields(log_record, record, message_dict)
