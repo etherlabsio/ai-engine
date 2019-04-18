@@ -66,7 +66,7 @@ class Manager:
                 subject = msg.subject
                 reply = msg.reply
                 log.info("received nats message", subject=subject, reply=reply, data=msg.data)
-                await cb(msg)
+                await cb(self, msg)
             except Exception as e:
                 send = self.conn.publish
                 if  reply:

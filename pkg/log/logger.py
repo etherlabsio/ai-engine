@@ -10,34 +10,30 @@ class CustomJsonFormatter(jsonlogger.JsonFormatter):
             # this doesn't use record.created, so it is slightly off
             now = datetime.utcnow().strftime('%Y-%m-%dT%H:%M:%S.%fZ')
             log_record['timestamp'] = now
+
         if log_record.get('level'):
             log_record['level'] = log_record['level'].lower()
         else:
             log_record['level'] = record.levelname.lower()
-        if log_record.get('message'):
-            log_record['message'] = log_record['message'] or log_record['msg']
 
-def new_server_logger():
+    def process_log_record(self, log_record):
+        log_record['ts'] = log_record.pop('timestamp', None)
+
+        msg  = log_record.pop('message', None)
+        if msg is not None:
+            log_record['msg'] = msg
+
+        return jsonlogger.JsonFormatter.process_log_record(self, log_record)
+
+def setup_server_logger(debug=False, dest=sys.stdout):
     l = logging.getLogger()
 
-    logHandler = logging.StreamHandler(sys.stdout)
-    formatter = CustomJsonFormatter('(timestamp) (level) (message)')
+    logHandler = logging.StreamHandler(dest)
+    formatter = CustomJsonFormatter('(timestamp) (level) (filename) (lineno) (module) (message)')
     logHandler.setFormatter(formatter)
     l.addHandler(logHandler)
-    l.setLevel("INFO")
-    return l
 
-
-if __name__ == '__main__':
-    l = new_server_logger()
-    l.info({
-        "message": "looks like it's going well"
-    })
-
-    logging.getLogger().info({
-        "test":"me"
-    })
-
-    logging.getLogger().error("this is a debug test", extra={
-        "test": 1234
-    })
+    if debug:
+        l.setLevel("DEBUG")
+    else:
+        l.setLevel("INFO")
