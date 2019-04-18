@@ -4,12 +4,11 @@ from nats.aio.errors import ErrTimeout, ErrNoServers
 from nats.aio.utils import new_inbox
 import signal
 import json
-import structlog
+import logging
 
 from graphrank import extract_keyphrases as kpe
 
-log = structlog.getLogger(__name__)
-
+log = logging.getLogger(__name__)
 
 class NATSTransport:
     def __init__(self, loop, subHandlers={}, url="nats://localhost:4222"):
