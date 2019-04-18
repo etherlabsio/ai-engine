@@ -18,7 +18,8 @@ class Manager:
     async def close(self):
         for subject, sid in self.subscriptions.items():
             log.info("flushing nats sub", id=sid)
-            await self.conn.unsubscribe(sid)
+            if self.conn.is_connected:
+                await self.conn.unsubscribe(sid)
         await self.conn.drain()
 
     async def connect(self):
@@ -27,6 +28,7 @@ class Manager:
         async def closed_cb():
             log.info("connection to NATS is closed.")
             await asyncio.sleep(0.1, loop=loop)
+            loop.stop()
 
         async def reconnected_cb():
             log.info("connected to NATS at {}...".format(self.conn.connected_url.netloc))
@@ -48,19 +50,21 @@ class Manager:
     async def subscribe(self, topic, handler, queued=True):
         sid = None
         if queued is True:
-            sid = await self.conn.subscribe(topic, self.queueName, self.message_handler(handler))
+            sid = await self.conn.subscribe(topic, queue=self.queueName, cb=self.message_handler(cb=handler))
         else:
             sid = await self.conn.subscribe(topic, cb=self.message_handler(handler))
         self.subscriptions[topic] = sid
+        log.info('subscriptions', sub=self.subscriptions)
 
     async def unsubscribe(self, topic):
-        if not self.subscriptions.has_key(topic):
-            pass
-        sid = self.subscriptions.get(topic)
-        await self.conn.unsubscribe(sid)
-        self.subscriptions.pop(topic)
+        if topic in self.subscriptions.keys():
+            sid = self.subscriptions.get(topic)
+            await self.conn.unsubscribe(sid)
+            self.subscriptions.pop(topic)
+        else:
+            log.info("Topic not found in the subscription list", topic=topic)
 
-    async def message_handler(self, cb):
+    def message_handler(self, cb):
         async def handle(msg):
             try:
                 subject = msg.subject
@@ -69,7 +73,7 @@ class Manager:
                 await cb(msg)
             except Exception as e:
                 send = self.conn.publish
-                if  reply:
+                if reply:
                     send = self.conn.reply
                 await send(msg.reply, json.dumps({
                     "error": {

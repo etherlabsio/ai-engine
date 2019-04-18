@@ -1,5 +1,5 @@
 from transport.http import app
-from transport.nats import NATSTransport
+from transport.nats_service import NATSHandler
 import threading
 import asyncio
 import uvloop
@@ -10,6 +10,9 @@ import structlog
 from dotenv import load_dotenv
 load_dotenv()
 
+import os, sys
+sys.path.insert(0, '/opt/app/pkg/')
+
 ACTIVE_ENV = os.getenv("ACTIVE_ENV")
 NATS_URL = os.getenv("NATS_URL")
 DEFAULT_ENV = os.getenv("DEF_ENV")
@@ -19,14 +22,15 @@ log = structlog.getLogger(__name__)
 
 def run_nats_listener(args):
     loop = asyncio.get_event_loop()
-    n = NATSTransport(loop, url=args.nats_url)
+    # n = NATSTransport(loop, url=args.nats_url)
+    n = NATSHandler(loop, args.nats_url)
 
     def shutdown():
         log.info("received interrupt; shutting down")
-        loop.create_task(n.close_connection())
+        loop.create_task(n.nats_manager.close())
 
-    loop.run_until_complete(n.connect())
-    loop.run_until_complete(n.context_subscribe())
+    loop.run_until_complete(n.nats_manager.connect())
+    loop.run_until_complete(n.subscribe_context())
 
     for sig in [signal.SIGTERM, signal.SIGINT]:
         loop.add_signal_handler(sig, shutdown)

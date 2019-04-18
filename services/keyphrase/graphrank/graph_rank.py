@@ -21,7 +21,7 @@ class GraphRank(object):
         # Store the original text and maintain the context flow to extend the graph.
         self.context = []
 
-        # Load common word list
+        # Load pkg word list
         root_dir = os.getcwd()
         local_file = os.path.realpath(os.path.join(root_dir, os.path.dirname(__file__)))
 

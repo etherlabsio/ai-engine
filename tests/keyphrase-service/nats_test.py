@@ -61,7 +61,7 @@ async def create_context():
         "state": "created"
     }
     await nc.publish(topic, json.dumps(resp).encode())
-    await start_context()
+    # await start_context()
     # await nc.flush()
     pass
 
