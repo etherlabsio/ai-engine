@@ -106,3 +106,4 @@ venv.bak/
 # os related
 .DS_Store
 .idea/
+notebooks/
