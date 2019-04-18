@@ -15,14 +15,14 @@ RUN apt-get update && \
 RUN mkdir /opt/app
 WORKDIR /opt/app
 
-COPY Pipfile Pipfile
-COPY Pipfile.lock Pipfile.lock
+COPY services/keyphrase/Pipfile Pipfile
+COPY services/keyphrase/Pipfile.lock Pipfile.lock
 
 RUN pip install virtualenv --upgrade
 RUN pip install pipenv --upgrade
 RUN pip install wheel --upgrade
 RUN set -ex && pipenv --python 3.7
-RUN pipenv install -v --system --skip-lock
+RUN pipenv install -v --system
 RUN python3.7 -m spacy download en_core_web_sm && python3.7 -m spacy download en
 
 # Download NLTK data
@@ -30,8 +30,9 @@ RUN python3.7 -c "import nltk; nltk.download('punkt')"
 RUN python3.7 -c "import nltk; nltk.download('stopwords')"
 RUN python3.7 -c "import nltk; nltk.download('averaged_perceptron_tagger')"
 
-COPY . .
+COPY services/ /services/
+COPY pkg /common/
 
-ENTRYPOINT ["python", "main.py"]
+ENTRYPOINT ["python", "services/keyphrase/main.py"]
 CMD []
 # EXPOSE 8080
