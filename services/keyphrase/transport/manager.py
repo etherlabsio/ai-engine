@@ -54,7 +54,6 @@ class Manager:
         else:
             sid = await self.conn.subscribe(topic, cb=self.message_handler(handler))
         self.subscriptions[topic] = sid
-        log.info('subscriptions', sub=self.subscriptions)
 
     async def unsubscribe(self, topic):
         if topic in self.subscriptions.keys():

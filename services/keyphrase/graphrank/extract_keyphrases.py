@@ -2,7 +2,7 @@ import pandas as pd
 from datetime import datetime
 import iso8601
 import time
-
+import networkx as nx
 import spacy
 from spacy.lang.en.stop_words import STOP_WORDS
 from sanic.log import logger
@@ -18,6 +18,7 @@ class ExtractKeyphrase(object):
         self.gr = GraphRank()
         self.tp = TextPreprocess()
         self.gutils = GraphUtils()
+        self.meeting_graph = nx.Graph()
 
     def formatTime(self, tz_time):
         isoTime = iso8601.parse_date(tz_time)
@@ -57,12 +58,12 @@ class ExtractKeyphrase(object):
 
     def build_custom_graph(self, text_list, window=4, preserve_common_words=False, syntactic_filter=None):
 
-        meeting_graph = []
+        # meeting_graph = []
         for i in range(len(text_list)):
             text = text_list[i]
             try:
                 original_tokens, pos_tuple, filtered_pos_tuple = self.process_text(text)
-                meeting_graph = self.gr.build_word_graph(input_pos_text=filtered_pos_tuple,
+                self.meeting_graph = self.gr.build_word_graph(input_pos_text=filtered_pos_tuple,
                                                          original_tokens=original_tokens,
                                                          window=window,
                                                          syntactic_filter=syntactic_filter,
@@ -70,7 +71,7 @@ class ExtractKeyphrase(object):
             except Exception as e:
                 logger.error("Could not process the sentence: ErrorMsg: {}".format(e))
 
-        return meeting_graph
+        # return self.meeting_graph
 
     def get_custom_keyphrases(self, graph,
                               pos_tuple=None,
@@ -89,6 +90,31 @@ class ExtractKeyphrase(object):
                                             normalize_score=normalize_score)
 
         return keyphrases
+
+    def get_entities(self, input_segment):
+        spacy_list = ["PRODUCT", "EVENT", "LOC", "ORG", "PERSON", "WORK_OF_ART"]
+        comprehend_list = ["COMMERCIAL_ITEM", "EVENT", "LOCATION", "ORGANIZATION", "PERSON", "TITLE"]
+        match_dict = dict(zip(spacy_list, comprehend_list))
+
+        doc = self.nlp(input_segment)
+        t_noun_chunks = list(set(list(doc.noun_chunks)))
+        filtered_entities = []
+        t_ner_type = []
+
+        for ent in list(set(doc.ents)):
+            t_type = ent.label_
+            if t_type in list(match_dict) and str(ent) not in filtered_entities:
+                t_ner_type.append(match_dict[t_type])
+                filtered_entities.append(str(ent))
+        t_noun_chunks = [str(item).strip().lower() for item in t_noun_chunks]
+
+        # remove stop words from noun_chunks/NERs
+        t_noun_chunks = list(set(t_noun_chunks) - set(self.stop_words))
+        entity_dict = []
+        for entt in list(zip(filtered_entities, t_ner_type)):
+            entity_dict.append({'text': str(entt[0]), 'type': entt[1]})
+
+        return entity_dict
 
     def segment_search(self, input_json, keyphrase_list, top_n=None):
         """
@@ -140,6 +166,7 @@ class ExtractKeyphrase(object):
 
         """
         chapter_keywords_list = []
+        chapter_entities = []
         for i in range(len(input_json['segments'])):
             input_segment = input_json['segments'][i].get('originalText').lower()
             for tup in keyphrase_list:
@@ -150,6 +177,8 @@ class ExtractKeyphrase(object):
                 if result > -1:
                     chapter_keywords_list.append((kw, score))
 
+            chapter_entities = self.get_entities(input_segment)
+
         sort_list = self.gutils.sort_by_value(chapter_keywords_list, order='desc')
         if top_n is not None:
             sort_list = sort_list[:top_n]
@@ -158,45 +187,28 @@ class ExtractKeyphrase(object):
         # input_json['segments'][i]['Filtered_Keys'] = segment_keyword_list
 
         result = {
-            'keyphrases': chapter_keyphrases
+            'keyphrases': chapter_keyphrases,
+            'entities': chapter_entities
         }
 
         return result
 
-    def get_entities(self, input_segment):
-        spacy_list = ["PRODUCT", "EVENT", "LOC", "ORG", "PERSON", "WORK_OF_ART"]
-        comprehend_list = ["COMMERCIAL_ITEM", "EVENT", "LOCATION", "ORGANIZATION", "PERSON", "TITLE"]
-        match_dict = dict(zip(spacy_list, comprehend_list))
-
-        doc = self.nlp(input_segment)
-        t_noun_chunks = list(set(list(doc.noun_chunks)))
-        filtered_entities = []
-        t_ner_type = []
-
-        for ent in list(set(doc.ents)):
-            t_type = ent.label_
-            if t_type in list(match_dict) and str(ent) not in filtered_entities:
-                t_ner_type.append(match_dict[t_type])
-                filtered_entities.append(str(ent))
-        t_noun_chunks = [str(item).strip().lower() for item in t_noun_chunks]
-
-        # remove stop words from noun_chunks/NERs
-        t_noun_chunks = list(set(t_noun_chunks) - set(self.stop_words))
-        entity_dict = []
-        for entt in list(zip(filtered_entities, t_ner_type)):
-            entity_dict.append({'text': str(entt[0]), 'type': entt[1]})
-
-        return entity_dict
-
-    def compute_keyphrases(self, req_data):
+    def populate_word_graph(self, req_data):
         segment_df = self.reformat_input(req_data)
 
         text_list = self.read_segments(segment_df=segment_df)
-        meeting_graph = self.build_custom_graph(text_list=text_list)
+        self.build_custom_graph(text_list=text_list)
 
-        logger.info("Number of nodes: {}; Number of edges: {}".format(meeting_graph.number_of_nodes(),
-                                                                      meeting_graph.number_of_edges()))
-        keyphrase_list = self.get_custom_keyphrases(graph=meeting_graph)
+        logger.info("Number of nodes: {}; Number of edges: {}".format(self.meeting_graph.number_of_nodes(),
+                                                                      self.meeting_graph.number_of_edges()))
+
+    def compute_keyphrases(self, req_data):
+        self.populate_word_graph(req_data)
+        keyphrase_list = []
+        try:
+            keyphrase_list = self.get_custom_keyphrases(graph=self.meeting_graph)
+        except Exception as e:
+            logger.error("ErrorMsg: {}".format(e))
 
         return keyphrase_list
 

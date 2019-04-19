@@ -7,17 +7,15 @@ import os
 import argparse
 import signal
 import structlog
-from dotenv import load_dotenv
-load_dotenv()
 
-import os, sys
-sys.path.insert(0, '/opt/app/pkg/')
+import settings
 
-ACTIVE_ENV = os.getenv("ACTIVE_ENV")
-NATS_URL = os.getenv("NATS_URL")
-DEFAULT_ENV = os.getenv("DEF_ENV")
 
 log = structlog.getLogger(__name__)
+
+NATS_URL = settings.NATS_URL
+ACTIVE_ENV = settings.ACTIVE_ENV
+DEFAULT_ENV = settings.DEFAULT_ENV
 
 
 def run_nats_listener(args):
