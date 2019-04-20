@@ -153,7 +153,7 @@ class ExtractKeyphrase(object):
             }
             result_list.append(result)
 
-        return result_list
+        return result
 
     def chapter_segment_search(self, input_json, keyphrase_list, top_n=None):
         """

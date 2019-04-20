@@ -16,7 +16,7 @@ DEFAULT_ENV = os.getenv("DEF_ENV")
 
 async def publish_keyphrase():
     nc = NATS()
-    topic = "io.etherlabs.ether.keyphrase_service.in5627.extract_keyphrases"
+    topic = "keyphrase_service.in5627.extract_keyphrases"
     await nc.connect(servers=[nats_url])
     test_json = read_json(single_json_file)
     await nc.request(topic, json.dumps(test_json).encode())
@@ -26,7 +26,7 @@ async def publish_keyphrase():
 
 async def publish_chapter_keyphrase():
     nc = NATS()
-    topic = "io.etherlabs.ether.keyphrase_service.in5627.extract_keyphrases"
+    topic = "keyphrase_service.in5627.extract_keyphrases"
     await nc.connect(servers=[nats_url])
     test_json = read_json(multi_json_file)
     await nc.request(topic, json.dumps(test_json).encode())
@@ -36,7 +36,7 @@ async def publish_chapter_keyphrase():
 
 async def publish_instance_keyphrase():
     nc = NATS()
-    topic = "io.etherlabs.ether.keyphrase_service.in5627.keyphrases_for_context_instance"
+    topic = "keyphrase_service.in5627.keyphrases_for_context_instance"
     await nc.connect(servers=[nats_url])
     test_json = read_json(multi_json_file)
     await nc.request(topic, json.dumps(test_json).encode())
