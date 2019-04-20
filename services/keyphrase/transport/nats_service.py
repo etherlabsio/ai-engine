@@ -22,8 +22,8 @@ class CallbackHandler(object):
             "context.instance.*.started": self.context_start_handler,
             "context.instance.*.context_changed": self.context_change_handler,
             "context.instance.*.ended": self.context_end_handler,
-            "io.etherlabs.ether.keyphrase_service.*.extract_keyphrases": self.extract_segment_keyphrases,
-            "io.etherlabs.ether.keyphrase_service.*.keyphrases_for_context_instance": self.extract_instance_keyphrases,
+            "keyphrase_service.*.extract_keyphrases": self.extract_segment_keyphrases,
+            "keyphrase_service.*.keyphrases_for_context_instance": self.extract_instance_keyphrases,
             "context.instance.*.add_segments": self.populate_graph
         }
         self.context_subscriptions = {}
