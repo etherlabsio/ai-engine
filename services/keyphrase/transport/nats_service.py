@@ -72,16 +72,10 @@ class CallbackHandler(object):
     async def extract_segment_keyphrases(self, msg):
         request = json.loads(msg.data)
 
-        segments_array = request['segments']
-
-        # Decide between PIM or Chapter keyphrases
-        if len(segments_array) > 1:
-            log.info("Publishing Chapter Keyphrases")
-            output = self.kpe.get_chapter_keyphrases(request)
-        else:
-            log.info("Publishing PIM Keyphrases")
-            output = self.kpe.get_pim_keyphrases(request)
+        output = self.kpe.get_keyphrases(request)
         log.info("Output : {}".format(output))
+        output_json = json.dumps(output).encode()
+        log.info("Output in json: {}".format(output_json))
         await self.nc.publish(msg.reply, json.dumps(output).encode())
         pass
 
