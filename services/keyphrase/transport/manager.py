@@ -3,12 +3,17 @@ from nats.aio.client import Client as NATS
 from nats.aio.errors import ErrTimeout, ErrNoServers
 import signal
 import json
-import structlog
+import logging
 
-log = structlog.getLogger(__name__)
+log = logging.getLogger(__name__)
+
 
 class Manager:
-    def __init__(self, loop, queueName, url="nats://docker.for.mac.localhost:4222", nc=NATS()):
+    def __init__(self,
+                 loop,
+                 queueName,
+                 url="nats://docker.for.mac.localhost:4222",
+                 nc=NATS()):
         self.conn = nc
         self.loop = loop
         self.url = url
@@ -31,7 +36,8 @@ class Manager:
             loop.stop()
 
         async def reconnected_cb():
-            log.info("connected to NATS at {}...".format(self.conn.connected_url.netloc))
+            log.info("connected to NATS at {}...".format(
+                self.conn.connected_url.netloc))
 
         options = {
             "io_loop": loop,
@@ -50,9 +56,13 @@ class Manager:
     async def subscribe(self, topic, handler, queued=True):
         sid = None
         if queued is True:
-            sid = await self.conn.subscribe(topic, queue=self.queueName, cb=self.message_handler(cb=handler))
+            sid = await self.conn.subscribe(
+                topic,
+                queue=self.queueName,
+                cb=self.message_handler(cb=handler))
         else:
-            sid = await self.conn.subscribe(topic, cb=self.message_handler(handler))
+            sid = await self.conn.subscribe(topic,
+                                            cb=self.message_handler(handler))
         self.subscriptions[topic] = sid
 
     async def unsubscribe(self, topic):
@@ -68,19 +78,27 @@ class Manager:
             try:
                 subject = msg.subject
                 reply = msg.reply
-                log.info("received nats message", subject=subject, reply=reply, data=msg.data)
+                log.info("received nats message",
+                         subject=subject,
+                         reply=reply,
+                         data=msg.data)
                 await cb(msg)
             except Exception as e:
                 send = self.conn.publish
                 if reply:
                     send = self.conn.reply
-                await send(msg.reply, json.dumps({
-                    "error": {
-                        "code": 0,
-                        "message": "process message failure",
-                        "cause": str(e)
-                    }
-                }).encode())
-                log.error("failed to process message", subject=msg.subject, data=msg.data, err=e)
+                await send(
+                    msg.reply,
+                    json.dumps({
+                        "error": {
+                            "code": 0,
+                            "message": "process message failure",
+                            "cause": str(e)
+                        }
+                    }).encode())
+                log.error("failed to process message",
+                          subject=msg.subject,
+                          data=msg.data,
+                          err=e)
 
         return handle

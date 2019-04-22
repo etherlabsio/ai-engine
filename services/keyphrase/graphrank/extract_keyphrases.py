@@ -10,8 +10,7 @@ from sanic.log import logger
 from .graph_rank import GraphRank
 from .utils import TextPreprocess, GraphUtils
 
-
-class ExtractKeyphrase(object):
+class KeyphraseExtractor(object):
     def __init__(self):
         self.stop_words = list(STOP_WORDS)
         self.nlp = spacy.load('en_core_web_sm')
