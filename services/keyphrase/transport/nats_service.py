@@ -75,7 +75,6 @@ class CallbackHandler(object):
         output = self.kpe.get_keyphrases(request)
         log.info("Output : {}".format(output))
         output_json = json.dumps(output).encode()
-        log.info("Output in json: {}".format(output_json))
         await self.nc.publish(msg.reply, json.dumps(output).encode())
         pass
 
@@ -84,7 +83,6 @@ class CallbackHandler(object):
 
         log.info("Publishing Instance Keyphrases")
         output = self.kpe.get_instance_keyphrases(request)
-        log.info("Output : {}".format(output))
         await self.nc.publish(msg.reply, json.dumps(output).encode())
         pass
 
@@ -93,7 +91,6 @@ class CallbackHandler(object):
 
         log.info("Resetting keyphrases graph ...")
         output = self.kpe.reset_keyphrase_graph(request)
-        log.info("output", out=json.dumps(output).encode())
         await self.nc.publish(msg, json.dumps(output).encode())
         pass
 
