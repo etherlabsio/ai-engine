@@ -3,14 +3,13 @@ import re
 from nltk.corpus import stopwords
 import spacy, nltk
 from nltk.stem import WordNetLemmatizer
-import en_core_web_sm
 
 # try:
 #     nltk.data.find('wordnet')
 # except LookupError:
 #     nltk.download('wordnet')
 
-nlp = en_core_web_sm.load()
+nlp = spacy.load('pkg/en_core_web_sm/en_core_web_sm-2.1.0')
 
 try:
     stop_words_nltk = stopwords.words('english')
