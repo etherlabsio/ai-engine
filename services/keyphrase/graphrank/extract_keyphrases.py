@@ -114,7 +114,7 @@ class ExtractKeyphrase(object):
         for entt in list(zip(filtered_entities, t_ner_type)):
             entity_dict.append({'text': str(entt[0]), 'type': entt[1]})
 
-        return entity_dict
+        return filtered_entities
 
     def segment_search(self, input_json, keyphrase_list, top_n=None):
         """
@@ -127,6 +127,7 @@ class ExtractKeyphrase(object):
 
         """
         result_list = []
+        result = {}
         for i in range(len(input_json['segments'])):
             sort_list = []
             input_segment = input_json['segments'][i].get('originalText').lower()
@@ -146,14 +147,13 @@ class ExtractKeyphrase(object):
             segment_keyword_list = [words for words, score in sort_list]
             # input_json['segments'][i]['Filtered_Keys'] = segment_keyword_list
             segment_entity = self.get_entities(input_segment)
-
+            segment_keyword_list.extend(segment_entity)
             result = {
-                'keyphrases': segment_keyword_list,
-                'entities': segment_entity
+                "keyphrases": segment_keyword_list
             }
             result_list.append(result)
 
-        return result_list
+        return result
 
     def chapter_segment_search(self, input_json, keyphrase_list, top_n=None):
         """
@@ -186,9 +186,9 @@ class ExtractKeyphrase(object):
         chapter_keyphrases = [phrases for phrases, score in sort_list]
         # input_json['segments'][i]['Filtered_Keys'] = segment_keyword_list
 
+        chapter_keyphrases.extend(chapter_entities)
         result = {
-            'keyphrases': chapter_keyphrases,
-            'entities': chapter_entities
+            "keyphrases": chapter_keyphrases
         }
 
         return result
@@ -203,7 +203,7 @@ class ExtractKeyphrase(object):
                                                                       self.meeting_graph.number_of_edges()))
 
     def compute_keyphrases(self, req_data):
-        self.populate_word_graph(req_data)
+        # self.populate_word_graph(req_data)
         keyphrase_list = []
         try:
             keyphrase_list = self.get_custom_keyphrases(graph=self.meeting_graph)
@@ -212,24 +212,37 @@ class ExtractKeyphrase(object):
 
         return keyphrase_list
 
-    def get_pim_keyphrases(self, req_data, n_kw=5):
+    def _get_pim_keyphrases(self, req_data, n_kw=5):
         keyphrase_list = self.compute_keyphrases(req_data)
         segment_keyphrases = self.segment_search(input_json=req_data, keyphrase_list=keyphrase_list, top_n=n_kw)
 
         return segment_keyphrases
 
-    def get_chapter_keyphrases(self, req_data, n_kw=5):
+    def _get_chapter_keyphrases(self, req_data, n_kw=5):
         keyphrase_list = self.compute_keyphrases(req_data)
         chapter_keyphrases = self.chapter_segment_search(input_json=req_data, keyphrase_list=keyphrase_list, top_n=n_kw)
 
         return chapter_keyphrases
+
+    def get_keyphrases(self, req_data, n_kw=5):
+        segments_array = req_data['segments']
+
+        # Decide between PIM or Chapter keyphrases
+        if len(segments_array) > 1:
+            logger.info("Publishing Chapter Keyphrases")
+            keyphrases = self._get_chapter_keyphrases(req_data, n_kw=n_kw)
+        else:
+            logger.info("Publishing PIM Keyphrases")
+            keyphrases = self._get_pim_keyphrases(req_data, n_kw=n_kw)
+
+        return keyphrases
 
     def get_instance_keyphrases(self, req_data, n_kw=5):
         keyphrase_list = self.compute_keyphrases(req_data)
         instance_keyphrases = [words for words, score in keyphrase_list]
 
         result = {
-            'keyphrases': instance_keyphrases[:n_kw]
+            "keyphrases": instance_keyphrases[:n_kw]
         }
 
         return result

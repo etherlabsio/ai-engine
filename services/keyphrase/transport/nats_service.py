@@ -72,16 +72,9 @@ class CallbackHandler(object):
     async def extract_segment_keyphrases(self, msg):
         request = json.loads(msg.data)
 
-        segments_array = request['segments']
-
-        # Decide between PIM or Chapter keyphrases
-        if len(segments_array) > 1:
-            log.info("Publishing Chapter Keyphrases")
-            output = self.kpe.get_chapter_keyphrases(request)
-        else:
-            log.info("Publishing PIM Keyphrases")
-            output = self.kpe.get_pim_keyphrases(request)
+        output = self.kpe.get_keyphrases(request)
         log.info("Output : {}".format(output))
+        output_json = json.dumps(output).encode()
         await self.nc.publish(msg.reply, json.dumps(output).encode())
         pass
 
@@ -90,7 +83,6 @@ class CallbackHandler(object):
 
         log.info("Publishing Instance Keyphrases")
         output = self.kpe.get_instance_keyphrases(request)
-        log.info("Output : {}".format(output))
         await self.nc.publish(msg.reply, json.dumps(output).encode())
         pass
 
@@ -99,7 +91,6 @@ class CallbackHandler(object):
 
         log.info("Resetting keyphrases graph ...")
         output = self.kpe.reset_keyphrase_graph(request)
-        log.info("output", out=json.dumps(output).encode())
         await self.nc.publish(msg, json.dumps(output).encode())
         pass
 
