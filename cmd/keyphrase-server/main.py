@@ -41,7 +41,7 @@ def run_nats_listener(args):
 
 def run_http_server():
     loop = asyncio.get_event_loop()
-    app.run(host='0.0.0.0', port=8080)
+    app.run(host='0.0.0.0', port=7070)
 
 
 if __name__ == '__main__':

@@ -7,13 +7,13 @@ nltk.data.path.append('pkg/nltk_data/')
 
 try:
     #nltk.data.find('pkg/nltk_data/tokenizers/punkt')
-    nltk.data.find('tokenizers/punkt/english.pickle')
+    nltk.data.find('tokenizers/punkt/PY3/english.pickle')
 except LookupError:
      nltk.download('punkt')
 
 
 #sent_detector = nltk.data.load('pkg/nltk_data/tokenizers/punkt/english.pickle')
-nltk.data.load('tokenizers/punkt/english.pickle')
+sent_detector = nltk.data.load('tokenizers/punkt/PY3/english.pickle')
 
 
 def preprocess(text, lemma=False, stop_words=True, word_tokenize=False, \
