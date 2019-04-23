@@ -23,7 +23,7 @@ if __name__ == '__main__':
 
     nats_manager = Manager(loop=loop,
                            url=nats_url,
-                           queueName="io.etherlabs.keyphrase.ether_service")
+                           queue_name="io.etherlabs.keyphrase.ether_service")
     nats_transport = NATSTransport(
         nats_manager=nats_manager,
         keyphrase_service=keyphrase_extractor,

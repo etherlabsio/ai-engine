@@ -5,6 +5,7 @@ from pythonjsonlogger import jsonlogger
 
 # usage: in each file import the logging package and call logger = logging.getLogger()
 
+
 class CustomJsonFormatter(jsonlogger.JsonFormatter):
     def add_fields(self, log_record, record, message_dict):
         super(CustomJsonFormatter, self).add_fields(log_record, record, message_dict)
@@ -26,6 +27,7 @@ class CustomJsonFormatter(jsonlogger.JsonFormatter):
             log_record['msg'] = msg
 
         return jsonlogger.JsonFormatter.process_log_record(self, log_record)
+
 
 def setup_server_logger(debug=False, dest=sys.stdout):
     l = logging.getLogger()

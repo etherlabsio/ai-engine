@@ -1,11 +1,10 @@
 import asyncio
 from nats.aio.client import Client as NATS
 from nats.aio.errors import ErrTimeout, ErrNoServers
-import signal
 import json
-import structlog
+import logging
 
-log = structlog.getLogger(__name__)
+logger = logging.getLogger(__name__)
 
 
 class Manager:
@@ -22,7 +21,7 @@ class Manager:
 
     async def close(self):
         for subject, sid in self.subscriptions.items():
-            log.info("flushing nats sub", id=sid)
+            logger.info("flushing nats sub", id=sid)
             if self.conn.is_connected:
                 await self.conn.unsubscribe(sid)
         await self.conn.drain()
@@ -31,12 +30,12 @@ class Manager:
         loop = self.loop
 
         async def closed_cb():
-            log.info("connection to NATS is closed.")
+            logger.info("connection to NATS is closed.")
             await asyncio.sleep(0.1, loop=loop)
-            self.loop.stop()
+            loop.stop()
 
         async def reconnected_cb():
-            log.info("connected to NATS at {}...".format(
+            logger.info("connected to NATS at {}...".format(
                 self.conn.connected_url.netloc))
 
         options = {
@@ -49,9 +48,9 @@ class Manager:
             # Setting explicit list of servers in a cluster.
             await self.conn.connect(servers=[self.url], loop=loop, **options)
         except ErrNoServers as e:
-            log.error("no nats servers to connect", err=e)
+            logger.error("no nats servers to connect", err=e)
 
-        log.info("connected to nats server", url=self.url)
+        logger.info("connected to nats server", url=self.url)
 
     async def subscribe(self, topic, handler, queued=True):
         sid = None
@@ -64,7 +63,7 @@ class Manager:
             sid = await self.conn.subscribe(topic,
                                             cb=self.message_handler(handler))
         self.subscriptions[topic] = sid
-        # log.info('subscriptions', sub=self.subscriptions)
+        logger.debug('subscriptions', sub=self.subscriptions)
 
     async def unsubscribe(self, topic):
         if topic in self.subscriptions.keys():
@@ -72,14 +71,14 @@ class Manager:
             await self.conn.unsubscribe(sid)
             self.subscriptions.pop(topic)
         else:
-            log.info("Topic not found in the subscription list", topic=topic)
+            logger.debug("Topic not found in the subscription list", topic=topic)
 
     def message_handler(self, cb):
         async def handle(msg):
             try:
                 subject = msg.subject
                 reply = msg.reply
-                log.info("received nats message",
+                logger.info("received nats message",
                          subject=subject,
                          reply=reply,
                          data=msg.data)
@@ -97,7 +96,7 @@ class Manager:
                             "cause": str(e)
                         }
                     }).encode())
-                log.error("failed to process message",
+                logger.error("failed to process message",
                           subject=msg.subject,
                           data=msg.data,
                           err=e)
