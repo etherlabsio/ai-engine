@@ -3,14 +3,17 @@ import nltk.data
 from text_preprocessing.util import expand_contractions, unkown_punct, \
     remove_number, remove_stopwords, lemmatization, get_pos, get_filtered_pos
 
+nltk.data.path.append('pkg/nltk_data/')
 
-# try:
-#     nltk.data.find('tokenizers/punkt')
-# except LookupError:
-#     nltk.download('punkt')
+try:
+    #nltk.data.find('pkg/nltk_data/tokenizers/punkt')
+    nltk.data.find('tokenizers/punkt')
+except LookupError:
+     nltk.download('punkt')
 
 
-sent_detector = nltk.data.load('pkg/nltk_data/tokenizers/punkt/english.pickle')
+#sent_detector = nltk.data.load('pkg/nltk_data/tokenizers/punkt/english.pickle')
+nltk.data.load('tokenizers/punkt/english.pickle')
 
 
 def preprocess(text, lemma=False, stop_words=True, word_tokenize=False, \
