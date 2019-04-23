@@ -7,7 +7,7 @@ nltk.data.path.append('pkg/nltk_data/')
 
 try:
     #nltk.data.find('pkg/nltk_data/tokenizers/punkt')
-    nltk.data.find('tokenizers/punkt')
+    nltk.data.find('tokenizers/punkt/english.pickle')
 except LookupError:
      nltk.download('punkt')
 
