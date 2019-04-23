@@ -31,3 +31,19 @@ deploy-staging:
 .PHONY: deploy-production
 deploy-production:
 	sup -f Deployfile production deploy
+
+.PHONY: run
+run:
+	./pants run cmd/${app}-server:server
+
+.PHONY: binary
+binary:
+	./pants binary cmd/${app}-server:server
+
+.PHONY: docker-build
+docker-build:
+	sudo docker build . --tag ${app} --build-arg app=${app}
+
+.PHONY: docker-run
+docker-run:
+	sudo docker run -p 8080:7070 ${app}
