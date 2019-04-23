@@ -96,6 +96,7 @@ class KeyphraseExtractor(object):
         comprehend_list = ["COMMERCIAL_ITEM", "EVENT", "LOCATION", "ORGANIZATION", "PERSON", "TITLE"]
         match_dict = dict(zip(spacy_list, comprehend_list))
 
+        print(input_segment)
         doc = self.nlp(input_segment)
         t_noun_chunks = list(set(list(doc.noun_chunks)))
         filtered_entities = []
@@ -111,6 +112,7 @@ class KeyphraseExtractor(object):
         # remove stop words from noun_chunks/NERs
         t_noun_chunks = list(set(t_noun_chunks) - set(self.stop_words))
         entity_dict = []
+        print(filtered_entities)
         for entt in list(zip(filtered_entities, t_ner_type)):
             entity_dict.append({'text': str(entt[0]), 'type': entt[1]})
 
@@ -126,10 +128,10 @@ class KeyphraseExtractor(object):
         Returns:
 
         """
-        result_list = []
         result = {}
         for i in range(len(input_json['segments'])):
             sort_list = []
+            entity_segment = input_json['segments'][i].get('originalText')
             input_segment = input_json['segments'][i].get('originalText').lower()
             keywords_list = []
             for tup in keyphrase_list:
@@ -145,12 +147,15 @@ class KeyphraseExtractor(object):
                 sort_list = sort_list[:top_n]
 
             segment_keyword_list = [words for words, score in sort_list]
-            segment_entity = self.get_entities(input_segment)
-            segment_keyword_list.extend(segment_entity)
+            segment_entity = self.get_entities(entity_segment)
+            # segment_keyword_list.extend(segment_entity)
+            segment_entity.extend(segment_keyword_list)
+            segment_output = segment_entity
             result = {
-                "keyphrases": segment_keyword_list
+                "keyphrases": segment_output
             }
-            result_list.append(result)
+
+        print(result)
 
         return result
 
@@ -167,6 +172,7 @@ class KeyphraseExtractor(object):
         chapter_keywords_list = []
         chapter_entities = []
         for i in range(len(input_json['segments'])):
+            entity_segment = input_json['segments'][i].get('originalText')
             input_segment = input_json['segments'][i].get('originalText').lower()
             for tup in keyphrase_list:
                 kw = tup[0]
@@ -176,7 +182,7 @@ class KeyphraseExtractor(object):
                 if result > -1:
                     chapter_keywords_list.append((kw, score))
 
-            chapter_entities = self.get_entities(input_segment)
+            chapter_entities.extend(self.get_entities(entity_segment))
 
         sort_list = self.gutils.sort_by_value(chapter_keywords_list, order='desc')
         if top_n is not None:
@@ -184,10 +190,14 @@ class KeyphraseExtractor(object):
 
         chapter_keyphrases = [phrases for phrases, score in sort_list]
 
-        chapter_keyphrases.extend(chapter_entities)
+        # chapter_keyphrases.extend(chapter_entities)
+        chapter_entities.extend(chapter_keyphrases)
+        chapter_output = chapter_entities
         result = {
-            "keyphrases": chapter_keyphrases
+            "keyphrases": chapter_output
         }
+
+        print(result)
 
         return result
 
@@ -221,7 +231,7 @@ class KeyphraseExtractor(object):
 
         return chapter_keyphrases
 
-    def get_keyphrases(self, req_data, n_kw=5):
+    def get_keyphrases(self, req_data, n_kw=10):
         segments_array = req_data['segments']
 
         # Decide between PIM or Chapter keyphrases
@@ -234,7 +244,7 @@ class KeyphraseExtractor(object):
 
         return keyphrases
 
-    def get_instance_keyphrases(self, req_data, n_kw=5):
+    def get_instance_keyphrases(self, req_data, n_kw=10):
         keyphrase_list = self.compute_keyphrases(req_data)
         instance_keyphrases = [words for words, score in keyphrase_list]
 

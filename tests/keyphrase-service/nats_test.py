@@ -60,7 +60,7 @@ async def populate_graph():
     await nc.connect(servers=[nats_url])
     test_json = read_json(multi_json_file)
     single_test = read_json(single_json_file)
-    await nc.publish(topic, json.dumps(single_test).encode())
+    await nc.publish(topic, json.dumps(test_json).encode())
     # await nc.flush()
     await nc.close()
 
