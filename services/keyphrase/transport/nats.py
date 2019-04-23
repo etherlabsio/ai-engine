@@ -74,14 +74,14 @@ class NATSTransport(object):
     async def context_start_handler(self, msg):
         msg_data = json.loads(msg.data)
         if msg_data['state'] == 'started':
-            logger.info("Start keyphrase subscriptions")
+            logger.info("Instance started")
         pass
 
     async def context_change_handler(self, msg):
         msg_data = json.loads(msg.data)
         if msg_data['state'] == 'context_changed':
             # Update contextId when change is notified
-            self.context_id = msg_data['contextId']
+            context_id = msg_data['contextId']
         pass
 
     async def context_end_handler(self, msg):
@@ -105,15 +105,13 @@ class NATSTransport(object):
 
         output = self.keyphrase_service.get_keyphrases(request)
         logger.debug("Output : {}".format(output))
-        await self.nats_manager.conn.publish(msg.reply,
-                                             json.dumps(output).encode())
+        await self.nats_manager.conn.publish(msg.reply, json.dumps(output).encode())
 
     async def extract_instance_keyphrases(self, msg):
         request = json.loads(msg.data)
         logger.info("Publishing Instance Keyphrases")
         output = self.keyphrase_service.get_instance_keyphrases(request)
-        await self.nats_manager.conn.publish(msg.reply,
-                                             json.dumps(output).encode())
+        await self.nats_manager.conn.publish(msg.reply, json.dumps(output).encode())
 
     async def reset_keyphrases(self, msg):
         request = json.loads(msg.data)
