@@ -58,7 +58,6 @@ class KeyphraseExtractor(object):
 
     def build_custom_graph(self, text_list, window=4, preserve_common_words=False, syntactic_filter=None):
 
-        # meeting_graph = []
         for i in range(len(text_list)):
             text = text_list[i]
             try:
@@ -70,8 +69,6 @@ class KeyphraseExtractor(object):
                                                          preserve_common_words=preserve_common_words)
             except Exception as e:
                 logger.error("Could not process the sentence: ErrorMsg: {}".format(e))
-
-        # return self.meeting_graph
 
     def get_custom_keyphrases(self, graph,
                               pos_tuple=None,
@@ -96,7 +93,6 @@ class KeyphraseExtractor(object):
         comprehend_list = ["COMMERCIAL_ITEM", "EVENT", "LOCATION", "ORGANIZATION", "PERSON", "TITLE"]
         match_dict = dict(zip(spacy_list, comprehend_list))
 
-        print(input_segment)
         doc = self.nlp(input_segment)
         t_noun_chunks = list(set(list(doc.noun_chunks)))
         filtered_entities = []
@@ -112,7 +108,6 @@ class KeyphraseExtractor(object):
         # remove stop words from noun_chunks/NERs
         t_noun_chunks = list(set(t_noun_chunks) - set(self.stop_words))
         entity_dict = []
-        print(filtered_entities)
         for entt in list(zip(filtered_entities, t_ner_type)):
             entity_dict.append({'text': str(entt[0]), 'type': entt[1]})
 
@@ -148,14 +143,12 @@ class KeyphraseExtractor(object):
 
             segment_keyword_list = [words for words, score in sort_list]
             segment_entity = self.get_entities(entity_segment)
-            # segment_keyword_list.extend(segment_entity)
             segment_entity.extend(segment_keyword_list)
             segment_output = segment_entity
+
             result = {
                 "keyphrases": segment_output
             }
-
-        print(result)
 
         return result
 
@@ -190,14 +183,12 @@ class KeyphraseExtractor(object):
 
         chapter_keyphrases = [phrases for phrases, score in sort_list]
 
-        # chapter_keyphrases.extend(chapter_entities)
         chapter_entities.extend(chapter_keyphrases)
         chapter_output = chapter_entities
+
         result = {
             "keyphrases": chapter_output
         }
-
-        print(result)
 
         return result
 
