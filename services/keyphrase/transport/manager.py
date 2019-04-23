@@ -1,23 +1,27 @@
 import asyncio
 from nats.aio.client import Client as NATS
 from nats.aio.errors import ErrTimeout, ErrNoServers
-import signal
 import json
-import structlog
+import logging
 
-log = structlog.getLogger(__name__)
+logger = logging.getLogger(__name__)
+
 
 class Manager:
-    def __init__(self, loop, queueName, url="nats://docker.for.mac.localhost:4222", nc=NATS()):
+    def __init__(self,
+                 loop,
+                 queue_name,
+                 url="nats://docker.for.mac.localhost:4222",
+                 nc=NATS()):
         self.conn = nc
         self.loop = loop
         self.url = url
-        self.queueName = queueName
+        self.queue_name = queue_name
         self.subscriptions = {}
 
     async def close(self):
         for subject, sid in self.subscriptions.items():
-            log.info("flushing nats sub", id=sid)
+            logger.info("flushing nats sub", id=sid)
             if self.conn.is_connected:
                 await self.conn.unsubscribe(sid)
         await self.conn.drain()
@@ -26,12 +30,13 @@ class Manager:
         loop = self.loop
 
         async def closed_cb():
-            log.info("connection to NATS is closed.")
+            logger.info("connection to NATS is closed.")
             await asyncio.sleep(0.1, loop=loop)
             loop.stop()
 
         async def reconnected_cb():
-            log.info("connected to NATS at {}...".format(self.conn.connected_url.netloc))
+            logger.info("connected to NATS at {}...".format(
+                self.conn.connected_url.netloc))
 
         options = {
             "io_loop": loop,
@@ -43,17 +48,22 @@ class Manager:
             # Setting explicit list of servers in a cluster.
             await self.conn.connect(servers=[self.url], loop=loop, **options)
         except ErrNoServers as e:
-            log.error("no nats servers to connect", err=e)
+            logger.error("no nats servers to connect", err=e)
 
-        log.info("connected to nats server", url=self.url)
+        logger.info("connected to nats server", url=self.url)
 
     async def subscribe(self, topic, handler, queued=True):
         sid = None
         if queued is True:
-            sid = await self.conn.subscribe(topic, queue=self.queueName, cb=self.message_handler(cb=handler))
+            sid = await self.conn.subscribe(
+                topic,
+                queue=self.queue_name,
+                cb=self.message_handler(cb=handler))
         else:
-            sid = await self.conn.subscribe(topic, cb=self.message_handler(handler))
+            sid = await self.conn.subscribe(topic,
+                                            cb=self.message_handler(handler))
         self.subscriptions[topic] = sid
+        logger.debug('subscriptions', sub=self.subscriptions)
 
     async def unsubscribe(self, topic):
         if topic in self.subscriptions.keys():
@@ -61,26 +71,34 @@ class Manager:
             await self.conn.unsubscribe(sid)
             self.subscriptions.pop(topic)
         else:
-            log.info("Topic not found in the subscription list", topic=topic)
+            logger.debug("Topic not found in the subscription list", topic=topic)
 
     def message_handler(self, cb):
         async def handle(msg):
             try:
                 subject = msg.subject
                 reply = msg.reply
-                log.info("received nats message", subject=subject, reply=reply, data=msg.data)
+                logger.info("received nats message",
+                         subject=subject,
+                         reply=reply,
+                         data=msg.data)
                 await cb(msg)
             except Exception as e:
                 send = self.conn.publish
                 if reply:
                     send = self.conn.reply
-                await send(msg.reply, json.dumps({
-                    "error": {
-                        "code": 0,
-                        "message": "process message failure",
-                        "cause": str(e)
-                    }
-                }).encode())
-                log.error("failed to process message", subject=msg.subject, data=msg.data, err=e)
+                await send(
+                    msg.reply,
+                    json.dumps({
+                        "error": {
+                            "code": 0,
+                            "message": "process message failure",
+                            "cause": str(e)
+                        }
+                    }).encode())
+                logger.error("failed to process message",
+                          subject=msg.subject,
+                          data=msg.data,
+                          err=e)
 
         return handle

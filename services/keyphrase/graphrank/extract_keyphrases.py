@@ -11,7 +11,7 @@ from .graph_rank import GraphRank
 from .utils import TextPreprocess, GraphUtils
 
 
-class ExtractKeyphrase(object):
+class KeyphraseExtractor(object):
     def __init__(self):
         self.stop_words = list(STOP_WORDS)
         self.nlp = spacy.load('en_core_web_sm')
@@ -145,7 +145,6 @@ class ExtractKeyphrase(object):
                 sort_list = sort_list[:top_n]
 
             segment_keyword_list = [words for words, score in sort_list]
-            # input_json['segments'][i]['Filtered_Keys'] = segment_keyword_list
             segment_entity = self.get_entities(input_segment)
             segment_keyword_list.extend(segment_entity)
             result = {
@@ -184,7 +183,6 @@ class ExtractKeyphrase(object):
             sort_list = sort_list[:top_n]
 
         chapter_keyphrases = [phrases for phrases, score in sort_list]
-        # input_json['segments'][i]['Filtered_Keys'] = segment_keyword_list
 
         chapter_keyphrases.extend(chapter_entities)
         result = {
@@ -203,7 +201,6 @@ class ExtractKeyphrase(object):
                                                                       self.meeting_graph.number_of_edges()))
 
     def compute_keyphrases(self, req_data):
-        # self.populate_word_graph(req_data)
         keyphrase_list = []
         try:
             keyphrase_list = self.get_custom_keyphrases(graph=self.meeting_graph)
