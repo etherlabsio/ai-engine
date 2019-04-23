@@ -10,7 +10,7 @@ from text_preprocessing.util import expand_contractions, unkown_punct, \
 #     nltk.download('punkt')
 
 
-sent_detector = nltk.data.load('tokenizers/punkt/english.pickle')
+sent_detector = nltk.data.load('pkg/nltk_data/tokenizers/punkt/english.pickle')
 
 
 def preprocess(text, lemma=False, stop_words=True, word_tokenize=False, \

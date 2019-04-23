@@ -12,10 +12,10 @@ from nltk.stem import WordNetLemmatizer
 nlp = spacy.load('pkg/en_core_web_sm/en_core_web_sm-2.1.0')
 
 try:
-    stop_words_nltk = stopwords.words('english')
+    stop_words_nltk = stopwords.words('pkg/nltk_data/corpora/stopwords/english')
 except Exception:
-    # nltk.download('stopwords')
-    stop_words_nltk = stopwords.words('english')
+    nltk.download('stopwords')
+    # stop_words_nltk = stopwords.words('english')
 
 stop_words_spacy = list(
     """
