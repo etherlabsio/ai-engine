@@ -30,8 +30,8 @@ RUN python3.7 -c "import nltk; nltk.download('punkt')"
 RUN python3.7 -c "import nltk; nltk.download('stopwords')"
 RUN python3.7 -c "import nltk; nltk.download('averaged_perceptron_tagger')"
 
-COPY services/ /services/
-COPY pkg /common/
+COPY services/ services/
+COPY pkg pkg/
 
 ENTRYPOINT ["python", "services/keyphrase/main.py"]
 CMD []

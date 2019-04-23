@@ -2,7 +2,7 @@ import pandas as pd
 from datetime import datetime
 import iso8601
 import time
-
+import networkx as nx
 import spacy
 from spacy.lang.en.stop_words import STOP_WORDS
 from sanic.log import logger
@@ -18,6 +18,7 @@ class ExtractKeyphrase(object):
         self.gr = GraphRank()
         self.tp = TextPreprocess()
         self.gutils = GraphUtils()
+        self.meeting_graph = nx.Graph()
 
     def formatTime(self, tz_time):
         isoTime = iso8601.parse_date(tz_time)
@@ -57,12 +58,12 @@ class ExtractKeyphrase(object):
 
     def build_custom_graph(self, text_list, window=4, preserve_common_words=False, syntactic_filter=None):
 
-        meeting_graph = []
+        # meeting_graph = []
         for i in range(len(text_list)):
             text = text_list[i]
             try:
                 original_tokens, pos_tuple, filtered_pos_tuple = self.process_text(text)
-                meeting_graph = self.gr.build_word_graph(input_pos_text=filtered_pos_tuple,
+                self.meeting_graph = self.gr.build_word_graph(input_pos_text=filtered_pos_tuple,
                                                          original_tokens=original_tokens,
                                                          window=window,
                                                          syntactic_filter=syntactic_filter,
@@ -70,7 +71,7 @@ class ExtractKeyphrase(object):
             except Exception as e:
                 logger.error("Could not process the sentence: ErrorMsg: {}".format(e))
 
-        return meeting_graph
+        # return self.meeting_graph
 
     def get_custom_keyphrases(self, graph,
                               pos_tuple=None,
@@ -89,79 +90,6 @@ class ExtractKeyphrase(object):
                                             normalize_score=normalize_score)
 
         return keyphrases
-
-    def segment_search(self, input_json, keyphrase_list, top_n=None):
-        """
-        Search for keyphrases in the top-5 PIM segments and return them for each segment
-        Args:
-            input_json:
-            keyphrase_list:
-
-        Returns:
-
-        """
-        result_list = []
-        for i in range(len(input_json['segments'])):
-            sort_list = []
-            input_segment = input_json['segments'][i].get('originalText').lower()
-            keywords_list = []
-            for tup in keyphrase_list:
-                kw = tup[0]
-                score = tup[1]
-
-                result = input_segment.find(kw)
-                if result > -1:
-                    keywords_list.append((kw, score))
-
-            sort_list = self.gutils.sort_by_value(keywords_list, order='desc')
-            if top_n is not None:
-                sort_list = sort_list[:top_n]
-
-            segment_keyword_list = [words for words, score in sort_list]
-            # input_json['segments'][i]['Filtered_Keys'] = segment_keyword_list
-            segment_entity = self.get_entities(input_segment)
-
-            result = {
-                'keyphrases': segment_keyword_list,
-                'entities': segment_entity
-            }
-            result_list.append(result)
-
-        return result_list
-
-    def chapter_segment_search(self, input_json, keyphrase_list, top_n=None):
-        """
-        Search for keyphrases in an array of N segments and return them as one list of keyphrases
-        Args:
-            input_json:
-            keyphrase_list:
-
-        Returns:
-
-        """
-        chapter_keywords_list = []
-        for i in range(len(input_json['segments'])):
-            input_segment = input_json['segments'][i].get('originalText').lower()
-            for tup in keyphrase_list:
-                kw = tup[0]
-                score = tup[1]
-
-                result = input_segment.find(kw)
-                if result > -1:
-                    chapter_keywords_list.append((kw, score))
-
-        sort_list = self.gutils.sort_by_value(chapter_keywords_list, order='desc')
-        if top_n is not None:
-            sort_list = sort_list[:top_n]
-
-        chapter_keyphrases = [phrases for phrases, score in sort_list]
-        # input_json['segments'][i]['Filtered_Keys'] = segment_keyword_list
-
-        result = {
-            'keyphrases': chapter_keyphrases
-        }
-
-        return result
 
     def get_entities(self, input_segment):
         spacy_list = ["PRODUCT", "EVENT", "LOC", "ORG", "PERSON", "WORK_OF_ART"]
@@ -186,38 +114,135 @@ class ExtractKeyphrase(object):
         for entt in list(zip(filtered_entities, t_ner_type)):
             entity_dict.append({'text': str(entt[0]), 'type': entt[1]})
 
-        return entity_dict
+        return filtered_entities
 
-    def compute_keyphrases(self, req_data):
+    def segment_search(self, input_json, keyphrase_list, top_n=None):
+        """
+        Search for keyphrases in the top-5 PIM segments and return them for each segment
+        Args:
+            input_json:
+            keyphrase_list:
+
+        Returns:
+
+        """
+        result_list = []
+        result = {}
+        for i in range(len(input_json['segments'])):
+            sort_list = []
+            input_segment = input_json['segments'][i].get('originalText').lower()
+            keywords_list = []
+            for tup in keyphrase_list:
+                kw = tup[0]
+                score = tup[1]
+
+                result = input_segment.find(kw)
+                if result > -1:
+                    keywords_list.append((kw, score))
+
+            sort_list = self.gutils.sort_by_value(keywords_list, order='desc')
+            if top_n is not None:
+                sort_list = sort_list[:top_n]
+
+            segment_keyword_list = [words for words, score in sort_list]
+            # input_json['segments'][i]['Filtered_Keys'] = segment_keyword_list
+            segment_entity = self.get_entities(input_segment)
+            segment_keyword_list.extend(segment_entity)
+            result = {
+                "keyphrases": segment_keyword_list
+            }
+            result_list.append(result)
+
+        return result
+
+    def chapter_segment_search(self, input_json, keyphrase_list, top_n=None):
+        """
+        Search for keyphrases in an array of N segments and return them as one list of keyphrases
+        Args:
+            input_json:
+            keyphrase_list:
+
+        Returns:
+
+        """
+        chapter_keywords_list = []
+        chapter_entities = []
+        for i in range(len(input_json['segments'])):
+            input_segment = input_json['segments'][i].get('originalText').lower()
+            for tup in keyphrase_list:
+                kw = tup[0]
+                score = tup[1]
+
+                result = input_segment.find(kw)
+                if result > -1:
+                    chapter_keywords_list.append((kw, score))
+
+            chapter_entities = self.get_entities(input_segment)
+
+        sort_list = self.gutils.sort_by_value(chapter_keywords_list, order='desc')
+        if top_n is not None:
+            sort_list = sort_list[:top_n]
+
+        chapter_keyphrases = [phrases for phrases, score in sort_list]
+        # input_json['segments'][i]['Filtered_Keys'] = segment_keyword_list
+
+        chapter_keyphrases.extend(chapter_entities)
+        result = {
+            "keyphrases": chapter_keyphrases
+        }
+
+        return result
+
+    def populate_word_graph(self, req_data):
         segment_df = self.reformat_input(req_data)
 
         text_list = self.read_segments(segment_df=segment_df)
-        meeting_graph = self.build_custom_graph(text_list=text_list)
+        self.build_custom_graph(text_list=text_list)
 
-        logger.info("Number of nodes: {}; Number of edges: {}".format(meeting_graph.number_of_nodes(),
-                                                                      meeting_graph.number_of_edges()))
-        keyphrase_list = self.get_custom_keyphrases(graph=meeting_graph)
+        logger.info("Number of nodes: {}; Number of edges: {}".format(self.meeting_graph.number_of_nodes(),
+                                                                      self.meeting_graph.number_of_edges()))
+
+    def compute_keyphrases(self, req_data):
+        # self.populate_word_graph(req_data)
+        keyphrase_list = []
+        try:
+            keyphrase_list = self.get_custom_keyphrases(graph=self.meeting_graph)
+        except Exception as e:
+            logger.error("ErrorMsg: {}".format(e))
 
         return keyphrase_list
 
-    def get_pim_keyphrases(self, req_data, n_kw=5):
+    def _get_pim_keyphrases(self, req_data, n_kw=5):
         keyphrase_list = self.compute_keyphrases(req_data)
         segment_keyphrases = self.segment_search(input_json=req_data, keyphrase_list=keyphrase_list, top_n=n_kw)
 
         return segment_keyphrases
 
-    def get_chapter_keyphrases(self, req_data, n_kw=5):
+    def _get_chapter_keyphrases(self, req_data, n_kw=5):
         keyphrase_list = self.compute_keyphrases(req_data)
         chapter_keyphrases = self.chapter_segment_search(input_json=req_data, keyphrase_list=keyphrase_list, top_n=n_kw)
 
         return chapter_keyphrases
+
+    def get_keyphrases(self, req_data, n_kw=5):
+        segments_array = req_data['segments']
+
+        # Decide between PIM or Chapter keyphrases
+        if len(segments_array) > 1:
+            logger.info("Publishing Chapter Keyphrases")
+            keyphrases = self._get_chapter_keyphrases(req_data, n_kw=n_kw)
+        else:
+            logger.info("Publishing PIM Keyphrases")
+            keyphrases = self._get_pim_keyphrases(req_data, n_kw=n_kw)
+
+        return keyphrases
 
     def get_instance_keyphrases(self, req_data, n_kw=5):
         keyphrase_list = self.compute_keyphrases(req_data)
         instance_keyphrases = [words for words, score in keyphrase_list]
 
         result = {
-            'keyphrases': instance_keyphrases[:n_kw]
+            "keyphrases": instance_keyphrases[:n_kw]
         }
 
         return result

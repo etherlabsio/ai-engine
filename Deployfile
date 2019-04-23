@@ -1,0 +1,131 @@
+---
+version: 0.4
+
+env:
+  ## Environment variables for all commands
+  SLACK_WEBHOOK_URL: https://hooks.slack.com/services/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
+  NAME: keyphrase-extraction
+  BRANCH: $(git rev-parse HEAD || echo -e '$CI_COMMIT_SHA') 
+  IMAGE: registry.gitlab.com/etherlabs/ether/keyphrase-server
+  TAG: staging
+  HOST_PORT: 8080
+  CONTAINER_PORT: 8080
+  ACTIVE_ENV: staging
+  DEBUG: 1
+
+networks:
+  staging:
+    env:
+      ACTIVE_ENV: staging
+      DEBUG: 1
+      TAG: staging
+      NATS_URL: nats://ip-172-30-1-51.ec2.internal:4222
+    bastion: ubuntu@ec2-54-85-90-176.compute-1.amazonaws.com:22
+    hosts:
+      - ubuntu@ip-172-30-1-111.ec2.internal
+  
+  production:
+    env:
+      ACTIVE_ENV: production
+      DEBUG: 1
+      TAG: latest
+      REDIS_HOST: ether-api-redis-master.production.etherlabs.internal
+    bastion: ubuntu@ec2-34-224-232-61.compute-1.amazonaws.com:22
+    hosts:
+      - ubuntu@ip-10-0-2-14.ec2.internal
+
+commands:
+  # Named set of commands to be run remotely
+  pre-build:
+    desc: Initialize directory
+    local: make clean
+
+  build:
+    desc: Build Docker image from current directory, push to Docker Hub
+    local: make $ACTIVE_ENV
+    once: true
+
+  pull:
+    desc: Pull latest Docker image
+    run: docker pull $IMAGE:$TAG
+
+  stop:
+    desc: Stop Docker container
+    run: docker stop $NAME || exit 0
+
+  rm:
+    desc: Remove Docker container
+    run: docker rm $NAME || exit 0
+
+  start:
+    desc: Start a stopped Docker container
+    run: docker start $NAME || exit 0
+
+  restart:
+    desc: Restart Docker container
+    run:  docker restart $NAME || exit 0
+
+  stop-rm-run:
+    desc: Rolling update (stop & remove old Docker container, run new one)
+    run: >
+      docker stop $NAME || :; \
+        docker rm $NAME || :; \
+        docker run -dit \
+          -e ACTIVE_ENV=$ACTIVE_ENV \
+          -e DEBUG=$DEBUG \
+          -e NATS_URL=$NATS_URL \
+          --restart=always \
+          --log-driver=syslog \
+          --log-opt syslog-address=tcp://127.0.0.1:601 \
+          --name $NAME $IMAGE:$TAG
+    serial: 1
+
+  ps:
+    desc: List running Docker containers
+    run:  docker ps | grep $NAME
+
+  logs:
+    desc: Docker logs --tail 500 
+    run:  docker logs $NAME
+
+  tail-logs:
+    desc: Tail Docker logs
+    run:  docker logs --tail=200 -f $NAME
+
+  bash:
+    desc: Interactive shell on all hosts
+    stdin: true
+    run: bash
+
+  exec:
+    desc: Interactive docker exec on all hosts
+    stdin: true
+    run:  docker exec -i $NAME sh
+
+  pre-deploy-notify:
+    desc: Notify Slack about pending deployment
+    local: >
+        curl -X POST --data-urlencode 'payload={"text": "['$SUP_NETWORK'] ['$BRANCH'] '$SUP_USER': '$NAME' is being deployed"}' \
+            $SLACK_WEBHOOK_URL
+  
+  post-deploy-notify:
+    desc: Notify Slack about deployment status
+    local: >
+        curl -X POST --data-urlencode 'payload={"text": "['$SUP_NETWORK'] ['$BRANCH'] '$SUP_USER': '$NAME' has been deployed"}' \
+            $SLACK_WEBHOOK_URL
+
+  post-deploy:
+    desc: Cleanup resources on the hosts
+    run: >
+        docker rmi $(docker images -q --filter dangling=true) || :; \
+        docker rm $(docker ps -qa --no-trunc --filter "status=exited")
+
+ # Aliases to run multiple commands at once
+targets:
+  deploy:
+    - pre-deploy-notify
+    - build
+    - pull
+    - stop-rm-run
+    - ps
+    - post-deploy-notify

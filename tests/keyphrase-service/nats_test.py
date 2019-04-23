@@ -6,6 +6,7 @@ import argparse
 import os
 import uvloop
 from dotenv import load_dotenv
+
 load_dotenv()
 
 ACTIVE_ENV = os.getenv("ACTIVE_ENV")
@@ -13,28 +14,29 @@ NATS_URL = os.getenv("NATS_URL")
 DEFAULT_ENV = os.getenv("DEF_ENV")
 
 
-
 async def publish_keyphrase():
     nc = NATS()
-    topic = "io.etherlabs.ether.keyphrase_service.in5627.extract_keyphrases"
+    topic = "keyphrase_service.in5627.extract_keyphrases"
     await nc.connect(servers=[nats_url])
     test_json = read_json(single_json_file)
     await nc.request(topic, json.dumps(test_json).encode())
     # await nc.flush()
     # await nc.close()
 
+
 async def publish_chapter_keyphrase():
     nc = NATS()
-    topic = "io.etherlabs.ether.keyphrase_service.in5627.extract_keyphrases"
+    topic = "keyphrase_service.in5627.extract_keyphrases"
     await nc.connect(servers=[nats_url])
     test_json = read_json(multi_json_file)
     await nc.request(topic, json.dumps(test_json).encode())
     # await nc.flush()
     await nc.close()
 
+
 async def publish_instance_keyphrase():
     nc = NATS()
-    topic = "io.etherlabs.ether.keyphrase_service.in5627.keyphrases_for_context_instance"
+    topic = "keyphrase_service.in5627.keyphrases_for_context_instance"
     await nc.connect(servers=[nats_url])
     test_json = read_json(multi_json_file)
     await nc.request(topic, json.dumps(test_json).encode())
@@ -51,6 +53,18 @@ async def reset_keyphrase():
     # await nc.flush()
     await nc.close()
 
+
+async def populate_graph():
+    nc = NATS()
+    topic = "context.instance.in5627.add_segments"
+    await nc.connect(servers=[nats_url])
+    test_json = read_json(multi_json_file)
+    single_test = read_json(single_json_file)
+    await nc.publish(topic, json.dumps(single_test).encode())
+    # await nc.flush()
+    await nc.close()
+
+
 async def create_context():
     nc = NATS()
     topic = "context.instance.created"
@@ -65,6 +79,7 @@ async def create_context():
     # await nc.flush()
     pass
 
+
 async def start_context():
     nc = NATS()
     topic = "context.instance.in5627.started"
@@ -77,6 +92,7 @@ async def start_context():
     # await asyncio.sleep(10, loop=loop)
     # await nc.flush()
     pass
+
 
 async def end_context():
     nc = NATS()
@@ -110,9 +126,10 @@ if __name__ == '__main__':
     single_json_file = os.path.join(os.getcwd(), "single_segment_test.json")
     multi_json_file = os.path.join(os.getcwd(), "multi_segment_test.json")
 
-
     if args.topics == 'def':
         t1 = loop.run_until_complete(create_context())
+    elif args.topics == 'populate':
+        loop.run_until_complete(populate_graph())
     elif args.topics == 'pub_chapter':
         loop.run_until_complete(publish_chapter_keyphrase())
     elif args.topics == 'pub_pim':
@@ -122,12 +139,3 @@ if __name__ == '__main__':
     else:
         # loop.run_until_complete(reset_keyphrase())
         loop.run_until_complete(end_context())
-
-    # loop.run_until_complete(end_context())
-
-    # try:
-    #     loop.run_forever()
-    # finally:
-    #     loop.close()
-
-    # loop.close()
