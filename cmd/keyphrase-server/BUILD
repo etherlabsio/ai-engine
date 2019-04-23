@@ -1,5 +1,5 @@
 python_binary(
-	name="keyphrase-bin",
+	name="server",
 	dependencies = [
 		'pkg:common-libs',
 		'services/keyphrase:keyphrase-libs',

@@ -110,6 +110,6 @@ notebooks/
 
 # Pants stuff
 .pants.d
-dist
+dist/
 .pids
 .pants.workdir.file_lock

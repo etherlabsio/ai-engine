@@ -16,4 +16,4 @@ python-dotenv
 pylint
 autopep8
 rope
-python_version==3.6
+python_version==3.7
