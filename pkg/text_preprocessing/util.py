@@ -15,7 +15,7 @@ try:
     stop_words_nltk = stopwords.words('pkg/nltk_data/corpora/stopwords/english')
 except Exception:
     nltk.download('stopwords')
-    # stop_words_nltk = stopwords.words('english')
+    stop_words_nltk = stopwords.words('english')
 
 stop_words_spacy = list(
     """

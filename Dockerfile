@@ -10,7 +10,7 @@ RUN apt-get update && \
     rm -f /usr/bin/python3 && \
     ln -s /usr/bin/python3.7 /usr/bin/python && \
     ln -s /usr/bin/python3.7 /usr/bin/python3 && \
-        python3.7 -m pip install --upgrade pip && \
+        python3.7 -m pip install --upgrade pip
 
 RUN mkdir /opt/app
 WORKDIR /opt/app
