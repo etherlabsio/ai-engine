@@ -28,43 +28,43 @@ COLOR_GREEN="\x1b[32m"
 COLOR_RESET="\x1b[0m"
 
 function log() {
-  echo -e "$@" 1>&2
+	echo -e "$@" 1>&2
 }
 
 function die() {
-  (($# > 0)) && log "${COLOR_RED}$*${COLOR_RESET}"
-  exit 1
+	(($# > 0)) && log "${COLOR_RED}$*${COLOR_RESET}"
+	exit 1
 }
 
 function green() {
-  (($# > 0)) && log "${COLOR_GREEN}$*${COLOR_RESET}"
+	(($# > 0)) && log "${COLOR_GREEN}$*${COLOR_RESET}"
 }
 
-function tempdir {
-  mktemp -d "$1"/pants.XXXXXX
+function tempdir() {
+	mktemp -d "$1"/pants.XXXXXX
 }
 
-function get_exe_path_or_die {
-  exe="$1"
-  if ! command -v "${exe}"; then
-    die "Could not find ${exe}. Please ensure ${exe} is on your PATH."
-  fi
+function get_exe_path_or_die() {
+	exe="$1"
+	if ! command -v "${exe}"; then
+		die "Could not find ${exe}. Please ensure ${exe} is on your PATH."
+	fi
 }
 
-function get_pants_ini_config_value {
-  if [[ ! -f 'pants.ini' ]]; then
-    return 0
-  fi
-  config_key="$1"
-  valid_delimiters="[:=]"
-  optional_space="[[:space:]]*"
-  prefix="^${config_key}${optional_space}${valid_delimiters}${optional_space}"
-  sed -ne "/${prefix}/ s#${prefix}##p" pants.ini
+function get_pants_ini_config_value() {
+	if [[ ! -f 'pants.ini' ]]; then
+		return 0
+	fi
+	config_key="$1"
+	valid_delimiters="[:=]"
+	optional_space="[[:space:]]*"
+	prefix="^${config_key}${optional_space}${valid_delimiters}${optional_space}"
+	sed -ne "/${prefix}/ s#${prefix}##p" pants.ini
 }
 
-function get_python_major_minor_version {
-  python_exe="$1"
-  "$python_exe" <<EOF
+function get_python_major_minor_version() {
+	python_exe="$1"
+	"$python_exe" <<EOF
 import sys
 major_minor_version = ''.join(str(version_num) for version_num in sys.version_info[0:2])
 print(major_minor_version)
@@ -82,104 +82,103 @@ EOF
 # After that pants itself will handle making sure any requested plugins
 # are installed and up to date.
 
-function determine_default_python_exe {
-  pants_version="$(get_pants_ini_config_value 'pants_version')"
-  # If `pants_version` not pinned in `pants.ini`, default to what the most
-  # recent stable release supports.
-  if [[ -z "${pants_version}" ]]; then
-    supported_python_versions=('3.6' '2.7')
-    supported_message='2.7 or 3.6'
-  else
-    pants_major_version="$(echo "${pants_version}" | cut -d '.' -f1)"
-    pants_minor_version="$(echo "${pants_version}" | cut -d '.' -f2)"
-    if [[ "${pants_major_version}" -eq 1 && "${pants_minor_version}" -le 14 ]]; then
-      supported_python_versions=('2.7')
-      supported_message='2.7'
-    elif [[ "${pants_major_version}" -eq 1 && "${pants_minor_version}" -eq 15 ]]; then
-      supported_python_versions=('3.6' '2.7')
-      supported_message='2.7 or 3.6'
-    elif [[ "${pants_major_version}" -eq 1 && "${pants_minor_version}" -eq 16 ]]; then
-      supported_python_versions=('3.6' '3.7' '2.7')
-      supported_message='2.7, 3.6, or 3.7'
-    elif [[ "${pants_major_version}" -eq 1 && "${pants_minor_version}" -eq 17 ]]; then
-      supported_python_versions=('3.6' '3.7' '3.8' '3.9')
-      supported_message='3.6+'
-    else
-      supported_python_versions=('3.9' '3.8' '3.7' '3.6')
-      supported_message='3.6+'
-    fi
-  fi
-  for version in "${supported_python_versions[@]}"; do
-    command -v "python${version}" && return 0
-  done
-  die "No valid Python interpreter found. For this Pants version, Pants requires Python ${supported_message}."
+function determine_default_python_exe() {
+	pants_version="$(get_pants_ini_config_value 'pants_version')"
+	# If `pants_version` not pinned in `pants.ini`, default to what the most
+	# recent stable release supports.
+	if [[ -z "${pants_version}" ]]; then
+		supported_python_versions=('3.6' '2.7')
+		supported_message='2.7 or 3.6'
+	else
+		pants_major_version="$(echo "${pants_version}" | cut -d '.' -f1)"
+		pants_minor_version="$(echo "${pants_version}" | cut -d '.' -f2)"
+		if [[ "${pants_major_version}" -eq 1 && "${pants_minor_version}" -le 14 ]]; then
+			supported_python_versions=('2.7')
+			supported_message='2.7'
+		elif [[ "${pants_major_version}" -eq 1 && "${pants_minor_version}" -eq 15 ]]; then
+			supported_python_versions=('3.6' '2.7')
+			supported_message='2.7 or 3.6'
+		elif [[ "${pants_major_version}" -eq 1 && "${pants_minor_version}" -eq 16 ]]; then
+			supported_python_versions=('3.6' '3.7' '2.7')
+			supported_message='2.7, 3.6, or 3.7'
+		elif [[ "${pants_major_version}" -eq 1 && "${pants_minor_version}" -eq 17 ]]; then
+			supported_python_versions=('3.6' '3.7' '3.8' '3.9')
+			supported_message='3.6+'
+		else
+			supported_python_versions=('3.9' '3.8' '3.7' '3.6')
+			supported_message='3.6+'
+		fi
+	fi
+	for version in "${supported_python_versions[@]}"; do
+		command -v "python${version}" && return 0
+	done
+	die "No valid Python interpreter found. For this Pants version, Pants requires Python ${supported_message}."
 }
 
-function determine_python_exe {
-  if [[ "${PYTHON_BIN_NAME}" != 'unspecified' ]]; then
-    python_bin_name="${PYTHON_BIN_NAME}"
-  else
-    interpreter_version="$(get_pants_ini_config_value 'pants_runtime_python_version')"
-    if [[ -n "${interpreter_version}" ]]; then
-      python_bin_name="python${interpreter_version}"
-    else
-      python_bin_name="$(determine_default_python_exe)"
-    fi
-  fi
-  get_exe_path_or_die "${python_bin_name}"
+function determine_python_exe() {
+	if [[ "${PYTHON_BIN_NAME}" != 'unspecified' ]]; then
+		python_bin_name="${PYTHON_BIN_NAME}"
+	else
+		interpreter_version="$(get_pants_ini_config_value 'pants_runtime_python_version')"
+		if [[ -n "${interpreter_version}" ]]; then
+			python_bin_name="python${interpreter_version}"
+		else
+			python_bin_name="$(determine_default_python_exe)"
+		fi
+	fi
+	get_exe_path_or_die "${python_bin_name}"
 }
 
 # TODO(John Sirois): GC race loser tmp dirs leftover from bootstrap_XXX
 # functions.  Any tmp dir w/o a symlink pointing to it can go.
 
-function bootstrap_venv {
-  if [[ ! -d "${PANTS_BOOTSTRAP}/${VENV_PACKAGE}" ]]; then
-    (
-      mkdir -p "${PANTS_BOOTSTRAP}"
-      staging_dir=$(tempdir "${PANTS_BOOTSTRAP}")
-      cd "${staging_dir}"
-      curl -LO "https://pypi.io/packages/source/v/virtualenv/${VENV_TARBALL}"
-      tar -xzf "${VENV_TARBALL}"
-      ln -s "${staging_dir}/${VENV_PACKAGE}" "${staging_dir}/latest"
-      mv "${staging_dir}/latest" "${PANTS_BOOTSTRAP}/${VENV_PACKAGE}"
-    ) 1>&2
-  fi
-  echo "${PANTS_BOOTSTRAP}/${VENV_PACKAGE}"
+function bootstrap_venv() {
+	if [[ ! -d "${PANTS_BOOTSTRAP}/${VENV_PACKAGE}" ]]; then
+		(
+			mkdir -p "${PANTS_BOOTSTRAP}"
+			staging_dir=$(tempdir "${PANTS_BOOTSTRAP}")
+			cd "${staging_dir}"
+			curl -LO "https://pypi.io/packages/source/v/virtualenv/${VENV_TARBALL}"
+			tar -xzf "${VENV_TARBALL}"
+			ln -s "${staging_dir}/${VENV_PACKAGE}" "${staging_dir}/latest"
+			mv "${staging_dir}/latest" "${PANTS_BOOTSTRAP}/${VENV_PACKAGE}"
+		) 1>&2
+	fi
+	echo "${PANTS_BOOTSTRAP}/${VENV_PACKAGE}"
 }
 
-function bootstrap_pants {
-  python="$1"
-  pants_requirement="pantsbuild.pants"
-  pants_version="$(get_pants_ini_config_value 'pants_version')"
-  if [[ -n "${pants_version}" ]]; then
-    pants_requirement="${pants_requirement}==${pants_version}"
-  else
-    pants_version="unspecified"
-  fi
+function bootstrap_pants() {
+	python="$1"
+	pants_requirement="pantsbuild.pants"
+	pants_version="$(get_pants_ini_config_value 'pants_version')"
+	if [[ -n "${pants_version}" ]]; then
+		pants_requirement="${pants_requirement}==${pants_version}"
+	else
+		pants_version="unspecified"
+	fi
 
-  python_major_minor_version="$(get_python_major_minor_version "${python}")"
-  target_folder_name="${pants_version}_py${python_major_minor_version}"
+	python_major_minor_version="$(get_python_major_minor_version "${python}")"
+	target_folder_name="${pants_version}_py${python_major_minor_version}"
 
-  if [[ ! -d "${PANTS_BOOTSTRAP}/${target_folder_name}" ]]; then
-    (
-      venv_path="$(bootstrap_venv)"
-      staging_dir=$(tempdir "${PANTS_BOOTSTRAP}")
-      "${python}" "${venv_path}/virtualenv.py" --no-download "${staging_dir}/install"
-      "${staging_dir}/install/bin/pip" install -U pip
-      "${staging_dir}/install/bin/pip" install "${pants_requirement}"
-      ln -s "${staging_dir}/install" "${staging_dir}/${target_folder_name}"
-      mv "${staging_dir}/${target_folder_name}" "${PANTS_BOOTSTRAP}/${target_folder_name}"
-      green "New virtual environment successfully created at ${PANTS_BOOTSTRAP}/${target_folder_name}."
-    ) 1>&2
-  fi
-  echo "${PANTS_BOOTSTRAP}/${target_folder_name}"
+	if [[ ! -d "${PANTS_BOOTSTRAP}/${target_folder_name}" ]]; then
+		(
+			venv_path="$(bootstrap_venv)"
+			staging_dir=$(tempdir "${PANTS_BOOTSTRAP}")
+			"${python}" "${venv_path}/virtualenv.py" --no-download "${staging_dir}/install"
+			"${staging_dir}/install/bin/pip" install -U pip
+			"${staging_dir}/install/bin/pip" install "${pants_requirement}"
+			ln -s "${staging_dir}/install" "${staging_dir}/${target_folder_name}"
+			mv "${staging_dir}/${target_folder_name}" "${PANTS_BOOTSTRAP}/${target_folder_name}"
+			green "New virtual environment successfully created at ${PANTS_BOOTSTRAP}/${target_folder_name}."
+		) 1>&2
+	fi
+	echo "${PANTS_BOOTSTRAP}/${target_folder_name}"
 }
 
 # Ensure we operate from the context of the ./pants buildroot.
 cd "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd -P)"
 python="$(determine_python_exe)"
 pants_dir="$(bootstrap_pants "${python}")"
-
 
 # We set the env var no_proxy to '*', to work around an issue with urllib using non
 # async-signal-safe syscalls after we fork a process that has already spawned threads.
