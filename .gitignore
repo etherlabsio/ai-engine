@@ -113,3 +113,6 @@ notebooks/
 dist/
 .pids
 .pants.workdir.file_lock
+
+# vendor
+vendor/
