@@ -34,11 +34,11 @@ deploy-production:
 
 .PHONY: run
 run:
-	./pants run cmd/${app}-server:server
+	sudo ./pants run cmd/${app}-server:server
 
 .PHONY: binary
 binary:
-	./pants binary cmd/${app}-server:server
+	sudo ./pants binary cmd/${app}-server:server
 
 .PHONY: docker-build
 docker-build:
@@ -57,3 +57,13 @@ new-service:
 	@cp .template/BUILD.services services/${app}/BUILD
 	@echo -e '\n\n Added cmd/${app}-server with BUILD & main file \n Added services/${app} with BUILD file'
 	@echo -e '\nNote: Kindly go into the Build files present in the 'services/${app}/' and 'cmd/${app}-server/'. \n Change the service name from Keyphrase to your respective service name and, \n add/remove the dependencies mentioned in the cmd/${app}-server/BUILD file '
+
+.PHONY: update-vendor
+update-vendor:
+	@mkdir vendor
+	@cp .template/BUILD.vendor vendor/BUILD
+	@wget https://github.com/explosion/spacy-models/releases/download/en_core_web_sm-2.1.0/en_core_web_sm-2.1.0.tar.gz
+	@tar -xvf en_core_web_sm-2.1.0.tar.gz
+	@mv en_core_web_sm-2.1.0/en_core_web_sm vendor/
+	@rm -rf en_core_web_sm-2.1.0
+	@rm -rf en_core_web_sm-2.1.0.tar.gz

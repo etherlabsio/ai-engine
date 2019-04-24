@@ -5,7 +5,6 @@ import time
 import networkx as nx
 import spacy
 from spacy.lang.en.stop_words import STOP_WORDS
-from sanic.log import logger
 
 from .graph_rank import GraphRank
 from .utils import TextPreprocess, GraphUtils
