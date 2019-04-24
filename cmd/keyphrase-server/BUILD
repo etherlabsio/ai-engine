@@ -6,7 +6,8 @@ python_binary(
 		':keyphrase-dep',
 	],
 	source="main.py",
-	compatibility="Cpython>3",
+
+    compatibility=['CPython==3.7.*'],
 )
 
 python_library(

@@ -10,6 +10,9 @@ import structlog
 
 import settings
 
+import sys
+print (sys.version_info)
+
 
 log = structlog.getLogger(__name__)
 

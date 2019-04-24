@@ -30,7 +30,7 @@ COPY pants.ini pants.ini
 
 RUN ./pants binary cmd/${app}-server:server
 
-FROM python:3.6-slim
+FROM python:3.7-slim
 
 WORKDIR /app
 COPY pkg pkg
