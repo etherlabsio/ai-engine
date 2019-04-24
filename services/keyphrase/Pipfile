@@ -20,6 +20,7 @@ spacy = "*"
 nltk = "*"
 networkx = "*"
 python-dotenv = "*"
+python-json-logger = "*"
 
 [dev-packages]
 pylint = "*"

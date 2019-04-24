@@ -21,7 +21,7 @@ class Manager:
 
     async def close(self):
         for subject, sid in self.subscriptions.items():
-            logger.info("flushing nats sub", id=sid)
+            logger.info("flushing nats sub %s", sid)
             if self.conn.is_connected:
                 await self.conn.unsubscribe(sid)
         await self.conn.drain()
@@ -48,9 +48,9 @@ class Manager:
             # Setting explicit list of servers in a cluster.
             await self.conn.connect(servers=[self.url], loop=loop, **options)
         except ErrNoServers as e:
-            logger.error("no nats servers to connect", err=e)
+            logger.error("no nats servers to connect %s", e)
 
-        logger.info("connected to nats server", url=self.url)
+        logger.info("connected to nats server %s", self.url)
 
     async def subscribe(self, topic, handler, queued=True):
         sid = None
@@ -63,7 +63,6 @@ class Manager:
             sid = await self.conn.subscribe(topic,
                                             cb=self.message_handler(handler))
         self.subscriptions[topic] = sid
-        logger.debug('subscriptions', sub=self.subscriptions)
 
     async def unsubscribe(self, topic):
         if topic in self.subscriptions.keys():
@@ -71,17 +70,17 @@ class Manager:
             await self.conn.unsubscribe(sid)
             self.subscriptions.pop(topic)
         else:
-            logger.debug("Topic not found in the subscription list", topic=topic)
+            logger.debug("Topic not found in the subscription list %s", topic)
 
     def message_handler(self, cb):
         async def handle(msg):
             try:
                 subject = msg.subject
                 reply = msg.reply
-                logger.info("received nats message",
-                         subject=subject,
-                         reply=reply,
-                         data=msg.data)
+                logger.info("received nats message %s, %s, %s",
+                            subject,
+                            reply,
+                            msg.data)
                 await cb(msg)
             except Exception as e:
                 send = self.conn.publish
@@ -96,9 +95,9 @@ class Manager:
                             "cause": str(e)
                         }
                     }).encode())
-                logger.error("failed to process message",
-                          subject=msg.subject,
-                          data=msg.data,
-                          err=e)
+                logger.error("failed to process message: %s, %s, %s",
+                             msg.subject,
+                             msg.data,
+                             e)
 
         return handle
