@@ -6,17 +6,17 @@ from text_preprocessing.util import expand_contractions, unkown_punct, \
 nltk.data.path.append('vendor/nltk_data/')
 
 try:
-    #nltk.data.find('pkg/nltk_data/tokenizers/punkt')
+    # nltk.data.find('pkg/nltk_data/tokenizers/punkt')
     nltk.data.find('tokenizers/punkt/PY3/english.pickle')
 except LookupError:
-     nltk.download('punkt')
+    nltk.download('punkt')
 
 
 #sent_detector = nltk.data.load('pkg/nltk_data/tokenizers/punkt/english.pickle')
 sent_detector = nltk.data.load('tokenizers/punkt/PY3/english.pickle')
 
 
-def preprocess(text, lemma=False, stop_words=True, word_tokenize=False, \
+def preprocess(text, lemma=False, stop_words=True, word_tokenize=False,
                remove_punct=True, pos=False):
     '''
     Description: Does all the basic pre-processing.
