@@ -1,5 +1,5 @@
 import networkx as nx
-import text_preprocessing.preprocess as process_text
+import services.keyphrase.text_preprocessing.preprocess as process_text
 
 
 class GraphUtils(object):
@@ -111,7 +111,7 @@ class TextPreprocess(object):
         """
 
         if pos_filter is None:
-            pos_filter = ['ADJ', 'NOUN', 'PROPN', 'FW']
+            pos_filter = ['JJ', 'JJR', 'JJS', 'NN', 'NNP', 'NNS', 'VB', 'VBP', 'NNPS', 'FW']
 
         filtered_word_pos = process_text.get_filtered_pos(sentence=word_pos_tuple, filter_pos=pos_filter)
 

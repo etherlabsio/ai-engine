@@ -3,6 +3,7 @@ import re
 from nltk.corpus import stopwords
 import spacy, nltk
 from nltk.stem import WordNetLemmatizer
+from nltk.tokenize import word_tokenize
 import en_core_web_sm
 
 # try:
@@ -167,14 +168,20 @@ def get_pos(sentence):
     output : A list of sentence where each sentence contains a list of tuple with word, POS.
     '''
     sentence_pos = []
-    doc = nlp(sentence)
+    # doc = nlp(sentence)
+    #
+    # for token in doc:
+    #     sentence_pos.append((token.text, token.pos_))
+    # return sentence_pos
 
-    for token in doc:
-        sentence_pos.append((token.text, token.pos_))
+    tokenized_text = word_tokenize(sentence)
+    pos_tags = nltk.pos_tag(tokenized_text)
+    for tags in pos_tags:
+        sentence_pos.append(tags)
     return sentence_pos
 
 
-def get_filtered_pos(sentence, filter_pos=['ADJ', 'VERB', 'NOUN', 'PROPN', 'FW']):
+def get_filtered_pos(sentence, filter_pos=['JJ', 'VB', 'NN', 'NNP', 'FW']):
     '''
     Description : Filter POS with respect to the given list.
     Input : A list of sentence, where sentence consist of \

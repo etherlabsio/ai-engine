@@ -21,6 +21,7 @@ class KeyphraseExtractor(object):
         self.tp = TextPreprocess()
         self.gutils = GraphUtils()
         self.meeting_graph = nx.Graph()
+        self.syntactic_filter = ['JJ', 'JJR', 'JJS', 'NN', 'NNP', 'NNS', 'VB', 'VBP', 'NNPS', 'FW']
 
     def formatTime(self, tz_time):
         isoTime = iso8601.parse_date(tz_time)
@@ -263,8 +264,5 @@ class KeyphraseExtractor(object):
         self.meeting_graph.clear()
         logger.info("Number of nodes: {}; Number of edges: {}".format(self.meeting_graph.number_of_nodes(),
                                                                       self.meeting_graph.number_of_edges()))
-
-        print(self.gr.graph.number_of_nodes())
-        print(self.meeting_graph.number_of_nodes())
 
         return {'result': 'done', 'message': 'reset successful'}

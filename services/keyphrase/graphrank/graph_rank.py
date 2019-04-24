@@ -5,9 +5,9 @@ import logging
 import os
 import networkx as nx
 
-from .metrics import GraphSolvers, WeightMetrics
-from .utils import GraphUtils, TextPreprocess
-from .dgraph import *
+from services.keyphrase.graphrank.metrics import GraphSolvers, WeightMetrics
+from services.keyphrase.graphrank.utils import GraphUtils, TextPreprocess
+from services.keyphrase.graphrank.dgraph import *
 
 
 class GraphRank(object):
@@ -52,7 +52,7 @@ class GraphRank(object):
             cooccurrence_graph (Networkx graph obj): Graph of co-occurring keywords
         """
         if syntactic_filter is None:
-            syntactic_filter = ['ADJ', 'NOUN', 'PROPN', 'FW']
+            syntactic_filter = ['JJ', 'JJR', 'JJS', 'NN', 'NNP', 'NNS', 'VB', 'VBP', 'NNPS', 'FW']
 
         # Extend the context of the graph
         if reset_graph_context:
