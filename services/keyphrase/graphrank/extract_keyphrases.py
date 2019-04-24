@@ -5,10 +5,12 @@ import time
 import networkx as nx
 import spacy
 from spacy.lang.en.stop_words import STOP_WORDS
-from sanic.log import logger
+import logging
 
 from .graph_rank import GraphRank
 from .utils import TextPreprocess, GraphUtils
+
+logger = logging.getLogger(__name__)
 
 
 class KeyphraseExtractor(object):
@@ -50,11 +52,15 @@ class KeyphraseExtractor(object):
 
     def process_text(self, text, filter_by_pos=True, stop_words=False, syntactic_filter=None):
         original_tokens, pos_tuple, filtered_pos_tuple = self.tp.preprocess_text(text,
-                                                                            filter_by_pos=filter_by_pos,
-                                                                            pos_filter=syntactic_filter,
-                                                                            stop_words=stop_words)
+                                                                                 filter_by_pos=filter_by_pos,
+                                                                                 pos_filter=syntactic_filter,
+                                                                                 stop_words=stop_words)
 
         return original_tokens, pos_tuple, filtered_pos_tuple
+
+    def initialize_meeting_graph(self, context_id, instance_id):
+        self.meeting_graph = nx.Graph(context_instance_id=instance_id, context_id=context_id)
+        pass
 
     def build_custom_graph(self, text_list, window=4, preserve_common_words=False, syntactic_filter=None):
 
@@ -63,10 +69,10 @@ class KeyphraseExtractor(object):
             try:
                 original_tokens, pos_tuple, filtered_pos_tuple = self.process_text(text)
                 self.meeting_graph = self.gr.build_word_graph(input_pos_text=filtered_pos_tuple,
-                                                         original_tokens=original_tokens,
-                                                         window=window,
-                                                         syntactic_filter=syntactic_filter,
-                                                         preserve_common_words=preserve_common_words)
+                                                              original_tokens=original_tokens,
+                                                              window=window,
+                                                              syntactic_filter=syntactic_filter,
+                                                              preserve_common_words=preserve_common_words)
             except Exception as e:
                 logger.error("Could not process the sentence: ErrorMsg: {}".format(e))
 
@@ -225,6 +231,9 @@ class KeyphraseExtractor(object):
     def get_keyphrases(self, req_data, n_kw=10):
         segments_array = req_data['segments']
 
+        # Re-populate the graph if google transcripts are coming in
+        self.populate_word_graph(req_data)
+
         # Decide between PIM or Chapter keyphrases
         if len(segments_array) > 1:
             logger.info("Publishing Chapter Keyphrases")
@@ -247,11 +256,15 @@ class KeyphraseExtractor(object):
 
     def reset_keyphrase_graph(self, req_data):
         logger.info(
-            "Before Reset - Number of nodes: {}; Number of edges: {}".format(self.gr.graph.number_of_nodes(),
-                                                                             self.gr.graph.number_of_edges()))
+            "Before Reset - Number of nodes: {}; Number of edges: {}".format(self.meeting_graph.number_of_nodes(),
+                                                                             self.meeting_graph.number_of_edges()))
 
         self.gr.reset_graph()
-        logger.info("Number of nodes: {}; Number of edges: {}".format(self.gr.graph.number_of_nodes(),
-                                                                      self.gr.graph.number_of_edges()))
+        self.meeting_graph.clear()
+        logger.info("Number of nodes: {}; Number of edges: {}".format(self.meeting_graph.number_of_nodes(),
+                                                                      self.meeting_graph.number_of_edges()))
+
+        print(self.gr.graph.number_of_nodes())
+        print(self.meeting_graph.number_of_nodes())
 
         return {'result': 'done', 'message': 'reset successful'}

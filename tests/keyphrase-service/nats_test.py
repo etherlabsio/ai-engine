@@ -1,7 +1,6 @@
 import asyncio
 import json
 from nats.aio.client import Client as NATS
-from nats.aio.utils import new_inbox
 import argparse
 import os
 import uvloop
@@ -60,7 +59,7 @@ async def populate_graph():
     await nc.connect(servers=[nats_url])
     test_json = read_json(multi_json_file)
     single_test = read_json(single_json_file)
-    await nc.publish(topic, json.dumps(test_json).encode())
+    await nc.publish(topic, json.dumps(single_test).encode())
     # await nc.flush()
     await nc.close()
 
@@ -124,7 +123,7 @@ if __name__ == '__main__':
     asyncio.set_event_loop_policy(uvloop.EventLoopPolicy())
     loop = asyncio.get_event_loop()
     single_json_file = os.path.join(os.getcwd(), "single_segment_test.json")
-    multi_json_file = os.path.join(os.getcwd(), "multi_segment_test.json")
+    multi_json_file = os.path.join(os.getcwd(), "staging_meeting_deepgram.json")
 
     if args.topics == 'def':
         t1 = loop.run_until_complete(create_context())

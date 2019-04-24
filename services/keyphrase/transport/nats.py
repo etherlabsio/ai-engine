@@ -25,6 +25,7 @@ class NATSTransport(object):
                      cid=context_id,
                      ciid=context_instance_id)
         await self.subscribe_context_events(context_instance_id)
+        self.keyphrase_service.initialize_meeting_graph(context_id=context_id, context_instance_id=context_instance_id)
 
     async def subscribe_context_events(self, instance_id):
         await self.nats_manager.subscribe(topic="context.instance." +
