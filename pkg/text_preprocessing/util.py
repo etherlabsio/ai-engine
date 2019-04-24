@@ -5,17 +5,11 @@ import spacy
 import nltk
 from nltk.stem import WordNetLemmatizer
 
-# try:
-#     nltk.data.find('wordnet')
-# except LookupError:
-#     nltk.download('wordnet')
-
 nltk.data.path.append('vendor/nltk_data')
 
 nlp = spacy.load('vendor/en_core_web_sm/en_core_web_sm-2.1.0')
 
 try:
-    # stop_words_nltk = stopwords.words('pkg/nltk_data/corpora/stopwords/english')
     stop_words_nltk = stopwords.words('english')
 except Exception:
     nltk.download('stopwords')
