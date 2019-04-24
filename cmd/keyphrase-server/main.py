@@ -11,7 +11,7 @@ import structlog
 import settings
 
 import sys
-print (sys.version_info)
+print(sys.version_info)
 
 
 log = structlog.getLogger(__name__)
@@ -48,8 +48,10 @@ def run_http_server():
 
 
 if __name__ == '__main__':
-    parser = argparse.ArgumentParser(description='arguments for keyphrase_service')
-    parser.add_argument("--nats_url", type=str, default=NATS_URL, help="nats server url")
+    parser = argparse.ArgumentParser(
+        description='arguments for keyphrase_service')
+    parser.add_argument("--nats_url", type=str,
+                        default=NATS_URL, help="nats server url")
     args = parser.parse_args()
 
     asyncio.set_event_loop_policy(uvloop.EventLoopPolicy())
