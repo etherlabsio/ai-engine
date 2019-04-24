@@ -12,6 +12,7 @@ except LookupError:
 
 sent_detector = nltk.data.load('tokenizers/punkt/PY3/english.pickle')
 
+
 def preprocess(text, lemma=False, stop_words=True, word_tokenize=False,
                remove_punct=True, pos=False):
     '''
