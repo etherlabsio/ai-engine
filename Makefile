@@ -47,3 +47,13 @@ docker-build:
 .PHONY: docker-run
 docker-run:
 	sudo docker run -p 8080:7070 ${app}
+
+.PHONY: new-service
+new-service:
+	@mkdir services/${app}
+	@mkdir cmd/${app}-server
+	@touch cmd/${app}-server/main.py
+	@cp .template/BUILD.cmd cmd/${app}-server/BUILD
+	@cp .template/BUILD.services services/${app}/BUILD
+	@echo -e '\n\n Added cmd/${app}-server with BUILD & main file \n Added services/${app} with BUILD file'
+	@echo -e '\nNote: Kindly go into the Build files present in the 'services/${app}/' and 'cmd/${app}-server/'. \n Change the service name from Keyphrase to your respective service name and, \n add/remove the dependencies mentioned in the cmd/${app}-server/BUILD file '
