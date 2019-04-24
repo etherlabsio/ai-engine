@@ -2,15 +2,20 @@ import asyncio
 import signal
 import uvloop
 import logging
-from os import getenv
-from graphrank.extract_keyphrases import KeyphraseExtractor
-from transport.nats import NATSTransport
-from transport.manager import Manager
 from dotenv import load_dotenv
+from os import getenv
 
-log = logging.getLogger(__name__)
+from services.keyphrase.graphrank.extract_keyphrases import KeyphraseExtractor
+from services.keyphrase.transport.nats import NATSTransport
+from pkg.nats.manager import Manager
+from pkg.log.logger import setup_server_logger
+
+logger = logging.getLogger()
+
 
 if __name__ == '__main__':
+    # Setup logger
+    setup_server_logger(debug=True)  # default False for disabling debug mode
     load_dotenv()
 
     active_env = getenv("ACTIVE_ENV", "development")
@@ -26,11 +31,11 @@ if __name__ == '__main__':
                            queue_name="io.etherlabs.keyphrase.ether_service")
     nats_transport = NATSTransport(
         nats_manager=nats_manager,
-        keyphrase_service=keyphrase_extractor,
+        keyphrase_service=keyphrase_extractor
     )
 
     def shutdown():
-        log.info("received interrupt; shutting down")
+        logger.info("received interrupt; shutting down")
         loop.create_task(nats_manager.close())
 
     loop.run_until_complete(nats_manager.connect())
