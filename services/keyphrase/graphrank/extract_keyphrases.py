@@ -14,7 +14,7 @@ from .utils import TextPreprocess, GraphUtils
 class KeyphraseExtractor(object):
     def __init__(self):
         self.stop_words = list(STOP_WORDS)
-        self.nlp = spacy.load('pkg/en_core_web_sm/en_core_web_sm-2.1.0')
+        self.nlp = spacy.load('vendor/en_core_web_sm/en_core_web_sm-2.1.0')
         self.gr = GraphRank()
         self.tp = TextPreprocess()
         self.gutils = GraphUtils()

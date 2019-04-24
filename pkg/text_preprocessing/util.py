@@ -9,9 +9,9 @@ from nltk.stem import WordNetLemmatizer
 # except LookupError:
 #     nltk.download('wordnet')
 
-nltk.data.path.append('pkg/nltk_data')
+nltk.data.path.append('vendor/nltk_data')
 
-nlp = spacy.load('pkg/en_core_web_sm/en_core_web_sm-2.1.0')
+nlp = spacy.load('vendor/en_core_web_sm/en_core_web_sm-2.1.0')
 
 try:
    # stop_words_nltk = stopwords.words('pkg/nltk_data/corpora/stopwords/english')

@@ -4,6 +4,7 @@ python_binary(
 		'pkg:common-libs',
 		'services/keyphrase:keyphrase-libs',
 		':keyphrase-dep',
+		'vendor:vendor-libs',
 	],
 	source="main.py",
 
