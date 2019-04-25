@@ -1,38 +1,39 @@
-FROM derphilipp/ubuntu_bionic_with_utf8
+FROM derphilipp/ubuntu_bionic_with_utf8 AS compile-image
 
 RUN apt-get update && \
-    DEBIAN_FRONTEND=noninteractive  apt-get -y install --no-install-recommends  build-essential \
-        python3.7 \
-        python3-pip python3.7-dev && \
-    rm -rf /var/lib/apt/lists/* && \
-    rm -rf /var/cache/apt/archives && \
-    rm -f /usr/bin/python && \
-    rm -f /usr/bin/python3 && \
-    ln -s /usr/bin/python3.7 /usr/bin/python && \
-    ln -s /usr/bin/python3.7 /usr/bin/python3 && \
-    python3.7 -m pip install --upgrade pip
+        DEBIAN_FRONTEND=noninteractive apt-get -y install --no-install-recommends build-essential python3.7 python3-pip python3.7-dev &&\
+    apt-get install -y --no-install-recommends linux-headers-generic build-essential gcc python3-dev python-dev  && \
+    apt-get install -y --no-install-recommends curl && \
+    apt-get install -y --no-install-recommends openjdk-8-jdk ant && \
+    apt-get install -y --no-install-recommends libffi-dev && \
+    apt-get install -y --no-install-recommends ca-certificates-java && \
+    update-ca-certificates -f;
 
-RUN mkdir /opt/app
-WORKDIR /opt/app
+RUN rm -rf /var/lib/apt/lists/* && \
+        rm -rf /var/cache/apt/archives && \
+        rm -f /usr/bin/python && \
+        rm -f /usr/bin/python3 && \
+        ln -s /usr/bin/python3.7 /usr/bin/python && \
+        ln -s /usr/bin/python3.7 /usr/bin/python3 && \
+        python3.7 -m pip install --upgrade pip
 
-COPY services/keyphrase/Pipfile Pipfile
-COPY services/keyphrase/Pipfile.lock Pipfile.lock
+ENV JAVA_HOME /usr/lib/jvm/java-8-openjdk-amd64/
 
-RUN pip install virtualenv --upgrade
-RUN pip install pipenv --upgrade
-RUN pip install wheel --upgrade
-RUN set -ex && pipenv --python 3.7
-RUN pipenv install -v --system
-RUN python3.7 -m spacy download en_core_web_sm && python3.7 -m spacy download en
+WORKDIR /build
+RUN curl -L -O https://pantsbuild.github.io/setup/pants && chmod +x pants
+ARG app
+COPY 3rdparty 3rdparty
+COPY cmd cmd
+COPY pkg pkg
+COPY services/${app} services/${app}
+COPY pants.ini pants.ini
 
-# Download NLTK data
-RUN python3.7 -c "import nltk; nltk.download('punkt')"
-RUN python3.7 -c "import nltk; nltk.download('stopwords')"
-RUN python3.7 -c "import nltk; nltk.download('averaged_perceptron_tagger')"
+RUN ./pants binary cmd/${app}-server:server
 
-COPY services/ services/
-COPY pkg pkg/
+FROM python:3.7-slim
 
-ENTRYPOINT ["python", "services/keyphrase/main.py"]
-CMD []
-# EXPOSE 8080
+WORKDIR /app
+COPY pkg pkg
+COPY --from=compile-image /build/dist/server.pex .
+
+ENTRYPOINT ["./server.pex"]
