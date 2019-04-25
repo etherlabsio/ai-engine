@@ -15,7 +15,8 @@ logger = logging.getLogger(__name__)
 
 class KeyphraseExtractor(object):
     def __init__(self):
-        self.nlp = spacy.load('en_core_web_sm')
+        self.stop_words = list(STOP_WORDS)
+        self.nlp = spacy.load('vendor/en_core_web_sm/en_core_web_sm-2.1.0')
         self.gr = GraphRank()
         self.tp = TextPreprocess()
         self.gutils = GraphUtils()
@@ -33,12 +34,18 @@ class KeyphraseExtractor(object):
 
         json_df_ts = pd.DataFrame(input_json['segments'], index=None)
         json_df_ts['id'] = json_df_ts['id'].astype(str)
-        json_df_ts['filteredText'] = json_df_ts['filteredText'].apply(lambda x: str(x))
-        json_df_ts['originalText'] = json_df_ts['originalText'].apply(lambda x: str(x))
-        json_df_ts['createdAt'] = json_df_ts['createdAt'].apply(lambda x: self.formatTime(x))
-        json_df_ts['endTime'] = json_df_ts['endTime'].apply(lambda x: self.formatTime(x))
-        json_df_ts['startTime'] = json_df_ts['startTime'].apply(lambda x: self.formatTime(x))
-        json_df_ts['updatedAt'] = json_df_ts['updatedAt'].apply(lambda x: self.formatTime(x))
+        json_df_ts['filteredText'] = json_df_ts['filteredText'].apply(
+            lambda x: str(x))
+        json_df_ts['originalText'] = json_df_ts['originalText'].apply(
+            lambda x: str(x))
+        json_df_ts['createdAt'] = json_df_ts['createdAt'].apply(
+            lambda x: self.formatTime(x))
+        json_df_ts['endTime'] = json_df_ts['endTime'].apply(
+            lambda x: self.formatTime(x))
+        json_df_ts['startTime'] = json_df_ts['startTime'].apply(
+            lambda x: self.formatTime(x))
+        json_df_ts['updatedAt'] = json_df_ts['updatedAt'].apply(
+            lambda x: self.formatTime(x))
         json_df_ts = json_df_ts.sort_values(['createdAt'], ascending=[1])
 
         return json_df_ts
@@ -67,14 +74,16 @@ class KeyphraseExtractor(object):
         for i in range(len(text_list)):
             text = text_list[i]
             try:
-                original_tokens, pos_tuple, filtered_pos_tuple = self.process_text(text)
+                original_tokens, pos_tuple, filtered_pos_tuple = self.process_text(
+                    text)
                 self.meeting_graph = self.gr.build_word_graph(input_pos_text=filtered_pos_tuple,
                                                               original_tokens=original_tokens,
                                                               window=window,
                                                               syntactic_filter=syntactic_filter,
                                                               preserve_common_words=preserve_common_words)
             except Exception as e:
-                logger.debug("Could not process the sentence: ErrorMsg: {}".format(e))
+                logger.error(
+                    "Could not process the sentence: ErrorMsg: {}".format(e))
 
     def get_custom_keyphrases(self, graph,
                               pos_tuple=None,
@@ -95,8 +104,10 @@ class KeyphraseExtractor(object):
         return keyphrases
 
     def get_entities(self, input_segment):
-        spacy_list = ["PRODUCT", "EVENT", "LOC", "ORG", "PERSON", "WORK_OF_ART"]
-        comprehend_list = ["COMMERCIAL_ITEM", "EVENT", "LOCATION", "ORGANIZATION", "PERSON", "TITLE"]
+        spacy_list = ["PRODUCT", "EVENT", "LOC",
+                      "ORG", "PERSON", "WORK_OF_ART"]
+        comprehend_list = ["COMMERCIAL_ITEM", "EVENT",
+                           "LOCATION", "ORGANIZATION", "PERSON", "TITLE"]
         match_dict = dict(zip(spacy_list, comprehend_list))
 
         doc = self.nlp(input_segment)
@@ -131,9 +142,11 @@ class KeyphraseExtractor(object):
         result = {}
         for i in range(len(input_json['segments'])):
             sort_list = []
+
             entity_segment = input_json['segments'][i].get('originalText')
             input_segment = input_json['segments'][i].get('originalText').lower()
             keywords_list = []
+
             for tup in keyphrase_list:
                 kw = tup[0]
                 score = tup[1]
@@ -178,6 +191,7 @@ class KeyphraseExtractor(object):
         for i in range(len(input_json['segments'])):
             entity_segment = input_json['segments'][i].get('originalText')
             input_segment = input_json['segments'][i].get('originalText').lower()
+
             for tup in keyphrase_list:
                 kw = tup[0]
                 score = tup[1]
@@ -188,7 +202,8 @@ class KeyphraseExtractor(object):
 
             chapter_entities.extend(self.get_entities(entity_segment))
 
-        sort_list = self.gutils.sort_by_value(chapter_keywords_list, order='desc')
+        sort_list = self.gutils.sort_by_value(
+            chapter_keywords_list, order='desc')
         if top_n is not None:
             sort_list = sort_list[:top_n]
 
@@ -222,6 +237,7 @@ class KeyphraseExtractor(object):
         try:
             keyphrase_list = self.get_custom_keyphrases(graph=self.meeting_graph)
             # logger.debug("Complete keyphrases: {}".format(keyphrase_list))
+
         except Exception as e:
             logger.debug("ErrorMsg: {}".format(e))
 

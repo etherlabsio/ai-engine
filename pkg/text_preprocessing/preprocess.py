@@ -1,19 +1,19 @@
 import nltk
 import nltk.data
-from services.keyphrase.text_preprocessing.util import expand_contractions, unkown_punct, \
+from pkg.text_preprocessing.util import expand_contractions, unkown_punct, \
     remove_number, remove_stopwords, lemmatization, get_pos, get_filtered_pos
 
+nltk.data.path.append('vendor/nltk_data/')
 
-# try:
-#     nltk.data.find('tokenizers/punkt')
-# except LookupError:
-#     nltk.download('punkt')
+try:
+    nltk.data.find('tokenizers/punkt/PY3/english.pickle')
+except LookupError:
+    nltk.download('punkt')
+
+sent_detector = nltk.data.load('tokenizers/punkt/PY3/english.pickle')
 
 
-sent_detector = nltk.data.load('tokenizers/punkt/english.pickle')
-
-
-def preprocess(text, lemma=False, stop_words=True, word_tokenize=False, \
+def preprocess(text, lemma=False, stop_words=True, word_tokenize=False,
                remove_punct=True, pos=False):
     '''
     Description: Does all the basic pre-processing.
