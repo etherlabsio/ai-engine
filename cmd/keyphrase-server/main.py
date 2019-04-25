@@ -2,7 +2,7 @@ import asyncio
 import signal
 import uvloop
 import logging
-from dotenv import load_dotenv
+from dotenv import load_dotenv, find_dotenv
 from os import getenv
 
 from keyphrase.graphrank.extract_keyphrases import KeyphraseExtractor
@@ -16,11 +16,10 @@ logger = logging.getLogger()
 if __name__ == '__main__':
     # Setup logger
     setup_server_logger(debug=True)  # default False for disabling debug mode
-    load_dotenv()
+    load_dotenv(find_dotenv())
 
     active_env = getenv("ACTIVE_ENV", "development")
-    nats_url = getenv("NATS_URL", "nats://docker.for.mac.localhost:4222")
-
+    nats_url = getenv("NATS_URL", "nats://localhost:4222")
     asyncio.set_event_loop_policy(uvloop.EventLoopPolicy())
     loop = asyncio.get_event_loop()
 
