@@ -116,7 +116,7 @@ def read_json(json_file):
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(
         description='topic arguments for keyphrase_service')
-    parser.add_argument("--topics", type=str, 
+    parser.add_argument("--topics", type=str,
                         default="def", help="publish keyphrase graph")
     parser.add_argument("--nats_url", type=str,
                         default=NATS_URL, help="nats server url")
@@ -126,7 +126,8 @@ if __name__ == '__main__':
     asyncio.set_event_loop_policy(uvloop.EventLoopPolicy())
     loop = asyncio.get_event_loop()
     single_json_file = os.path.join(os.getcwd(), "single_segment_test.json")
-    multi_json_file = os.path.join(os.getcwd(), "staging_meeting_deepgram.json")
+    multi_json_file = os.path.join(
+        os.getcwd(), "staging_meeting_deepgram.json")
 
     if args.topics == 'def':
         t1 = loop.run_until_complete(create_context())

@@ -25,7 +25,8 @@ class NATSTransport(object):
                      context_id,
                      context_instance_id)
         await self.subscribe_context_events(context_instance_id)
-        self.keyphrase_service.initialize_meeting_graph(context_id=context_id, context_instance_id=context_instance_id)
+        self.keyphrase_service.initialize_meeting_graph(
+            context_id=context_id, context_instance_id=context_instance_id)
 
         logger.debug('subscriptions %s', self.nats_manager.subscriptions)
 
