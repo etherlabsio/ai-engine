@@ -1,6 +1,6 @@
 import nltk
 import nltk.data
-from pkg.text_preprocessing.util import expand_contractions, unkown_punct, \
+from text_preprocessing.util import expand_contractions, unkown_punct, \
     remove_number, remove_stopwords, lemmatization, get_pos, get_filtered_pos
 
 nltk.data.path.append('vendor/nltk_data/')

@@ -1,5 +1,5 @@
 import networkx as nx
-import services.keyphrase.text_preprocessing.preprocess as process_text
+import text_preprocessing.preprocess as process_text
 
 
 class GraphUtils(object):

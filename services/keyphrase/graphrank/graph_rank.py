@@ -6,9 +6,9 @@ import os
 import networkx as nx
 from nltk import PorterStemmer
 
-from services.keyphrase.graphrank.metrics import GraphSolvers, WeightMetrics
-from services.keyphrase.graphrank.utils import GraphUtils, TextPreprocess
-from services.keyphrase.graphrank.dgraph import *
+from keyphrase.graphrank.metrics import GraphSolvers, WeightMetrics
+from keyphrase.graphrank.utils import GraphUtils, TextPreprocess
+from keyphrase.graphrank.dgraph import *
 
 
 class GraphRank(object):

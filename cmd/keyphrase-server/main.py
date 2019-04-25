@@ -7,8 +7,8 @@ from os import getenv
 
 from keyphrase.graphrank.extract_keyphrases import KeyphraseExtractor
 from keyphrase.transport.nats import NATSTransport
-from pkg.nats.manager import Manager
-from pkg.log.logger import setup_server_logger
+from nats.manager import Manager
+from log.logger import setup_server_logger
 
 logger = logging.getLogger()
 
