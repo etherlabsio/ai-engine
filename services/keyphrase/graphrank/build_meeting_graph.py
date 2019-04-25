@@ -104,7 +104,8 @@ def construct_segment_nodes(meeting):
         segment_transcriber = node_val['transcribed_by']
 
         id_user_edge = (segment_id, segment_user, attrs['id_user'])
-        id_transcriber_edge = (segment_id, segment_transcriber, attrs['id_transcriber'])
+        id_transcriber_edge = (
+            segment_id, segment_transcriber, attrs['id_transcriber'])
 
         id_user_edge_list.append(id_user_edge)
         id_transcriber_edge_list.append(id_transcriber_edge)
