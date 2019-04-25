@@ -27,9 +27,11 @@ class GraphUtils(object):
         """
 
         if order == 'desc':
-            sorted_list = sorted(item_list, key=lambda x: (x[1], x[0]), reverse=True)
+            sorted_list = sorted(
+                item_list, key=lambda x: (x[1], x[0]), reverse=True)
         else:
-            sorted_list = sorted(item_list, key=lambda x: (x[1], x[0]), reverse=False)
+            sorted_list = sorted(
+                item_list, key=lambda x: (x[1], x[0]), reverse=False)
 
         return sorted_list
 
@@ -93,7 +95,8 @@ class TextPreprocess(object):
                                                                  pos=pos)
 
         if filter_by_pos:
-            filtered_word_pos = self.filter_by_pos(word_pos_tuple=word_pos_list, pos_filter=pos_filter)
+            filtered_word_pos = self.filter_by_pos(
+                word_pos_tuple=word_pos_list, pos_filter=pos_filter)
         else:
             filtered_word_pos = []
 
@@ -111,8 +114,10 @@ class TextPreprocess(object):
         """
 
         if pos_filter is None:
-            pos_filter = ['JJ', 'JJR', 'JJS', 'NN', 'NNP', 'NNS', 'VB', 'VBP', 'NNPS', 'FW']
+            pos_filter = ['JJ', 'JJR', 'JJS', 'NN',
+                          'NNP', 'NNS', 'VB', 'VBP', 'NNPS', 'FW']
 
-        filtered_word_pos = process_text.get_filtered_pos(sentence=word_pos_tuple, filter_pos=pos_filter)
+        filtered_word_pos = process_text.get_filtered_pos(
+            sentence=word_pos_tuple, filter_pos=pos_filter)
 
         return filtered_word_pos
