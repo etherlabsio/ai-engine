@@ -15,7 +15,6 @@ logger = logging.getLogger(__name__)
 
 class KeyphraseExtractor(object):
     def __init__(self):
-        self.stop_words = list(STOP_WORDS)
         self.nlp = spacy.load('en_core_web_sm')
         self.gr = GraphRank()
         self.tp = TextPreprocess()
@@ -75,7 +74,7 @@ class KeyphraseExtractor(object):
                                                               syntactic_filter=syntactic_filter,
                                                               preserve_common_words=preserve_common_words)
             except Exception as e:
-                logger.error("Could not process the sentence: ErrorMsg: {}".format(e))
+                logger.debug("Could not process the sentence: ErrorMsg: {}".format(e))
 
     def get_custom_keyphrases(self, graph,
                               pos_tuple=None,
@@ -113,7 +112,6 @@ class KeyphraseExtractor(object):
         t_noun_chunks = [str(item).strip().lower() for item in t_noun_chunks]
 
         # remove stop words from noun_chunks/NERs
-        t_noun_chunks = list(set(t_noun_chunks) - set(self.stop_words))
         entity_dict = []
         for entt in list(zip(filtered_entities, t_ner_type)):
             entity_dict.append({'text': str(entt[0]), 'type': entt[1]})
@@ -146,10 +144,16 @@ class KeyphraseExtractor(object):
 
             sort_list = self.gutils.sort_by_value(keywords_list, order='desc')
             if top_n is not None:
-                sort_list = sort_list[:top_n]
+                sort_list = sort_list[:-1]
 
-            segment_keyword_list = [words for words, score in sort_list]
             segment_entity = self.get_entities(entity_segment)
+            segment_keyword_list = [words for words, score in sort_list]
+
+            # Remove the first occurrence of entity in the list of keyphrases
+            for entities in segment_entity:
+                if entities.lower() in segment_keyword_list:
+                    segment_keyword_list.remove(entities.lower)
+
             segment_entity.extend(segment_keyword_list)
             segment_output = segment_entity
 
@@ -190,6 +194,11 @@ class KeyphraseExtractor(object):
 
         chapter_keyphrases = [phrases for phrases, score in sort_list]
 
+        # Remove the first occurrence of entity in the list of keyphrases
+        for entities in chapter_entities:
+            if entities.lower() in chapter_keyphrases:
+                chapter_keyphrases.remove(entities.lower)
+
         chapter_entities.extend(chapter_keyphrases)
         chapter_output = chapter_entities
 
@@ -208,24 +217,33 @@ class KeyphraseExtractor(object):
         logger.info("Number of nodes: {}; Number of edges: {}".format(self.meeting_graph.number_of_nodes(),
                                                                       self.meeting_graph.number_of_edges()))
 
-    def compute_keyphrases(self, req_data):
+    def compute_keyphrases(self):
         keyphrase_list = []
         try:
             keyphrase_list = self.get_custom_keyphrases(graph=self.meeting_graph)
+            # logger.debug("Complete keyphrases: {}".format(keyphrase_list))
         except Exception as e:
-            logger.error("ErrorMsg: {}".format(e))
+            logger.debug("ErrorMsg: {}".format(e))
 
         return keyphrase_list
 
     def _get_pim_keyphrases(self, req_data, n_kw=5):
-        keyphrase_list = self.compute_keyphrases(req_data)
-        segment_keyphrases = self.segment_search(input_json=req_data, keyphrase_list=keyphrase_list, top_n=n_kw)
+        keyphrase_list = self.compute_keyphrases()
+        segment_keyphrases = []
+        try:
+            segment_keyphrases = self.segment_search(input_json=req_data, keyphrase_list=keyphrase_list, top_n=n_kw)
+        except Exception as e:
+            logger.debug("ErrorMsg: {}".format(e))
 
         return segment_keyphrases
 
     def _get_chapter_keyphrases(self, req_data, n_kw=5):
-        keyphrase_list = self.compute_keyphrases(req_data)
-        chapter_keyphrases = self.chapter_segment_search(input_json=req_data, keyphrase_list=keyphrase_list, top_n=n_kw)
+        keyphrase_list = self.compute_keyphrases()
+        chapter_keyphrases = []
+        try:
+            chapter_keyphrases = self.chapter_segment_search(input_json=req_data, keyphrase_list=keyphrase_list, top_n=n_kw)
+        except Exception as e:
+            logger.debug("ErrorMsg: {}".format(e))
 
         return chapter_keyphrases
 
@@ -246,7 +264,7 @@ class KeyphraseExtractor(object):
         return keyphrases
 
     def get_instance_keyphrases(self, req_data, n_kw=10):
-        keyphrase_list = self.compute_keyphrases(req_data)
+        keyphrase_list = self.compute_keyphrases()
         instance_keyphrases = [words for words, score in keyphrase_list]
 
         result = {
@@ -256,7 +274,7 @@ class KeyphraseExtractor(object):
         return result
 
     def reset_keyphrase_graph(self, req_data):
-        logger.info(
+        logger.debug(
             "Before Reset - Number of nodes: {}; Number of edges: {}".format(self.meeting_graph.number_of_nodes(),
                                                                              self.meeting_graph.number_of_edges()))
 

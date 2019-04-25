@@ -4,6 +4,7 @@ import math
 import logging
 import os
 import networkx as nx
+from nltk import PorterStemmer
 
 from services.keyphrase.graphrank.metrics import GraphSolvers, WeightMetrics
 from services.keyphrase.graphrank.utils import GraphUtils, TextPreprocess
@@ -17,6 +18,8 @@ class GraphRank(object):
         self.graph_solver = GraphSolvers()
         self.metric_object = WeightMetrics()
         self.preprocess_text = TextPreprocess()
+
+        self.stemmer = PorterStemmer()
 
         # Store the original text and maintain the context flow to extend the graph.
         self.context = []
@@ -37,7 +40,8 @@ class GraphRank(object):
                          reset_graph_context=False,
                          preserve_common_words=False,
                          node_attributes=None,
-                         edge_attributes=None):
+                         edge_attributes=None,
+                         preserve_plurals=False):
         """
         Build co-occurrence of words graph based on the POS tags and the window of occurrence
         Args:
@@ -54,36 +58,46 @@ class GraphRank(object):
         if syntactic_filter is None:
             syntactic_filter = ['JJ', 'JJR', 'JJS', 'NN', 'NNP', 'NNS', 'VB', 'VBP', 'NNPS', 'FW']
 
+        original_token_pos_list = [(word.lower(), pos) for sent in input_pos_text for word, pos in sent]
+
         # Extend the context of the graph
         if reset_graph_context:
             self.reset_graph()
-        self.context.extend(original_tokens)
+        self.context.extend(original_token_pos_list)
 
         if preserve_common_words:
             common_words = []
         else:
             common_words = self.common_words
 
-        # Flattened input
-        unfiltered_pos_list = [(word.lower(), pos) for sent in input_pos_text for word, pos in sent]
-
         # Filter input based on syntactic filters and Flatten it
-        filtered_pos_list = [(word.lower(), pos) for sent in input_pos_text for word, pos in sent if pos in syntactic_filter]
+        unfiltered_pos_list = [(word.lower(), pos) for sent in input_pos_text for word, pos in sent
+                               if pos in syntactic_filter]
+
+        # Filter input based on common words and Flatten it
+        if preserve_plurals:
+            filtered_pos_list = [(word.lower(), pos) for sent in input_pos_text for word, pos in sent if
+                                 pos in syntactic_filter and word.lower() not in common_words]
+        else:
+            filtered_pos_list = [(word.lower(), pos) for sent in input_pos_text for word, pos in sent if
+                                 pos in syntactic_filter and word.lower() not in common_words]
+
+            filtered_pos_list = [(self.stemmer.stem(word), pos) if pos == 'NNS' else (word, pos)
+                                 for word, pos in filtered_pos_list]
 
         # Add nodes
         if node_attributes is not None:
-            self.graph.add_nodes_from([(word.lower(), node_attributes) for word, pos in filtered_pos_list if word.lower() not in common_words])
+            self.graph.add_nodes_from([(word, node_attributes) for word, pos in filtered_pos_list])
         else:
-            self.graph.add_nodes_from([word.lower() for word, pos in filtered_pos_list if
-                                       word.lower() not in common_words])
+            self.graph.add_nodes_from([word for word, pos in filtered_pos_list])
 
         # Add edges
         # TODO Consider unfiltered token list to build cooccurrence edges.
-        for i, (node1, pos) in enumerate(unfiltered_pos_list):
+        for i, (node1, pos) in enumerate(filtered_pos_list):
             if node1 in self.graph.nodes():
 
-                for j in range(i + 1, min(i + window, len(unfiltered_pos_list))):
-                    node2, pos2 = unfiltered_pos_list[j]
+                for j in range(i + 1, min(i + window, len(filtered_pos_list))):
+                    node2, pos2 = filtered_pos_list[j]
                     if node2 in self.graph.nodes() and node1 != node2:
                         self.graph.add_edge(node1, node2, weight=1.0)
             else:
@@ -191,12 +205,21 @@ class GraphRank(object):
         if original_tokens is None:
             original_tokens = self.context
 
-        unfiltered_word_tokens = [token.lower() for t in original_tokens for token in t]
+        unfiltered_word_tokens = [token.lower() for t in original_tokens for token, pos in t]
+        plural_word_tokens = [token.lower() for t in original_tokens for token, pos in t if pos == 'NNS']
 
-        keyword_tag = 'k'
-        mark_keyword = lambda token, keyword_dict: keyword_tag if token in tmp_keywords else ''
-        marked_text_tokens = [(token, mark_keyword(token, unfiltered_word_tokens)) for token in unfiltered_word_tokens]
-        # print(marked_text_tokens)
+        # keyword_tag = 'k'
+        # plural_tag = 'p'
+        # mark_keyword = lambda token, keyword_dict: keyword_tag if token in tmp_keywords else ''
+        # mark_pluralword = lambda token, keyword_dict: plural_tag if token in plural_word_tokens else ''
+
+        marked_text_tokens = self._tag_text_for_keywords(original_token_list=unfiltered_word_tokens,
+                                                         keyword_list=tmp_keywords,
+                                                         plural_word_list=plural_word_tokens)
+
+
+
+        # marked_text_tokens = [(token, mark_keyword(token, unfiltered_word_tokens)) for token in unfiltered_word_tokens]
 
         multi_terms = []
         current_term_units = []
@@ -208,12 +231,15 @@ class GraphRank(object):
             common_words = self.common_words
 
         # use space to construct multi-word term later
-        for marked_token in marked_text_tokens:
+        for token, marker in marked_text_tokens:
             # Don't include stopwords in post-processing
             # TODO Add better ways to combine words to make phrases: grammar rules, n-grams etc.
-            if marked_token[1] == 'k' and marked_token[0] not in common_words:
-                current_term_units.append(marked_token[0])
-                scores_list.append(node_weights[marked_token[0]])
+            if marker == 'k' and token not in common_words:
+                current_term_units.append(token)
+                scores_list.append(node_weights[token])
+            elif marker == 'p':
+                current_term_units.append(token)
+                scores_list.append(node_weights[token])
             else:
                 # Get unique nodes
                 if current_term_units and (current_term_units, scores_list) not in multi_terms:
@@ -223,6 +249,22 @@ class GraphRank(object):
                 scores_list = []
 
         return multi_terms
+
+    def _tag_text_for_keywords(self, original_token_list, keyword_list, plural_word_list):
+        marked_text_tokens = []
+        keyword_tag = 'k'
+        plural_tag = 'p'
+        for token in original_token_list:
+            if token in plural_word_list:
+                stem_form = self.stemmer.stem(token)
+                if stem_form in keyword_list:
+                    marked_text_tokens.append((stem_form, plural_tag))
+            elif token in keyword_list:
+                marked_text_tokens.append((token, keyword_tag))
+            else:
+                marked_text_tokens.append((token, ''))
+
+        return marked_text_tokens
 
     def compute_multiterm_score(self,
                                 graph_obj,
@@ -271,7 +313,8 @@ class GraphRank(object):
         multi_term_scores = [self.metric_object.compute_weight_fn(weight_metrics=weight_metrics,
                                                                   key_terms=key_terms,
                                                                   score_list=scores,
-                                                                  normalize=normalize_score) for key_terms, scores in multi_keyterms]
+                                                                  normalize=normalize_score) for key_terms, scores in
+                             multi_keyterms]
         multi_keywords = [key_terms for key_terms, scores, in multi_keyterms]
 
         return multi_keywords, multi_term_scores

@@ -1,6 +1,5 @@
 import networkx as nx
 import json as js
-from .graph_rank import GraphRank
 
 
 def read_json(json_file):
