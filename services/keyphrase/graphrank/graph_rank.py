@@ -26,7 +26,8 @@ class GraphRank(object):
 
         # Load pkg word list
         root_dir = os.getcwd()
-        local_file = os.path.realpath(os.path.join(root_dir, os.path.dirname(__file__)))
+        local_file = os.path.realpath(os.path.join(
+            root_dir, os.path.dirname(__file__)))
 
         stop_word_file = os.path.join(local_file, 'long_stopwords.txt')
         text_file = open(stop_word_file, 'r')
@@ -56,9 +57,11 @@ class GraphRank(object):
             cooccurrence_graph (Networkx graph obj): Graph of co-occurring keywords
         """
         if syntactic_filter is None:
-            syntactic_filter = ['JJ', 'JJR', 'JJS', 'NN', 'NNP', 'NNS', 'VB', 'VBP', 'NNPS', 'FW']
+            syntactic_filter = ['JJ', 'JJR', 'JJS', 'NN',
+                                'NNP', 'NNS', 'VB', 'VBP', 'NNPS', 'FW']
 
-        original_token_pos_list = [(word.lower(), pos) for sent in input_pos_text for word, pos in sent]
+        original_token_pos_list = [(word.lower(), pos)
+                                   for sent in input_pos_text for word, pos in sent]
 
         # Extend the context of the graph
         if reset_graph_context:
@@ -87,9 +90,11 @@ class GraphRank(object):
 
         # Add nodes
         if node_attributes is not None:
-            self.graph.add_nodes_from([(word, node_attributes) for word, pos in filtered_pos_list])
+            self.graph.add_nodes_from(
+                [(word, node_attributes) for word, pos in filtered_pos_list])
         else:
-            self.graph.add_nodes_from([word for word, pos in filtered_pos_list])
+            self.graph.add_nodes_from(
+                [word for word, pos in filtered_pos_list])
 
         # Add edges
         # TODO Consider unfiltered token list to build cooccurrence edges.
@@ -140,18 +145,21 @@ class GraphRank(object):
                                               original_tokens=original_tokens,
                                               syntactic_filter=syntactic_filter)
         elif graph_obj is None and input_pos_text is None:
-            raise SyntaxError("Both `graph_obj` and `input_pos_text` cannot be `None`")
+            raise SyntaxError(
+                "Both `graph_obj` and `input_pos_text` cannot be `None`")
 
         # Compute node scores using unweighted pagerank implementation
         # TODO Extend to other solvers
-        node_weights = self.graph_solver.get_graph_algorithm(graph_obj=graph_obj, solver_fn=solver)
+        node_weights = self.graph_solver.get_graph_algorithm(
+            graph_obj=graph_obj, solver_fn=solver)
 
         # Normalize node weights using graph properties
         normalized_node_weights = self.graph_solver.normalize_nodes(graph_obj=graph_obj,
                                                                     node_weights=node_weights,
                                                                     normalize_fn=normalize_nodes)
         # sorting the nodes by decreasing scores
-        top_words = self.graph_utils.sort_by_value(normalized_node_weights.items(), order='desc')
+        top_words = self.graph_utils.sort_by_value(
+            normalized_node_weights.items(), order='desc')
 
         if top_t_percent is not None:
             # warn user
@@ -205,8 +213,10 @@ class GraphRank(object):
         if original_tokens is None:
             original_tokens = self.context
 
-        unfiltered_word_tokens = [token.lower() for t in original_tokens for token, pos in t]
-        plural_word_tokens = [token.lower() for t in original_tokens for token, pos in t if pos == 'NNS']
+        unfiltered_word_tokens = [token.lower()
+                                  for t in original_tokens for token, pos in t]
+        plural_word_tokens = [
+            token.lower() for t in original_tokens for token, pos in t if pos == 'NNS']
 
         # keyword_tag = 'k'
         # plural_tag = 'p'
@@ -216,8 +226,6 @@ class GraphRank(object):
         marked_text_tokens = self._tag_text_for_keywords(original_token_list=unfiltered_word_tokens,
                                                          keyword_list=tmp_keywords,
                                                          plural_word_list=plural_word_tokens)
-
-
 
         # marked_text_tokens = [(token, mark_keyword(token, unfiltered_word_tokens)) for token in unfiltered_word_tokens]
 
@@ -370,7 +378,8 @@ class GraphRank(object):
         scored_keyphrases = list(zip(keyphrases, multi_term_score))
 
         # Sort the list in a decreasing order
-        sorted_keyphrases = self.graph_utils.sort_by_value(scored_keyphrases, order='desc')
+        sorted_keyphrases = self.graph_utils.sort_by_value(
+            scored_keyphrases, order='desc')
 
         # Choose `top_n` number of keyphrases, if given
         if top_n is not None:
@@ -394,8 +403,10 @@ class GraphRank(object):
         processed_keyphrases = []
 
         # Remove duplicates from the single phrases which are occurring in multi-keyphrases
-        multi_phrases = [phrases for phrases in keyphrases if len(phrases[0].split()) > 1]
-        single_phrase = [phrases for phrases in keyphrases if len(phrases[0].split()) == 1]
+        multi_phrases = [phrases for phrases in keyphrases if len(
+            phrases[0].split()) > 1]
+        single_phrase = [phrases for phrases in keyphrases if len(
+            phrases[0].split()) == 1]
         for tup in single_phrase:
             kw = tup[0]
             for tup_m in multi_phrases:

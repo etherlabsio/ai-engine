@@ -21,7 +21,8 @@ class KeyphraseExtractor(object):
         self.tp = TextPreprocess()
         self.gutils = GraphUtils()
         self.meeting_graph = nx.Graph()
-        self.syntactic_filter = ['JJ', 'JJR', 'JJS', 'NN', 'NNP', 'NNS', 'VB', 'VBP', 'NNPS', 'FW']
+        self.syntactic_filter = ['JJ', 'JJR', 'JJS',
+                                 'NN', 'NNP', 'NNS', 'VB', 'VBP', 'NNPS', 'FW']
 
     def formatTime(self, tz_time):
         isoTime = iso8601.parse_date(tz_time)
@@ -66,7 +67,8 @@ class KeyphraseExtractor(object):
         return original_tokens, pos_tuple, filtered_pos_tuple
 
     def initialize_meeting_graph(self, context_id, instance_id):
-        self.meeting_graph = nx.Graph(context_instance_id=instance_id, context_id=context_id)
+        self.meeting_graph = nx.Graph(
+            context_instance_id=instance_id, context_id=context_id)
         pass
 
     def build_custom_graph(self, text_list, window=4, preserve_common_words=False, syntactic_filter=None):
@@ -144,7 +146,8 @@ class KeyphraseExtractor(object):
             sort_list = []
 
             entity_segment = input_json['segments'][i].get('originalText')
-            input_segment = input_json['segments'][i].get('originalText').lower()
+            input_segment = input_json['segments'][i].get(
+                'originalText').lower()
             keywords_list = []
 
             for tup in keyphrase_list:
@@ -190,7 +193,8 @@ class KeyphraseExtractor(object):
         chapter_entities = []
         for i in range(len(input_json['segments'])):
             entity_segment = input_json['segments'][i].get('originalText')
-            input_segment = input_json['segments'][i].get('originalText').lower()
+            input_segment = input_json['segments'][i].get(
+                'originalText').lower()
 
             for tup in keyphrase_list:
                 kw = tup[0]
@@ -235,7 +239,8 @@ class KeyphraseExtractor(object):
     def compute_keyphrases(self):
         keyphrase_list = []
         try:
-            keyphrase_list = self.get_custom_keyphrases(graph=self.meeting_graph)
+            keyphrase_list = self.get_custom_keyphrases(
+                graph=self.meeting_graph)
             # logger.debug("Complete keyphrases: {}".format(keyphrase_list))
 
         except Exception as e:
@@ -247,7 +252,8 @@ class KeyphraseExtractor(object):
         keyphrase_list = self.compute_keyphrases()
         segment_keyphrases = []
         try:
-            segment_keyphrases = self.segment_search(input_json=req_data, keyphrase_list=keyphrase_list, top_n=n_kw)
+            segment_keyphrases = self.segment_search(
+                input_json=req_data, keyphrase_list=keyphrase_list, top_n=n_kw)
         except Exception as e:
             logger.debug("ErrorMsg: {}".format(e))
 
@@ -257,7 +263,8 @@ class KeyphraseExtractor(object):
         keyphrase_list = self.compute_keyphrases()
         chapter_keyphrases = []
         try:
-            chapter_keyphrases = self.chapter_segment_search(input_json=req_data, keyphrase_list=keyphrase_list, top_n=n_kw)
+            chapter_keyphrases = self.chapter_segment_search(
+                input_json=req_data, keyphrase_list=keyphrase_list, top_n=n_kw)
         except Exception as e:
             logger.debug("ErrorMsg: {}".format(e))
 
