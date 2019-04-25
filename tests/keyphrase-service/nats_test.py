@@ -115,10 +115,12 @@ def read_json(json_file):
 
 
 if __name__ == '__main__':
-    parser = argparse.ArgumentParser(description='topic arguments for keyphrase_service')
+    parser = argparse.ArgumentParser(
+        description='topic arguments for keyphrase_service')
     parser.add_argument("
---topics", type=str, default="def", help="publish keyphrase graph")
-    parser.add_argument("--nats_url", type=str, default=NATS_URL, help="nats server url")
+                        --topics", type=str, default="def", help="publish keyphrase graph")
+    parser.add_argument("--nats_url", type=str,
+                        default=NATS_URL, help="nats server url")
     args = parser.parse_args()
     nats_url = args.nats_url
 
