@@ -13,7 +13,5 @@ sklearn
 spacy
 networkx
 python-dotenv
-pylint
-autopep8
-rope
 python_version==3.7
+uvloop

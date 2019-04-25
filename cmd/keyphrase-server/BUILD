@@ -5,6 +5,7 @@ python_binary(
 		'services/keyphrase:keyphrase-libs',
 		':keyphrase-dep',
 		'vendor:vendor-libs',
+		'services:global-services'
 	],
 	source="main.py",
 
@@ -22,14 +23,12 @@ python_library(
 		'3rdparty/python:structlog',
 		'3rdparty/python:spacy',
 		'3rdparty/python:pandas',
+		'3rdparty/python:uvloop',
 		'3rdparty/python:pydgraph',
 		'3rdparty/python:iso8601',
 		'3rdparty/python:sklearn',
 		'3rdparty/python:nltk',
 		'3rdparty/python:networkx',
-		'3rdparty/python:pylint',
-		'3rdparty/python:autopep8',
-		'3rdparty/python:rope',
 	],
 
 )

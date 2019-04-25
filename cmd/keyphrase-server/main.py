@@ -4,9 +4,9 @@ import signal
 import uvloop
 import logging
 from os import getenv
-from graphrank.extract_keyphrases import KeyphraseExtractor
-from transport.nats import NATSTransport
-from transport.manager import Manager
+from keyphrase.graphrank.extract_keyphrases import KeyphraseExtractor
+from keyphrase.transport.nats import NATSTransport
+from keyphrase.transport.manager import Manager
 from dotenv import load_dotenv
 
 log = logging.getLogger(__name__)
