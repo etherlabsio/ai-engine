@@ -13,10 +13,10 @@ log = logging.getLogger(__name__)
 
 if __name__ == '__main__':
     load_dotenv()
-
+    print ("inside nats server")
     active_env = getenv("ACTIVE_ENV", "development")
     nats_url = getenv("NATS_URL", "nats://docker.for.mac.localhost:4222")
-
+    print (nats_url)
     asyncio.set_event_loop_policy(uvloop.EventLoopPolicy())
     loop = asyncio.get_event_loop()
 

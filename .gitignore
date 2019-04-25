@@ -116,3 +116,7 @@ dist/
 
 # vendor
 vendor/
+
+#remove swap file
+
+*.swp

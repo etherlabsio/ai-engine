@@ -46,7 +46,7 @@ docker-build:
 
 .PHONY: docker-run
 docker-run:
-	sudo docker run -p 8080:7070 ${app}
+	sudo docker run ${app}
 
 .PHONY: new-service
 new-service:
