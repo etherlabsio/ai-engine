@@ -11,7 +11,7 @@ version:
 
 .PHONY: staging
 staging: version
-	docker build -t ${DOCKER_IMAGE}:staging .
+	sudo docker build -t ${DOCKER_IMAGE}:staging . --build-arg app=${app}
 	docker push ${DOCKER_IMAGE}:staging
 
 .PHONY: production
