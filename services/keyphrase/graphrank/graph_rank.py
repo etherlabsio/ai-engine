@@ -1,14 +1,16 @@
 from __future__ import absolute_import, division, print_function
 
 import math
-import logging
 import os
 import networkx as nx
-from nltk import PorterStemmer
+import logging
+from nltk import WordNetLemmatizer, word_tokenize
 
 from keyphrase.graphrank.metrics import GraphSolvers, WeightMetrics
 from keyphrase.graphrank.utils import GraphUtils, TextPreprocess
 from keyphrase.graphrank.dgraph import *
+
+logger = logging.getLogger(__name__)
 
 
 class GraphRank(object):
@@ -19,7 +21,7 @@ class GraphRank(object):
         self.metric_object = WeightMetrics()
         self.preprocess_text = TextPreprocess()
 
-        self.stemmer = PorterStemmer()
+        self.lemma = WordNetLemmatizer()
 
         # Store the original text and maintain the context flow to extend the graph.
         self.context = []
@@ -35,7 +37,6 @@ class GraphRank(object):
 
     def build_word_graph(self,
                          input_pos_text,
-                         original_tokens,
                          window=2,
                          syntactic_filter=None,
                          reset_graph_context=False,
@@ -46,9 +47,11 @@ class GraphRank(object):
         """
         Build co-occurrence of words graph based on the POS tags and the window of occurrence
         Args:
+            edge_attributes:
+            preserve_plurals:
+            node_attributes:
             preserve_common_words:
             reset_graph_context:
-            original_tokens:
             input_pos_text: List of list of tuple(word_token, POS)
             window:
             syntactic_filter: POS tag filter
@@ -85,13 +88,12 @@ class GraphRank(object):
             filtered_pos_list = [(word.lower(), pos) for sent in input_pos_text for word, pos in sent if
                                  pos in syntactic_filter and word.lower() not in common_words]
 
-            filtered_pos_list = [(self.stemmer.stem(word), pos) if pos == 'NNS' else (word, pos)
+            filtered_pos_list = [(self.lemma.lemmatize(word), pos) if pos == 'NNS' else (word, pos)
                                  for word, pos in filtered_pos_list]
 
         # Add nodes
         if node_attributes is not None:
-            self.graph.add_nodes_from(
-                [(word, node_attributes) for word, pos in filtered_pos_list])
+            self.graph.add_nodes_from([(word, node_attributes) for word, pos in filtered_pos_list])
         else:
             self.graph.add_nodes_from(
                 [word for word, pos in filtered_pos_list])
@@ -115,7 +117,6 @@ class GraphRank(object):
     def node_weighting(self,
                        graph_obj,
                        input_pos_text=None,
-                       original_tokens=None,
                        window=2,
                        top_t_percent=None,
                        solver='pagerank_scipy',
@@ -125,7 +126,6 @@ class GraphRank(object):
         Computes the weights of the vertices/nodes of the graph based on the `solver` algorithm.
         Args:
             normalize_nodes:
-            original_tokens:
             syntactic_filter:
             graph_obj:
             input_pos_text:
@@ -140,9 +140,8 @@ class GraphRank(object):
 
         # Build word graph
         if graph_obj is None and input_pos_text is not None:
-            graph_obj = self.build_word_graph(input_pos_text,
+            graph_obj = self.build_word_graph(input_pos_text=input_pos_text,
                                               window=window,
-                                              original_tokens=original_tokens,
                                               syntactic_filter=syntactic_filter)
         elif graph_obj is None and input_pos_text is None:
             raise SyntaxError(
@@ -177,8 +176,8 @@ class GraphRank(object):
 
     def retrieve_multi_keyterms(self,
                                 graph_obj,
-                                original_tokens=None,
                                 input_pos_text=None,
+                                original_tokens=None,
                                 window=2,
                                 syntactic_filter=None,
                                 top_t_percent=None,
@@ -187,11 +186,11 @@ class GraphRank(object):
         """
         Search for co-occurring keyword terms and place them together as multi-keyword terms.
         Args:
+            original_tokens:
             normalize_nodes:
             preserve_common_words:
             graph_obj:
             input_pos_text:
-            original_tokens (list): List of tokens from original, unprocessed text.
             window:
             syntactic_filter:
             top_t_percent:
@@ -214,20 +213,13 @@ class GraphRank(object):
             original_tokens = self.context
 
         unfiltered_word_tokens = [token.lower()
-                                  for t in original_tokens for token, pos in t]
+                                  for token, pos in original_tokens]
         plural_word_tokens = [
-            token.lower() for t in original_tokens for token, pos in t if pos == 'NNS']
-
-        # keyword_tag = 'k'
-        # plural_tag = 'p'
-        # mark_keyword = lambda token, keyword_dict: keyword_tag if token in tmp_keywords else ''
-        # mark_pluralword = lambda token, keyword_dict: plural_tag if token in plural_word_tokens else ''
+            token.lower() for token, pos in original_tokens if pos == 'NNS']
 
         marked_text_tokens = self._tag_text_for_keywords(original_token_list=unfiltered_word_tokens,
                                                          keyword_list=tmp_keywords,
                                                          plural_word_list=plural_word_tokens)
-
-        # marked_text_tokens = [(token, mark_keyword(token, unfiltered_word_tokens)) for token in unfiltered_word_tokens]
 
         multi_terms = []
         current_term_units = []
@@ -247,7 +239,9 @@ class GraphRank(object):
                 scores_list.append(node_weights[token])
             elif marker == 'p':
                 current_term_units.append(token)
-                scores_list.append(node_weights[token])
+                # Use its singular form's score in keyphrase weighting
+                root_token = self.lemma.lemmatize(token)
+                scores_list.append(node_weights[root_token])
             else:
                 # Get unique nodes
                 if current_term_units and (current_term_units, scores_list) not in multi_terms:
@@ -257,22 +251,6 @@ class GraphRank(object):
                 scores_list = []
 
         return multi_terms
-
-    def _tag_text_for_keywords(self, original_token_list, keyword_list, plural_word_list):
-        marked_text_tokens = []
-        keyword_tag = 'k'
-        plural_tag = 'p'
-        for token in original_token_list:
-            if token in plural_word_list:
-                stem_form = self.stemmer.stem(token)
-                if stem_form in keyword_list:
-                    marked_text_tokens.append((stem_form, plural_tag))
-            elif token in keyword_list:
-                marked_text_tokens.append((token, keyword_tag))
-            else:
-                marked_text_tokens.append((token, ''))
-
-        return marked_text_tokens
 
     def compute_multiterm_score(self,
                                 graph_obj,
@@ -321,9 +299,8 @@ class GraphRank(object):
         multi_term_scores = [self.metric_object.compute_weight_fn(weight_metrics=weight_metrics,
                                                                   key_terms=key_terms,
                                                                   score_list=scores,
-                                                                  normalize=normalize_score) for key_terms, scores in
-                             multi_keyterms]
-        multi_keywords = [key_terms for key_terms, scores, in multi_keyterms]
+                                                                  normalize=normalize_score) for key_terms, scores in multi_keyterms]
+        multi_keywords = [key_terms for key_terms, scores in multi_keyterms]
 
         return multi_keywords, multi_term_scores
 
@@ -381,17 +358,16 @@ class GraphRank(object):
         sorted_keyphrases = self.graph_utils.sort_by_value(
             scored_keyphrases, order='desc')
 
+        if post_process:
+            sorted_keyphrases = self.post_process(sorted_keyphrases)
+
         # Choose `top_n` number of keyphrases, if given
         if top_n is not None:
             sorted_keyphrases = sorted_keyphrases[:top_n]
 
-        if post_process:
-            sorted_keyphrases = self.post_process(sorted_keyphrases)
-
         return sorted_keyphrases
 
-    @staticmethod
-    def post_process(keyphrases):
+    def post_process(self, keyphrases):
         """
         Post process to remove duplicate words from single phrases.
         Args:
@@ -415,19 +391,46 @@ class GraphRank(object):
                 if r > -1:
                     try:
                         single_phrase.remove(tup)
-                    except:
+                    except Exception as e:
+                        logger.debug("Couldn't find single word in a phrase: ", extra={'err': e})
+                        continue
+
+        # Remove duplicates from multi-phrases
+        twoplus_multi_phrase = [phrases for phrases in keyphrases if len(
+            phrases[0].split()) > 2]
+        two_phrase = [phrases for phrases in keyphrases if len(
+            phrases[0].split()) == 2]
+        for tup in two_phrase:
+            kw = tup[0]
+            for tup_m in twoplus_multi_phrase:
+                kw_m = tup_m[0]
+                r = kw_m.find(kw)
+                if r > -1:
+                    try:
+                        two_phrase.remove(tup)
+                    except Exception as e:
+                        logger.debug("No more multi-words in a phrase: ", extra={'err': e})
                         continue
 
         # Remove same word occurrences in a multi-keyphrase
-        for multi_key, multi_score in multi_phrases:
+        for multi_key, multi_score in twoplus_multi_phrase:
             kw_m = multi_key.split()
             unique_kp_list = list(dict.fromkeys(kw_m))
             multi_keyphrase = ' '.join(unique_kp_list)
             processed_keyphrases.append((multi_keyphrase, multi_score))
 
+        processed_keyphrases.extend(two_phrase)
+
+        # Sort the multi-keyphrases first and then append the single keywords to the tail of the list.
+        processed_keyphrases = self.graph_utils.sort_by_value(
+            processed_keyphrases, order='desc')
+
         processed_keyphrases.extend(single_phrase)
 
-        return processed_keyphrases
+        # Remove occurrences of Plurals if their singular form is existing
+        new_processed_keyphrases = self._lemmatize_sentence(processed_keyphrases)
+
+        return new_processed_keyphrases
 
     def reset_graph(self):
         self.context = []
@@ -436,3 +439,36 @@ class GraphRank(object):
 
     def populate_dgraph(self, graph_obj, meeting_id):
         update_graph(graph_obj=graph_obj, meetingid=meeting_id)
+
+    def _tag_text_for_keywords(self, original_token_list, keyword_list, plural_word_list):
+        marked_text_tokens = []
+        keyword_tag = 'k'
+        plural_tag = 'p'
+        for token in original_token_list:
+            if token in plural_word_list:
+                stem_form = self.lemma.lemmatize(token)
+                if stem_form in keyword_list:
+                    marked_text_tokens.append((token, plural_tag))
+            elif token in keyword_list:
+                marked_text_tokens.append((token, keyword_tag))
+            else:
+                marked_text_tokens.append((token, ''))
+
+        return marked_text_tokens
+
+    def _lemmatize_sentence(self, keyphrase_list):
+        tmp_check_list = keyphrase_list
+        result = []
+
+        for tup in tmp_check_list:
+            phrase = tup[0]
+            score = tup[1]
+            tokenize_phrase = word_tokenize(phrase)
+            singular_tokens = [self.lemma.lemmatize(word) for word in tokenize_phrase]
+            singular_sentence = ' '.join(singular_tokens)
+            if singular_sentence in result:
+                keyphrase_list.remove(tup)
+            else:
+                result.append((phrase, score))
+
+        return result

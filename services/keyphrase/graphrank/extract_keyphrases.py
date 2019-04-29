@@ -51,12 +51,33 @@ class KeyphraseExtractor(object):
 
         return json_df_ts
 
-    def read_segments(self, segment_df):
+    def initialize_meeting_graph(self, context_id, instance_id):
+        self.meeting_graph = nx.Graph(
+            context_instance_id=instance_id, context_id=context_id)
+        pass
+
+    def read_segments(self, segment_df, node_attrs=False):
         text_list = []
+        attrs = {'spokenBy': [],
+                 'id': [],
+                 'createdAt': [],
+                 'recordingId': [],
+                 'transcriber': []
+                 }
+
         for i in range(len(segment_df)):
             segment_text = segment_df.iloc[i]['originalText']
             text_list.append(segment_text)
-        return text_list
+
+            if node_attrs:
+                attrs['spokenBy'].append(segment_df.iloc[i].get('spokenBy'))
+                attrs['id'].append(segment_df.iloc[i].get('id'))
+                attrs['createdAt'].append(segment_df.iloc[i].get('createdAt'))
+                attrs['recordingId'].append(segment_df.iloc[i].get('recordingId'))
+                attrs['transcriber'].append(segment_df.iloc[i].get('transcriber'))
+            else:
+                attrs = None
+        return text_list, attrs
 
     def process_text(self, text, filter_by_pos=True, stop_words=False, syntactic_filter=None):
         original_tokens, pos_tuple, filtered_pos_tuple = self.tp.preprocess_text(text,
@@ -66,23 +87,18 @@ class KeyphraseExtractor(object):
 
         return original_tokens, pos_tuple, filtered_pos_tuple
 
-    def initialize_meeting_graph(self, context_id, instance_id):
-        self.meeting_graph = nx.Graph(
-            context_instance_id=instance_id, context_id=context_id)
-        pass
-
-    def build_custom_graph(self, text_list, window=4, preserve_common_words=False, syntactic_filter=None):
+    def build_custom_graph(self, text_list, attrs, window=4, preserve_common_words=False, syntactic_filter=None):
 
         for i in range(len(text_list)):
             text = text_list[i]
             try:
                 original_tokens, pos_tuple, filtered_pos_tuple = self.process_text(
                     text)
-                self.meeting_graph = self.gr.build_word_graph(input_pos_text=filtered_pos_tuple,
-                                                              original_tokens=original_tokens,
+                self.meeting_graph = self.gr.build_word_graph(input_pos_text=pos_tuple,
                                                               window=window,
                                                               syntactic_filter=syntactic_filter,
-                                                              preserve_common_words=preserve_common_words)
+                                                              preserve_common_words=preserve_common_words,
+                                                              node_attributes=attrs)
             except Exception as e:
                 logger.error(
                     "Could not process the sentence: ErrorMsg: {}".format(e))
@@ -160,7 +176,7 @@ class KeyphraseExtractor(object):
 
             sort_list = self.gutils.sort_by_value(keywords_list, order='desc')
             if top_n is not None:
-                sort_list = sort_list[:-1]
+                sort_list = sort_list[:top_n]
 
             segment_entity = self.get_entities(entity_segment)
             segment_keyword_list = [words for words, score in sort_list]
@@ -168,9 +184,14 @@ class KeyphraseExtractor(object):
             # Remove the first occurrence of entity in the list of keyphrases
             for entities in segment_entity:
                 if entities.lower() in segment_keyword_list:
-                    segment_keyword_list.remove(entities.lower)
+                    segment_keyword_list.remove(entities.lower())
 
-            segment_entity.extend(segment_keyword_list)
+            # Place the single keywords in the end of the list.
+            segment_multiphrase_list = [words for words in segment_keyword_list if len(words.split()) > 1]
+            segment_singleword_list = [words for words in segment_keyword_list if len(words.split()) == 1]
+            segment_multiphrase_list.extend(segment_singleword_list)
+
+            segment_entity.extend(segment_multiphrase_list)
             segment_output = segment_entity
 
             result = {
@@ -216,9 +237,14 @@ class KeyphraseExtractor(object):
         # Remove the first occurrence of entity in the list of keyphrases
         for entities in chapter_entities:
             if entities.lower() in chapter_keyphrases:
-                chapter_keyphrases.remove(entities.lower)
+                chapter_keyphrases.remove(entities.lower())
 
-        chapter_entities.extend(chapter_keyphrases)
+        # Place the single keywords in the end of the list.
+        chapter_multiphrase_list = [words for words in chapter_keyphrases if len(words.split()) > 1]
+        chapter_singleword_list = [words for words in chapter_keyphrases if len(words.split()) == 1]
+        chapter_multiphrase_list.extend(chapter_singleword_list)
+
+        chapter_entities.extend(chapter_multiphrase_list)
         chapter_output = chapter_entities
 
         result = {
@@ -230,8 +256,8 @@ class KeyphraseExtractor(object):
     def populate_word_graph(self, req_data):
         segment_df = self.reformat_input(req_data)
 
-        text_list = self.read_segments(segment_df=segment_df)
-        self.build_custom_graph(text_list=text_list)
+        text_list, attrs = self.read_segments(segment_df=segment_df, node_attrs=False)
+        self.build_custom_graph(text_list=text_list, attrs=attrs)
 
         logger.info("Number of nodes: {}; Number of edges: {}".format(self.meeting_graph.number_of_nodes(),
                                                                       self.meeting_graph.number_of_edges()))
@@ -239,10 +265,7 @@ class KeyphraseExtractor(object):
     def compute_keyphrases(self):
         keyphrase_list = []
         try:
-            keyphrase_list = self.get_custom_keyphrases(
-                graph=self.meeting_graph)
-            # logger.debug("Complete keyphrases: {}".format(keyphrase_list))
-
+            keyphrase_list = self.get_custom_keyphrases(graph=self.meeting_graph)
         except Exception as e:
             logger.debug("ErrorMsg: {}".format(e))
 
