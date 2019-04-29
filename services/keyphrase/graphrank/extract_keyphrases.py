@@ -259,15 +259,15 @@ class KeyphraseExtractor(object):
         text_list, attrs = self.read_segments(segment_df=segment_df, node_attrs=False)
         self.build_custom_graph(text_list=text_list, attrs=attrs)
 
-        logger.info("Number of nodes: {}; Number of edges: {}".format(self.meeting_graph.number_of_nodes(),
-                                                                      self.meeting_graph.number_of_edges()))
+        logger.info("Number of nodes; Number of edges", extra={"nodes": self.meeting_graph.number_of_nodes(),
+                                                               "edges": self.meeting_graph.number_of_edges()})
 
     def compute_keyphrases(self):
         keyphrase_list = []
         try:
             keyphrase_list = self.get_custom_keyphrases(graph=self.meeting_graph)
         except Exception as e:
-            logger.debug("ErrorMsg: {}".format(e))
+            logger.debug("ErrorMsg:", extra={"err": e})
 
         return keyphrase_list
 
@@ -278,7 +278,7 @@ class KeyphraseExtractor(object):
             segment_keyphrases = self.segment_search(
                 input_json=req_data, keyphrase_list=keyphrase_list, top_n=n_kw)
         except Exception as e:
-            logger.debug("ErrorMsg: {}".format(e))
+            logger.debug("ErrorMsg:", extra={"err": e})
 
         return segment_keyphrases
 
@@ -289,7 +289,7 @@ class KeyphraseExtractor(object):
             chapter_keyphrases = self.chapter_segment_search(
                 input_json=req_data, keyphrase_list=keyphrase_list, top_n=n_kw)
         except Exception as e:
-            logger.debug("ErrorMsg: {}".format(e))
+            logger.debug("ErrorMsg:", extra={"err": e})
 
         return chapter_keyphrases
 
@@ -321,12 +321,12 @@ class KeyphraseExtractor(object):
 
     def reset_keyphrase_graph(self, req_data):
         logger.debug(
-            "Before Reset - Number of nodes: {}; Number of edges: {}".format(self.meeting_graph.number_of_nodes(),
-                                                                             self.meeting_graph.number_of_edges()))
+            "Before Reset - Number of nodes; Number of edges", extra={"nodes": self.meeting_graph.number_of_nodes(),
+                                                                      "edges": self.meeting_graph.number_of_edges()})
 
         self.gr.reset_graph()
         self.meeting_graph.clear()
-        logger.info("Number of nodes: {}; Number of edges: {}".format(self.meeting_graph.number_of_nodes(),
-                                                                      self.meeting_graph.number_of_edges()))
+        logger.info("Number of nodes; Number of edges", extra={"nodes": self.meeting_graph.number_of_nodes(),
+                                                               "edges": self.meeting_graph.number_of_edges()})
 
         return {'result': 'done', 'message': 'reset successful'}

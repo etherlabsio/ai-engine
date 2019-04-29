@@ -167,11 +167,6 @@ def get_pos(sentence):
     output : A list of sentence where each sentence contains a list of tuple with word, POS.
     '''
     sentence_pos = []
-    # doc = nlp(sentence)
-    #
-    # for token in doc:
-    #     sentence_pos.append((token.text, token.pos_))
-    # return sentence_pos
 
     tokenized_text = word_tokenize(sentence)
     pos_tags = nltk.pos_tag(tokenized_text)
