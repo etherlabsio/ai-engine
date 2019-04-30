@@ -181,10 +181,14 @@ class KeyphraseExtractor(object):
             segment_entity = self.get_entities(entity_segment)
             segment_keyword_list = [words for words, score in sort_list]
 
+            # Post-process entities
+            segment_entity = self.post_process_entities(segment_entity)
+
             # Remove the first occurrence of entity in the list of keyphrases
             for entities in segment_entity:
-                if entities.lower() in segment_keyword_list:
-                    segment_keyword_list.remove(entities.lower())
+                for keyphrase in segment_keyword_list:
+                    if keyphrase in entities.lower() or entities.lower() in keyphrase:
+                        segment_keyword_list.remove(keyphrase)
 
             # Place the single keywords in the end of the list.
             segment_multiphrase_list = [words for words in segment_keyword_list if len(words.split()) > 1]
@@ -234,10 +238,14 @@ class KeyphraseExtractor(object):
 
         chapter_keyphrases = [phrases for phrases, score in sort_list]
 
+        # Post-process entities
+        chapter_entities = self.post_process_entities(chapter_entities)
+
         # Remove the first occurrence of entity in the list of keyphrases
         for entities in chapter_entities:
-            if entities.lower() in chapter_keyphrases:
-                chapter_keyphrases.remove(entities.lower())
+            for keyphrase in chapter_keyphrases:
+                if keyphrase in entities.lower() or entities.lower() in keyphrase:
+                    chapter_keyphrases.remove(keyphrase)
 
         # Place the single keywords in the end of the list.
         chapter_multiphrase_list = [words for words in chapter_keyphrases if len(words.split()) > 1]
@@ -252,6 +260,35 @@ class KeyphraseExtractor(object):
         }
 
         return result
+
+    def post_process_entities(self, entity_list):
+        processed_entities = []
+
+        # Remove duplicates from the single phrases which are occurring in multi-keyphrases
+        multi_phrases = [phrases for phrases in entity_list if len(
+            phrases.split()) > 1]
+        single_phrase = [phrases for phrases in entity_list if len(
+            phrases.split()) == 1]
+        for kw in single_phrase:
+            for kw_m in multi_phrases:
+                r = kw_m.find(kw)
+                if r > -1:
+                    try:
+                        single_phrase.remove(kw)
+                    except Exception as e:
+                        logger.debug("No duplicate single-word in an entity phrase: ", extra={'err': e})
+                        continue
+
+        # Remove same word occurrences in a multi-keyphrase
+        for multi_key in multi_phrases:
+            kw_m = multi_key.split()
+            unique_kp_list = list(dict.fromkeys(kw_m))
+            multi_keyphrase = ' '.join(unique_kp_list)
+            processed_entities.append(multi_keyphrase)
+
+        processed_entities.extend(single_phrase)
+
+        return processed_entities
 
     def populate_word_graph(self, req_data):
         segment_df = self.reformat_input(req_data)

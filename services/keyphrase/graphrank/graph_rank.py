@@ -392,7 +392,7 @@ class GraphRank(object):
                     try:
                         single_phrase.remove(tup)
                     except Exception as e:
-                        logger.debug("Couldn't find single word in a phrase: ", extra={'err': e})
+                        logger.debug("No duplicate single-word in a phrase: ", extra={'err': e})
                         continue
 
         # Remove duplicates from multi-phrases
@@ -409,7 +409,7 @@ class GraphRank(object):
                     try:
                         two_phrase.remove(tup)
                     except Exception as e:
-                        logger.debug("No more multi-words in a phrase: ", extra={'err': e})
+                        logger.debug("No multi-words in a phrase: ", extra={'err': e})
                         continue
 
         # Remove same word occurrences in a multi-keyphrase
