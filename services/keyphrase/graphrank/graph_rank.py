@@ -93,7 +93,8 @@ class GraphRank(object):
 
         # Add nodes
         if node_attributes is not None:
-            self.graph.add_nodes_from([(word, node_attributes) for word, pos in filtered_pos_list])
+            self.graph.add_nodes_from(
+                [(word, node_attributes) for word, pos in filtered_pos_list])
         else:
             self.graph.add_nodes_from(
                 [word for word, pos in filtered_pos_list])
@@ -392,7 +393,8 @@ class GraphRank(object):
                     try:
                         single_phrase.remove(tup)
                     except Exception as e:
-                        logger.debug("No duplicate single-word in a phrase: ", extra={'err': e})
+                        logger.debug(
+                            "No duplicate single-word in a phrase: ", extra={'err': e})
                         continue
 
         # Remove duplicates from multi-phrases
@@ -409,7 +411,8 @@ class GraphRank(object):
                     try:
                         two_phrase.remove(tup)
                     except Exception as e:
-                        logger.debug("No multi-words in a phrase: ", extra={'err': e})
+                        logger.debug(
+                            "No multi-words in a phrase: ", extra={'err': e})
                         continue
 
         # Remove same word occurrences in a multi-keyphrase
@@ -428,7 +431,8 @@ class GraphRank(object):
         processed_keyphrases.extend(single_phrase)
 
         # Remove occurrences of Plurals if their singular form is existing
-        new_processed_keyphrases = self._lemmatize_sentence(processed_keyphrases)
+        new_processed_keyphrases = self._lemmatize_sentence(
+            processed_keyphrases)
 
         return new_processed_keyphrases
 
@@ -464,7 +468,8 @@ class GraphRank(object):
             phrase = tup[0]
             score = tup[1]
             tokenize_phrase = word_tokenize(phrase)
-            singular_tokens = [self.lemma.lemmatize(word) for word in tokenize_phrase]
+            singular_tokens = [self.lemma.lemmatize(
+                word) for word in tokenize_phrase]
             singular_sentence = ' '.join(singular_tokens)
             if singular_sentence in result:
                 keyphrase_list.remove(tup)

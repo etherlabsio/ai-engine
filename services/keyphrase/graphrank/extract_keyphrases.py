@@ -73,8 +73,10 @@ class KeyphraseExtractor(object):
                 attrs['spokenBy'].append(segment_df.iloc[i].get('spokenBy'))
                 attrs['id'].append(segment_df.iloc[i].get('id'))
                 attrs['createdAt'].append(segment_df.iloc[i].get('createdAt'))
-                attrs['recordingId'].append(segment_df.iloc[i].get('recordingId'))
-                attrs['transcriber'].append(segment_df.iloc[i].get('transcriber'))
+                attrs['recordingId'].append(
+                    segment_df.iloc[i].get('recordingId'))
+                attrs['transcriber'].append(
+                    segment_df.iloc[i].get('transcriber'))
             else:
                 attrs = None
         return text_list, attrs
@@ -191,8 +193,10 @@ class KeyphraseExtractor(object):
                         segment_keyword_list.remove(keyphrase)
 
             # Place the single keywords in the end of the list.
-            segment_multiphrase_list = [words for words in segment_keyword_list if len(words.split()) > 1]
-            segment_singleword_list = [words for words in segment_keyword_list if len(words.split()) == 1]
+            segment_multiphrase_list = [
+                words for words in segment_keyword_list if len(words.split()) > 1]
+            segment_singleword_list = [
+                words for words in segment_keyword_list if len(words.split()) == 1]
             segment_multiphrase_list.extend(segment_singleword_list)
 
             segment_entity.extend(segment_multiphrase_list)
@@ -248,8 +252,10 @@ class KeyphraseExtractor(object):
                     chapter_keyphrases.remove(keyphrase)
 
         # Place the single keywords in the end of the list.
-        chapter_multiphrase_list = [words for words in chapter_keyphrases if len(words.split()) > 1]
-        chapter_singleword_list = [words for words in chapter_keyphrases if len(words.split()) == 1]
+        chapter_multiphrase_list = [
+            words for words in chapter_keyphrases if len(words.split()) > 1]
+        chapter_singleword_list = [
+            words for words in chapter_keyphrases if len(words.split()) == 1]
         chapter_multiphrase_list.extend(chapter_singleword_list)
 
         chapter_entities.extend(chapter_multiphrase_list)
@@ -276,7 +282,8 @@ class KeyphraseExtractor(object):
                     try:
                         single_phrase.remove(kw)
                     except Exception as e:
-                        logger.debug("No duplicate single-word in an entity phrase: ", extra={'err': e})
+                        logger.debug(
+                            "No duplicate single-word in an entity phrase: ", extra={'err': e})
                         continue
 
         # Remove same word occurrences in a multi-keyphrase
@@ -293,7 +300,8 @@ class KeyphraseExtractor(object):
     def populate_word_graph(self, req_data):
         segment_df = self.reformat_input(req_data)
 
-        text_list, attrs = self.read_segments(segment_df=segment_df, node_attrs=False)
+        text_list, attrs = self.read_segments(
+            segment_df=segment_df, node_attrs=False)
         self.build_custom_graph(text_list=text_list, attrs=attrs)
 
         logger.info("Number of nodes; Number of edges", extra={"nodes": self.meeting_graph.number_of_nodes(),
@@ -302,7 +310,8 @@ class KeyphraseExtractor(object):
     def compute_keyphrases(self):
         keyphrase_list = []
         try:
-            keyphrase_list = self.get_custom_keyphrases(graph=self.meeting_graph)
+            keyphrase_list = self.get_custom_keyphrases(
+                graph=self.meeting_graph)
         except Exception as e:
             logger.debug("ErrorMsg:", extra={"err": e})
 
