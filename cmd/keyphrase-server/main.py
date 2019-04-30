@@ -1,22 +1,25 @@
-
 import asyncio
 import signal
 import uvloop
 import logging
+from dotenv import load_dotenv, find_dotenv
 from os import getenv
+
 from keyphrase.graphrank.extract_keyphrases import KeyphraseExtractor
 from keyphrase.transport.nats import NATSTransport
-from keyphrase.transport.manager import Manager
-from dotenv import load_dotenv
+from nats.manager import Manager
+from log.logger import setup_server_logger
 
-log = logging.getLogger(__name__)
+logger = logging.getLogger()
+
 
 if __name__ == '__main__':
-    load_dotenv()
-    print("inside nats server")
+    # Setup logger
+    setup_server_logger(debug=True)  # default False for disabling debug mode
+    load_dotenv(find_dotenv())
+
     active_env = getenv("ACTIVE_ENV", "development")
-    nats_url = getenv("NATS_URL", "nats://docker.for.mac.localhost:4222")
-    print(nats_url)
+    nats_url = getenv("NATS_URL", "nats://localhost:4222")
     asyncio.set_event_loop_policy(uvloop.EventLoopPolicy())
     loop = asyncio.get_event_loop()
 
@@ -27,11 +30,11 @@ if __name__ == '__main__':
                            queue_name="io.etherlabs.keyphrase.ether_service")
     nats_transport = NATSTransport(
         nats_manager=nats_manager,
-        keyphrase_service=keyphrase_extractor,
+        keyphrase_service=keyphrase_extractor
     )
 
     def shutdown():
-        log.info("received interrupt; shutting down")
+        logger.info("received interrupt; shutting down")
         loop.create_task(nats_manager.close())
 
     loop.run_until_complete(nats_manager.connect())
