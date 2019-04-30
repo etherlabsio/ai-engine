@@ -27,6 +27,7 @@ already
 also
 although
 always
+alright
 am
 among
 amongst
@@ -119,6 +120,7 @@ doesn't
 doing
 done
 don't
+dont
 down
 downwards
 due
@@ -655,6 +657,7 @@ www
 x
 y
 yes
+yeah
 yet
 you
 youd

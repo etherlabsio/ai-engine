@@ -11,8 +11,8 @@ class NATSTransport(object):
 
     async def subscribe_context(self):
         context_created_topic = "context.instance.created"
-        logger.info("Subscribing to context instance event",
-                    topic=context_created_topic)
+        logger.info("Subscribing to context instance event: %s",
+                    context_created_topic)
         await self.nats_manager.subscribe(context_created_topic,
                                           handler=self.context_created_handler,
                                           queued=True)
@@ -21,10 +21,14 @@ class NATSTransport(object):
         msg_data = json.loads(msg.data)
         context_id = msg_data['contextId']
         context_instance_id = msg_data['id']
-        logger.debug("instance created",
-                     cid=context_id,
-                     ciid=context_instance_id)
+        logger.debug("instance created: cid = %s, ciid = %s",
+                     context_id,
+                     context_instance_id)
         await self.subscribe_context_events(context_instance_id)
+        self.keyphrase_service.initialize_meeting_graph(
+            context_id=context_id, context_instance_id=context_instance_id)
+
+        logger.debug('subscriptions %s', self.nats_manager.subscriptions)
 
     async def subscribe_context_events(self, instance_id):
         await self.nats_manager.subscribe(topic="context.instance." +

@@ -1,7 +1,7 @@
 FROM derphilipp/ubuntu_bionic_with_utf8 AS compile-image
 
 RUN apt-get update && \
-        DEBIAN_FRONTEND=noninteractive apt-get -y install --no-install-recommends build-essential python3.7 python3-pip python3.7-dev &&\
+    DEBIAN_FRONTEND=noninteractive apt-get -y install --no-install-recommends build-essential python3.7 python3-pip python3.7-dev &&\
     apt-get install -y --no-install-recommends linux-headers-generic build-essential gcc python3-dev python-dev  && \
     apt-get install -y --no-install-recommends curl && \
     apt-get install -y --no-install-recommends openjdk-8-jdk ant && \
@@ -25,7 +25,8 @@ ARG app
 COPY 3rdparty 3rdparty
 COPY cmd cmd
 COPY pkg pkg
-COPY services/${app} services/${app}
+COPY vendor vendor
+COPY services services
 COPY pants.ini pants.ini
 
 RUN ./pants binary cmd/${app}-server:server
@@ -34,6 +35,8 @@ FROM python:3.7-slim
 
 WORKDIR /app
 COPY pkg pkg
+COPY vendor vendor
 COPY --from=compile-image /build/dist/server.pex .
 
 ENTRYPOINT ["./server.pex"]
+CMD []

@@ -15,3 +15,4 @@ networkx
 python-dotenv
 python_version==3.7
 uvloop
+python-json-logger

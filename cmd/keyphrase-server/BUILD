@@ -16,6 +16,7 @@ python_library(
 	name="keyphrase-dep",
 	dependencies=[
 		'3rdparty/python:asyncio-nats-client',
+                '3rdparty/python:python-json-logger',
 		'3rdparty/python:textblob',
 		'3rdparty/python:python-dotenv',
 		'3rdparty/python:langdetect',
