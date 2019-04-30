@@ -70,7 +70,8 @@ class Manager:
             await self.conn.unsubscribe(sid)
             self.subscriptions.pop(topic)
         else:
-            logger.debug("Topic not found in the subscription list ", extra={"topic": topic})
+            logger.debug("Topic not found in the subscription list ",
+                         extra={"topic": topic})
 
     def message_handler(self, cb):
         async def handle(msg):
