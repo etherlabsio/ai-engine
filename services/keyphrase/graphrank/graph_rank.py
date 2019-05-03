@@ -28,7 +28,8 @@ class GraphRank(object):
 
         # Load pkg word list
         root_dir = os.getcwd()
-        local_file = os.path.realpath(os.path.join(root_dir, os.path.dirname(__file__)))
+        local_file = os.path.realpath(os.path.join(
+            root_dir, os.path.dirname(__file__)))
 
         stop_word_file = os.path.join(local_file, "long_stopwords.txt")
         text_file = open(stop_word_file, "r")
@@ -123,7 +124,8 @@ class GraphRank(object):
                 [(word, node_attributes) for word, pos in filtered_pos_list]
             )
         else:
-            self.graph.add_nodes_from([word for word, pos in filtered_pos_list])
+            self.graph.add_nodes_from(
+                [word for word, pos in filtered_pos_list])
 
         # Add edges
         # TODO Consider unfiltered token list to build cooccurrence edges.
@@ -175,7 +177,8 @@ class GraphRank(object):
                 syntactic_filter=syntactic_filter,
             )
         elif graph_obj is None and input_pos_text is None:
-            raise SyntaxError("Both `graph_obj` and `input_pos_text` cannot be `None`")
+            raise SyntaxError(
+                "Both `graph_obj` and `input_pos_text` cannot be `None`")
 
         # Compute node scores using unweighted pagerank implementation
         # TODO Extend to other solvers
@@ -249,7 +252,8 @@ class GraphRank(object):
         if original_tokens is None:
             original_tokens = self.context
 
-        unfiltered_word_tokens = [token.lower() for token, pos in original_tokens]
+        unfiltered_word_tokens = [token.lower()
+                                  for token, pos in original_tokens]
         plural_word_tokens = [
             token.lower() for token, pos in original_tokens if pos == "NNS"
         ]
@@ -459,7 +463,8 @@ class GraphRank(object):
         twoplus_multi_phrase = [
             phrases for phrases in keyphrases if len(phrases[0].split()) > 2
         ]
-        two_phrase = [phrases for phrases in keyphrases if len(phrases[0].split()) == 2]
+        two_phrase = [phrases for phrases in keyphrases if len(
+            phrases[0].split()) == 2]
         for tup in two_phrase:
             kw = tup[0]
             for tup_m in twoplus_multi_phrase:
@@ -469,7 +474,8 @@ class GraphRank(object):
                     try:
                         two_phrase.remove(tup)
                     except Exception as e:
-                        logger.debug("No multi-words in a phrase: ", extra={"err": e})
+                        logger.debug(
+                            "No multi-words in a phrase: ", extra={"err": e})
                         continue
 
         # Remove same word occurrences in a multi-keyphrase
@@ -489,7 +495,8 @@ class GraphRank(object):
         processed_keyphrases.extend(single_phrase)
 
         # Remove occurrences of Plurals if their singular form is existing
-        new_processed_keyphrases = self._lemmatize_sentence(processed_keyphrases)
+        new_processed_keyphrases = self._lemmatize_sentence(
+            processed_keyphrases)
 
         return new_processed_keyphrases
 
@@ -527,7 +534,8 @@ class GraphRank(object):
             phrase = tup[0]
             score = tup[1]
             tokenize_phrase = word_tokenize(phrase)
-            singular_tokens = [self.lemma.lemmatize(word) for word in tokenize_phrase]
+            singular_tokens = [self.lemma.lemmatize(
+                word) for word in tokenize_phrase]
             if len(singular_tokens) > 1:
                 singular_sentence = " ".join(singular_tokens)
             else:

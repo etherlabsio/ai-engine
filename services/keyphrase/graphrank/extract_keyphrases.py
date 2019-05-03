@@ -47,8 +47,10 @@ class KeyphraseExtractor(object):
 
         json_df_ts = pd.DataFrame(input_json["segments"], index=None)
         json_df_ts["id"] = json_df_ts["id"].astype(str)
-        json_df_ts["filteredText"] = json_df_ts["filteredText"].apply(lambda x: str(x))
-        json_df_ts["originalText"] = json_df_ts["originalText"].apply(lambda x: str(x))
+        json_df_ts["filteredText"] = json_df_ts["filteredText"].apply(
+            lambda x: str(x))
+        json_df_ts["originalText"] = json_df_ts["originalText"].apply(
+            lambda x: str(x))
         json_df_ts["createdAt"] = json_df_ts["createdAt"].apply(
             lambda x: self.formatTime(x)
         )
@@ -107,8 +109,10 @@ class KeyphraseExtractor(object):
                 attrs["spokenBy"].append(segment_df.iloc[i].get("spokenBy"))
                 attrs["id"].append(segment_df.iloc[i].get("id"))
                 attrs["createdAt"].append(segment_df.iloc[i].get("createdAt"))
-                attrs["recordingId"].append(segment_df.iloc[i].get("recordingId"))
-                attrs["transcriber"].append(segment_df.iloc[i].get("transcriber"))
+                attrs["recordingId"].append(
+                    segment_df.iloc[i].get("recordingId"))
+                attrs["transcriber"].append(
+                    segment_df.iloc[i].get("transcriber"))
             else:
                 attrs = None
         return text_list, attrs
@@ -137,7 +141,8 @@ class KeyphraseExtractor(object):
         for i in range(len(text_list)):
             text = text_list[i]
             try:
-                original_tokens, pos_tuple, filtered_pos_tuple = self.process_text(text)
+                original_tokens, pos_tuple, filtered_pos_tuple = self.process_text(
+                    text)
                 self.meeting_graph = self.gr.build_word_graph(
                     input_pos_text=pos_tuple,
                     window=window,
@@ -146,7 +151,8 @@ class KeyphraseExtractor(object):
                     node_attributes=attrs,
                 )
             except Exception as e:
-                logger.error("Could not process the sentence: ErrorMsg: {}".format(e))
+                logger.error(
+                    "Could not process the sentence: ErrorMsg: {}".format(e))
 
     def get_custom_keyphrases(
         self,
@@ -172,7 +178,8 @@ class KeyphraseExtractor(object):
         return keyphrases
 
     def get_entities(self, input_segment):
-        spacy_list = ["PRODUCT", "EVENT", "LOC", "ORG", "PERSON", "WORK_OF_ART"]
+        spacy_list = ["PRODUCT", "EVENT", "LOC",
+                      "ORG", "PERSON", "WORK_OF_ART"]
         comprehend_list = [
             "COMMERCIAL_ITEM",
             "EVENT",
@@ -224,7 +231,8 @@ class KeyphraseExtractor(object):
             sort_list = []
 
             entity_segment = input_json["segments"][i].get("originalText")
-            input_segment = input_json["segments"][i].get("originalText").lower()
+            input_segment = input_json["segments"][i].get(
+                "originalText").lower()
             keywords_list = []
 
             for tup in keyphrase_list:
@@ -284,7 +292,8 @@ class KeyphraseExtractor(object):
         chapter_entities = []
         for i in range(len(input_json["segments"])):
             entity_segment = input_json["segments"][i].get("originalText")
-            input_segment = input_json["segments"][i].get("originalText").lower()
+            input_segment = input_json["segments"][i].get(
+                "originalText").lower()
 
             for tup in keyphrase_list:
                 kw = tup[0]
@@ -351,7 +360,8 @@ class KeyphraseExtractor(object):
 
         for i in range(len(input_json["segments"])):
             entity_segment = input_json["segments"][i].get("originalText")
-            input_segment = input_json["segments"][i].get("originalText").lower()
+            input_segment = input_json["segments"][i].get(
+                "originalText").lower()
 
             # Set offset time for every keywords
             start_time = input_json["segments"][i].get("startTime")
@@ -369,7 +379,8 @@ class KeyphraseExtractor(object):
                     chapter_keywords_list.append(({kw: offset_time}, score))
 
             entities = self.get_entities(entity_segment)
-            chapter_entities.extend([{entity: offset_time} for entity in entities])
+            chapter_entities.extend([{entity: offset_time}
+                                     for entity in entities])
 
         chapter_entities_list = [
             entities for ent in chapter_entities for entities, off in ent.items()
@@ -422,7 +433,8 @@ class KeyphraseExtractor(object):
         processed_entities = []
 
         # Remove duplicates from the single phrases which are occurring in multi-keyphrases
-        multi_phrases = [phrases for phrases in entity_list if len(phrases.split()) > 1]
+        multi_phrases = [
+            phrases for phrases in entity_list if len(phrases.split()) > 1]
         single_phrase = [
             phrases for phrases in entity_list if len(phrases.split()) == 1
         ]
@@ -453,7 +465,8 @@ class KeyphraseExtractor(object):
     def populate_word_graph(self, req_data):
         segment_df = self.reformat_input(req_data)
 
-        text_list, attrs = self.read_segments(segment_df=segment_df, node_attrs=False)
+        text_list, attrs = self.read_segments(
+            segment_df=segment_df, node_attrs=False)
         self.build_custom_graph(text_list=text_list, attrs=attrs)
 
         logger.info(
@@ -467,7 +480,8 @@ class KeyphraseExtractor(object):
     def compute_keyphrases(self):
         keyphrase_list = []
         try:
-            keyphrase_list = self.get_custom_keyphrases(graph=self.meeting_graph)
+            keyphrase_list = self.get_custom_keyphrases(
+                graph=self.meeting_graph)
         except Exception as e:
             logger.debug("ErrorMsg:", extra={"err": e})
 
@@ -530,7 +544,8 @@ class KeyphraseExtractor(object):
         self.populate_word_graph(req_data)
 
         logger.info("Publishing Chapter keyphrases with offset")
-        keyphrases = self._get_chapter_keyphrases(req_data, n_kw=n_kw, offset=True)
+        keyphrases = self._get_chapter_keyphrases(
+            req_data, n_kw=n_kw, offset=True)
 
         return keyphrases
 
