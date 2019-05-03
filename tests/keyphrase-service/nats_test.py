@@ -33,6 +33,16 @@ async def publish_chapter_keyphrase():
     await nc.close()
 
 
+async def publish_chapter_offset_keyphrase():
+    nc = NATS()
+    topic = "keyphrase_service.in5627.extract_keyphrases_with_offset"
+    await nc.connect(servers=[nats_url])
+    test_json = read_json(multi_json_file)
+    await nc.request(topic, json.dumps(test_json).encode())
+    # await nc.flush()
+    await nc.close()
+
+
 async def publish_instance_keyphrase():
     nc = NATS()
     topic = "keyphrase_service.in5627.keyphrases_for_context_instance"
@@ -57,7 +67,7 @@ async def populate_graph():
     nc = NATS()
     topic = "context.instance.in5627.add_segments"
     await nc.connect(servers=[nats_url])
-    test_json = read_json(multi_json_file)
+    # test_json = read_json(multi_json_file)
     single_test = read_json(single_json_file)
     await nc.publish(topic, json.dumps(single_test).encode())
     # await nc.flush()
@@ -68,11 +78,7 @@ async def create_context():
     nc = NATS()
     topic = "context.instance.created"
     await nc.connect(servers=[nats_url])
-    resp = {
-        "contextId": "567238",
-        "id": "in5627",
-        "state": "created"
-    }
+    resp = {"contextId": "567238", "id": "in5627", "state": "created"}
     await nc.publish(topic, json.dumps(resp).encode())
     # await start_context()
     # await nc.flush()
@@ -83,10 +89,7 @@ async def start_context():
     nc = NATS()
     topic = "context.instance.in5627.started"
     await nc.connect(servers=[nats_url])
-    resp = {
-        "id": "in5627",
-        "state": "started"
-    }
+    resp = {"id": "in5627", "state": "started"}
     await nc.publish(topic, json.dumps(resp).encode())
     # await asyncio.sleep(10, loop=loop)
     # await nc.flush()
@@ -97,10 +100,7 @@ async def end_context():
     nc = NATS()
     topic = "context.instance.in5627.ended"
     await nc.connect(servers=[nats_url])
-    resp = {
-        "id": "in5627",
-        "state": "ended"
-    }
+    resp = {"id": "in5627", "state": "ended"}
     await nc.publish(topic, json.dumps(resp).encode())
     await nc.flush()
     await nc.close()
@@ -113,31 +113,35 @@ def read_json(json_file):
     return meeting
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     parser = argparse.ArgumentParser(
-        description='topic arguments for keyphrase_service')
-    parser.add_argument("--topics", type=str,
-                        default="def", help="publish keyphrase graph")
-    parser.add_argument("--nats_url", type=str,
-                        default=NATS_URL, help="nats server url")
+        description="topic arguments for keyphrase_service"
+    )
+    parser.add_argument(
+        "--topics", type=str, default="def", help="publish keyphrase graph"
+    )
+    parser.add_argument(
+        "--nats_url", type=str, default=NATS_URL, help="nats server url"
+    )
     args = parser.parse_args()
     nats_url = args.nats_url
 
     asyncio.set_event_loop_policy(uvloop.EventLoopPolicy())
     loop = asyncio.get_event_loop()
     single_json_file = os.path.join(os.getcwd(), "single_segment_test.json")
-    multi_json_file = os.path.join(
-        os.getcwd(), "staging_meeting_deepgram.json")
+    multi_json_file = os.path.join(os.getcwd(), "staging_meeting_deepgram.json")
 
-    if args.topics == 'def':
+    if args.topics == "def":
         t1 = loop.run_until_complete(create_context())
-    elif args.topics == 'populate':
+    elif args.topics == "populate":
         loop.run_until_complete(populate_graph())
-    elif args.topics == 'pub_chapter':
+    elif args.topics == "pub_chapter":
         loop.run_until_complete(publish_chapter_keyphrase())
-    elif args.topics == 'pub_pim':
+    elif args.topics == "pub_chapter_offset":
+        loop.run_until_complete(publish_chapter_offset_keyphrase())
+    elif args.topics == "pub_pim":
         loop.run_until_complete(publish_keyphrase())
-    elif args.topics == 'pub_instance':
+    elif args.topics == "pub_instance":
         loop.run_until_complete(publish_instance_keyphrase())
     else:
         # loop.run_until_complete(reset_keyphrase())
