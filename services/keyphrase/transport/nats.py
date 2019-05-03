@@ -11,7 +11,8 @@ class NATSTransport(object):
 
     async def subscribe_context(self):
         context_created_topic = "context.instance.created"
-        logger.info("Subscribing to context instance event: %s", context_created_topic)
+        logger.info("Subscribing to context instance event: %s",
+                    context_created_topic)
         await self.nats_manager.subscribe(
             context_created_topic, handler=self.context_created_handler, queued=True
         )
