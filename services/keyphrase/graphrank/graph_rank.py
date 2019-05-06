@@ -256,6 +256,7 @@ class GraphRank(object):
         unfiltered_word_tokens = [
             token.lower() for token, pos in original_tokens
         ]
+
         plural_word_tokens = [
             token.lower() for token, pos in original_tokens if pos == "NNS"
         ]
