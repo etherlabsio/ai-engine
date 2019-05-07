@@ -5,6 +5,7 @@ import argparse
 import os
 import uvloop
 from dotenv import load_dotenv
+from nltk import word_tokenize, WordNetLemmatizer
 
 load_dotenv()
 
@@ -113,6 +114,94 @@ def read_json(json_file):
     return meeting
 
 
+def test_keyphrase_quality():
+    keyphrase_list = [
+        ('story story', 0.3),
+        ('epic epics', 0.38),
+        ('basic basic', 0.44),
+        ('meetings id created', 0.5),
+        ('mindfulness emotional intelligence decision making', 0.76),
+        ('emotional intelligence decision making', 0.7),
+        ('meeting meeting', 0.2),
+        ('meeting id created', 0.3),
+        ('key phrase', 0.3),
+        ('key phrases', 0.3),
+        ('key phases', 0.2),
+        ('slack apps', 0.4),
+        ('marketplaces', 0.5)
+    ]
+
+    return keyphrase_list
+
+
+def post_process():
+    keyphrases = test_keyphrase_quality()
+    processed_keyphrases = []
+
+    # Remove same word occurrences in a multi-keyphrase
+    for multi_key, multi_score in keyphrases:
+        kw_m = multi_key.split()
+        unique_kp_list = list(dict.fromkeys(kw_m))
+        multi_keyphrase = ' '.join(unique_kp_list)
+        processed_keyphrases.append((multi_keyphrase, multi_score))
+
+    single_phrase = [phrases for phrases in processed_keyphrases if len(
+        phrases[0].split()) == 1]
+    multi_proc_phrases = [phrases for phrases in processed_keyphrases if len(
+        phrases[0].split()) > 1]
+    # Remove duplicates from the single phrases which are occurring in multi-keyphrases
+    for tup in single_phrase:
+        kw = tup[0]
+        for tup_m in multi_proc_phrases:
+            kw_m = tup_m[0]
+            r = kw_m.find(kw)
+            if r > -1:
+                try:
+                    processed_keyphrases.remove(tup)
+                except:
+                    continue
+
+    # Remove duplicates from multi-phrases
+    proc_phrase = processed_keyphrases
+    for tup in proc_phrase:
+        kw = tup[0]
+        for tup_m in processed_keyphrases:
+            kw_m = tup_m[0]
+            if kw_m in kw or kw in kw_m:
+                print(kw, kw_m)
+                if kw != kw_m:
+                    processed_keyphrases.remove(tup_m)
+                else:
+                    continue
+
+    # Singular list
+    processed_keyphrases = _lemmatize_sentence(
+        processed_keyphrases)
+
+    return processed_keyphrases
+
+
+def _lemmatize_sentence(keyphrase_list):
+    tmp_check_list = keyphrase_list
+    result = []
+    lemma = WordNetLemmatizer()
+
+    for tup in tmp_check_list:
+        phrase = tup[0]
+        score = tup[1]
+        tokenize_phrase = word_tokenize(phrase)
+        singular_tokens = [lemma.lemmatize(
+            word) for word in tokenize_phrase]
+        singular_sentence = ' '.join(singular_tokens)
+        if len(singular_sentence) > 0:
+            if singular_sentence in result:
+                keyphrase_list.remove(tup)
+            else:
+                result.append((phrase, score))
+
+    return result
+
+
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(
         description='topic arguments for keyphrase_service')
@@ -139,6 +228,8 @@ if __name__ == '__main__':
         loop.run_until_complete(publish_keyphrase())
     elif args.topics == 'pub_instance':
         loop.run_until_complete(publish_instance_keyphrase())
+    elif args.topics == 'quality':
+        post_process()
     else:
         # loop.run_until_complete(reset_keyphrase())
         loop.run_until_complete(end_context())
