@@ -183,6 +183,10 @@ class KeyphraseExtractor(object):
             segment_entity = self.get_entities(entity_segment)
             segment_keyword_list = [words for words, score in sort_list]
 
+            # Get distinct entities and keyphrases
+            segment_entity = list(dict.fromkeys(segment_entity))
+            segment_keyword_list = list(dict.fromkeys(segment_keyword_list))
+
             # Post-process entities
             segment_entity = self.post_process_entities(segment_entity)
 
@@ -241,6 +245,10 @@ class KeyphraseExtractor(object):
             sort_list = sort_list[:top_n]
 
         chapter_keyphrases = [phrases for phrases, score in sort_list]
+
+        # Get distinct entities and keyphrases
+        chapter_entities = list(dict.fromkeys(chapter_entities))
+        chapter_keyphrases = list(dict.fromkeys(chapter_keyphrases))
 
         # Post-process entities
         chapter_entities = self.post_process_entities(chapter_entities)
