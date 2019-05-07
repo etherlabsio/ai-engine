@@ -28,9 +28,7 @@ class GraphRank(object):
 
         # Load pkg word list
         root_dir = os.getcwd()
-        local_file = os.path.realpath(
-            os.path.join(root_dir, os.path.dirname(__file__))
-        )
+        local_file = os.path.realpath(os.path.join(root_dir, os.path.dirname(__file__)))
 
         stop_word_file = os.path.join(local_file, "long_stopwords.txt")
         text_file = open(stop_word_file, "r")
@@ -77,9 +75,7 @@ class GraphRank(object):
             ]
 
         original_token_pos_list = [
-            (word.lower(), pos)
-            for sent in input_pos_text
-            for word, pos in sent
+            (word.lower(), pos) for sent in input_pos_text for word, pos in sent
         ]
 
         # Extend the context of the graph
@@ -109,9 +105,7 @@ class GraphRank(object):
             ]
 
             filtered_pos_list = [
-                (self.lemma.lemmatize(word), pos)
-                if pos == "NNS"
-                else (word, pos)
+                (self.lemma.lemmatize(word), pos) if pos == "NNS" else (word, pos)
                 for word, pos in filtered_pos_list
             ]
 
@@ -121,9 +115,7 @@ class GraphRank(object):
                 [(word, node_attributes) for word, pos in filtered_pos_list]
             )
         else:
-            self.graph.add_nodes_from(
-                [word for word, pos in filtered_pos_list]
-            )
+            self.graph.add_nodes_from([word for word, pos in filtered_pos_list])
 
         # Add edges
         # TODO Consider unfiltered token list to build cooccurrence edges.
@@ -175,9 +167,7 @@ class GraphRank(object):
                 syntactic_filter=syntactic_filter,
             )
         elif graph_obj is None and input_pos_text is None:
-            raise SyntaxError(
-                "Both `graph_obj` and `input_pos_text` cannot be `None`"
-            )
+            raise SyntaxError("Both `graph_obj` and `input_pos_text` cannot be `None`")
 
         # Compute node scores using unweighted pagerank implementation
         # TODO Extend to other solvers
@@ -187,9 +177,7 @@ class GraphRank(object):
 
         # Normalize node weights using graph properties
         normalized_node_weights = self.graph_solver.normalize_nodes(
-            graph_obj=graph_obj,
-            node_weights=node_weights,
-            normalize_fn=normalize_nodes,
+            graph_obj=graph_obj, node_weights=node_weights, normalize_fn=normalize_nodes
         )
         # sorting the nodes by decreasing scores
         top_words = self.graph_utils.sort_by_value(
@@ -253,9 +241,7 @@ class GraphRank(object):
         if original_tokens is None:
             original_tokens = self.context
 
-        unfiltered_word_tokens = [
-            token.lower() for token, pos in original_tokens
-        ]
+        unfiltered_word_tokens = [token.lower() for token, pos in original_tokens]
 
         plural_word_tokens = [
             token.lower() for token, pos in original_tokens if pos == "NNS"
@@ -441,69 +427,52 @@ class GraphRank(object):
         """
         processed_keyphrases = []
 
-        # Remove duplicates from the single phrases which are occurring in multi-keyphrases
-        multi_phrases = [
-            phrases for phrases in keyphrases if len(phrases[0].split()) > 1
-        ]
-        single_phrase = [
-            phrases for phrases in keyphrases if len(phrases[0].split()) == 1
-        ]
-        for tup in single_phrase:
-            kw = tup[0]
-            for tup_m in multi_phrases:
-                kw_m = tup_m[0]
-                r = kw_m.find(kw)
-                if r > -1:
-                    try:
-                        single_phrase.remove(tup)
-                    except Exception as e:
-                        logger.debug(
-                            "No duplicate single-word in a phrase: ",
-                            extra={"err": e},
-                        )
-                        continue
-
-        # Remove duplicates from multi-phrases
-        twoplus_multi_phrase = [
-            phrases for phrases in keyphrases if len(phrases[0].split()) > 2
-        ]
-        two_phrase = [
-            phrases for phrases in keyphrases if len(phrases[0].split()) == 2
-        ]
-        for tup in two_phrase:
-            kw = tup[0]
-            for tup_m in twoplus_multi_phrase:
-                kw_m = tup_m[0]
-                r = kw_m.find(kw)
-                if r > -1:
-                    try:
-                        two_phrase.remove(tup)
-                    except Exception as e:
-                        logger.debug(
-                            "No multi-words in a phrase: ", extra={"err": e}
-                        )
-                        continue
-
         # Remove same word occurrences in a multi-keyphrase
-        for multi_key, multi_score in twoplus_multi_phrase:
+        for multi_key, multi_score in keyphrases:
             kw_m = multi_key.split()
             unique_kp_list = list(dict.fromkeys(kw_m))
             multi_keyphrase = " ".join(unique_kp_list)
             processed_keyphrases.append((multi_keyphrase, multi_score))
 
-        processed_keyphrases.extend(two_phrase)
+        # Remove duplicates from the single phrases which are occurring in multi-keyphrases
+        single_phrase = [
+            phrases for phrases in processed_keyphrases if len(phrases[0].split()) == 1
+        ]
+        multi_proc_phrases = [
+            phrases for phrases in processed_keyphrases if len(phrases[0].split()) > 1
+        ]
+
+        for tup in single_phrase:
+            kw = tup[0]
+            for tup_m in multi_proc_phrases:
+                kw_m = tup_m[0]
+                r = kw_m.find(kw)
+                if r > -1:
+                    try:
+                        processed_keyphrases.remove(tup)
+                    except Exception as e:
+                        logger.warning("keyword not found", extra={"warning": e})
+                        continue
+
+        # Remove duplicates from multi-phrases
+        proc_phrase = processed_keyphrases
+        for tup in proc_phrase:
+            kw = tup[0]
+            for tup_m in processed_keyphrases:
+                kw_m = tup_m[0]
+                if kw in kw_m or kw_m in kw:
+                    if kw != kw_m:
+                        processed_keyphrases.remove(tup_m)
+                    else:
+                        continue
 
         # Sort the multi-keyphrases first and then append the single keywords to the tail of the list.
         processed_keyphrases = self.graph_utils.sort_by_value(
             processed_keyphrases, order="desc"
         )
 
-        processed_keyphrases.extend(single_phrase)
-
         # Remove occurrences of Plurals if their singular form is existing
-        new_processed_keyphrases = self._lemmatize_sentence(
-            processed_keyphrases
-        )
+        new_processed_keyphrases = self._lemmatize_sentence(processed_keyphrases)
 
         return new_processed_keyphrases
 
@@ -541,17 +510,12 @@ class GraphRank(object):
             phrase = tup[0]
             score = tup[1]
             tokenize_phrase = word_tokenize(phrase)
-            singular_tokens = [
-                self.lemma.lemmatize(word) for word in tokenize_phrase
-            ]
-            if len(singular_tokens) > 1:
-                singular_sentence = " ".join(singular_tokens)
-            else:
-                singular_sentence = ""
-                singular_sentence = singular_sentence.join(singular_tokens)
-            if singular_sentence in result:
-                keyphrase_list.remove(tup)
-            else:
-                result.append((phrase, score))
+            singular_tokens = [self.lemma.lemmatize(word) for word in tokenize_phrase]
+            singular_sentence = " ".join(singular_tokens)
+            if len(singular_sentence) > 0:
+                if singular_sentence in result:
+                    keyphrase_list.remove(tup)
+                else:
+                    result.append((phrase, score))
 
         return result
