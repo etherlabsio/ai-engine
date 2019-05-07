@@ -379,56 +379,45 @@ class GraphRank(object):
         """
         processed_keyphrases = []
 
-        # Remove duplicates from the single phrases which are occurring in multi-keyphrases
-        multi_phrases = [phrases for phrases in keyphrases if len(
-            phrases[0].split()) > 1]
-        single_phrase = [phrases for phrases in keyphrases if len(
-            phrases[0].split()) == 1]
-        for tup in single_phrase:
-            kw = tup[0]
-            for tup_m in multi_phrases:
-                kw_m = tup_m[0]
-                r = kw_m.find(kw)
-                if r > -1:
-                    try:
-                        single_phrase.remove(tup)
-                    except Exception as e:
-                        logger.debug(
-                            "No duplicate single-word in a phrase: ", extra={'err': e})
-                        continue
-
-        # Remove duplicates from multi-phrases
-        twoplus_multi_phrase = [phrases for phrases in keyphrases if len(
-            phrases[0].split()) > 2]
-        two_phrase = [phrases for phrases in keyphrases if len(
-            phrases[0].split()) == 2]
-        for tup in two_phrase:
-            kw = tup[0]
-            for tup_m in twoplus_multi_phrase:
-                kw_m = tup_m[0]
-                r = kw_m.find(kw)
-                if r > -1:
-                    try:
-                        two_phrase.remove(tup)
-                    except Exception as e:
-                        logger.debug(
-                            "No multi-words in a phrase: ", extra={'err': e})
-                        continue
-
         # Remove same word occurrences in a multi-keyphrase
-        for multi_key, multi_score in twoplus_multi_phrase:
+        for multi_key, multi_score in keyphrases:
             kw_m = multi_key.split()
             unique_kp_list = list(dict.fromkeys(kw_m))
             multi_keyphrase = ' '.join(unique_kp_list)
             processed_keyphrases.append((multi_keyphrase, multi_score))
 
-        processed_keyphrases.extend(two_phrase)
+        # Remove duplicates from the single phrases which are occurring in multi-keyphrases
+        single_phrase = [phrases for phrases in processed_keyphrases if len(
+            phrases[0].split()) == 1]
+        multi_proc_phrases = [phrases for phrases in processed_keyphrases if len(
+            phrases[0].split()) > 1]
+
+        for tup in single_phrase:
+            kw = tup[0]
+            for tup_m in multi_proc_phrases:
+                kw_m = tup_m[0]
+                r = kw_m.find(kw)
+                if r > -1:
+                    try:
+                        processed_keyphrases.remove(tup)
+                    except:
+                        continue
+
+        # Remove duplicates from multi-phrases
+        proc_phrase = processed_keyphrases
+        for tup in proc_phrase:
+            kw = tup[0]
+            for tup_m in processed_keyphrases:
+                kw_m = tup_m[0]
+                if kw in kw_m or kw_m in kw:
+                    if kw != kw_m:
+                        processed_keyphrases.remove(tup_m)
+                    else:
+                        continue
 
         # Sort the multi-keyphrases first and then append the single keywords to the tail of the list.
         processed_keyphrases = self.graph_utils.sort_by_value(
             processed_keyphrases, order='desc')
-
-        processed_keyphrases.extend(single_phrase)
 
         # Remove occurrences of Plurals if their singular form is existing
         new_processed_keyphrases = self._lemmatize_sentence(
@@ -471,9 +460,10 @@ class GraphRank(object):
             singular_tokens = [self.lemma.lemmatize(
                 word) for word in tokenize_phrase]
             singular_sentence = ' '.join(singular_tokens)
-            if singular_sentence in result:
-                keyphrase_list.remove(tup)
-            else:
-                result.append((phrase, score))
+            if len(singular_sentence) > 0:
+                if singular_sentence in result:
+                    keyphrase_list.remove(tup)
+                else:
+                    result.append((phrase, score))
 
         return result

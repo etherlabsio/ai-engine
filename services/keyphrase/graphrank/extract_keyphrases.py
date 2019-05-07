@@ -290,8 +290,6 @@ class KeyphraseExtractor(object):
                     try:
                         single_phrase.remove(kw)
                     except Exception as e:
-                        logger.debug(
-                            "No duplicate single-word in an entity phrase: ", extra={'err': e})
                         continue
 
         # Remove same word occurrences in a multi-keyphrase
@@ -299,7 +297,8 @@ class KeyphraseExtractor(object):
             kw_m = multi_key.split()
             unique_kp_list = list(dict.fromkeys(kw_m))
             multi_keyphrase = ' '.join(unique_kp_list)
-            processed_entities.append(multi_keyphrase)
+            if len(multi_keyphrase) > 0:
+                processed_entities.append(multi_keyphrase)
 
         processed_entities.extend(single_phrase)
 
