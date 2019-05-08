@@ -1,5 +1,6 @@
 {
     "contextId":"6baa3490-69d6-48fc-b5d4-3994e3e8fae0",
+    "relativeTime": "2019-04-23T12:56:40Z",
     "segments": [
 
       {"id": "36e4680840be4c3c80e57a18c78e7594", "status": "completed", "deleted": false, "endTime": "2019-04-23T12:56:46Z", "duration": 6, "spokenBy": "09866849-c8af-4423-812a-a376d8af84f0", "createdAt": "2019-04-23T12:56:46.994667772Z", "deletedAt": null, "startTime": "2019-04-23T12:56:40Z", "updatedAt": "2019-04-23T12:56:48.725189899Z", "confidence": 0.975941, "recordingId": "bd1d7b01f80d4095bb58b368da936037", "transcriber": "deepgram", "filteredText": "Think it is because previous meetings somebody can't come up.", "languageCode": "en-US", "originalText": "Think it is because previous meetings somebody can't come up.", "transcriptId": "7992dc2d-29c9-443c-9d5b-7abf5f9438a7"},
