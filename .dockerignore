@@ -1,0 +1,15 @@
+virtualenv*/
+.flake8
+.gitignore
+.pants.d/
+.cache
+.github
+.template
+tests/
+.pre-commit-config.yaml
+Deployfile
+Makefile
+pyproject.toml
+virtualenv-16.4.3.tar.gz
+*.md
+*/__pycache__/*

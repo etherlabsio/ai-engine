@@ -5,6 +5,7 @@ import networkx as nx
 import spacy
 from spacy.lang.en.stop_words import STOP_WORDS
 import logging
+from timeit import default_timer as timer
 
 from .graph_rank import GraphRank
 from .utils import TextPreprocess, GraphUtils
@@ -46,7 +47,6 @@ class KeyphraseExtractor(object):
 
         json_df_ts = pd.DataFrame(input_json["segments"], index=None)
         json_df_ts["id"] = json_df_ts["id"].astype(str)
-        json_df_ts["filteredText"] = json_df_ts["filteredText"].apply(lambda x: str(x))
         json_df_ts["originalText"] = json_df_ts["originalText"].apply(lambda x: str(x))
         json_df_ts["createdAt"] = json_df_ts["createdAt"].apply(
             lambda x: self.formatTime(x)
@@ -86,7 +86,6 @@ class KeyphraseExtractor(object):
         self.meeting_graph = nx.Graph(
             context_instance_id=instance_id, context_id=context_id
         )
-        pass
 
     def read_segments(self, segment_df, node_attrs=False):
         text_list = []
@@ -135,17 +134,15 @@ class KeyphraseExtractor(object):
 
         for i in range(len(text_list)):
             text = text_list[i]
-            try:
-                original_tokens, pos_tuple, filtered_pos_tuple = self.process_text(text)
-                self.meeting_graph = self.gr.build_word_graph(
-                    input_pos_text=pos_tuple,
-                    window=window,
-                    syntactic_filter=syntactic_filter,
-                    preserve_common_words=preserve_common_words,
-                    node_attributes=attrs,
-                )
-            except Exception as e:
-                logger.error("Could not process the sentence: ErrorMsg: {}".format(e))
+
+            original_tokens, pos_tuple, filtered_pos_tuple = self.process_text(text)
+            self.meeting_graph = self.gr.build_word_graph(
+                input_pos_text=pos_tuple,
+                window=window,
+                syntactic_filter=syntactic_filter,
+                preserve_common_words=preserve_common_words,
+                node_attributes=attrs,
+            )
 
     def get_custom_keyphrases(
         self,
@@ -201,6 +198,8 @@ class KeyphraseExtractor(object):
         entity_dict = []
         for entt in list(zip(filtered_entities, t_ner_type)):
             entity_dict.append({"text": str(entt[0]), "type": entt[1]})
+
+        logger.debug("Processing entities", extra={"entities": entity_dict})
 
         return filtered_entities
 
@@ -468,43 +467,61 @@ class KeyphraseExtractor(object):
         return processed_entities
 
     def populate_word_graph(self, req_data):
+        start = timer()
         segment_df = self.reformat_input(req_data)
 
-        text_list, attrs = self.read_segments(segment_df=segment_df, node_attrs=False)
-        self.build_custom_graph(text_list=text_list, attrs=attrs)
+        try:
+            text_list, attrs = self.read_segments(
+                segment_df=segment_df, node_attrs=False
+            )
+            self.build_custom_graph(text_list=text_list, attrs=attrs)
+        except Exception as e:
+            end = timer()
+            logger.error(
+                "Error populating graph",
+                extra={
+                    "err": e,
+                    "responseTime": end - start,
+                    "instanceId": req_data["instanceId"],
+                },
+            )
+
+        end = timer()
 
         logger.info(
-            "Number of nodes; Number of edges",
+            "Graph info",
             extra={
                 "nodes": self.meeting_graph.number_of_nodes(),
                 "edges": self.meeting_graph.number_of_edges(),
+                "instanceId": req_data["instanceId"],
+                "responseTime": end - start,
             },
         )
 
     def compute_keyphrases(self):
+        start = timer()
         keyphrase_list = []
         try:
             keyphrase_list = self.get_custom_keyphrases(graph=self.meeting_graph)
         except Exception as e:
-            logger.debug("ErrorMsg:", extra={"err": e})
+            end = timer()
+            logger.error(
+                "Error retrieving keyphrases",
+                extra={"err": e, "responseTime": end - start},
+            )
 
         return keyphrase_list
 
     def _get_pim_keyphrases(self, req_data, n_kw=5):
         keyphrase_list = self.compute_keyphrases()
-        segment_keyphrases = []
-        try:
-            segment_keyphrases = self.segment_search(
-                input_json=req_data, keyphrase_list=keyphrase_list, top_n=n_kw
-            )
-        except Exception as e:
-            logger.debug("ErrorMsg:", extra={"err": e})
+        segment_keyphrases = self.segment_search(
+            input_json=req_data, keyphrase_list=keyphrase_list, top_n=n_kw
+        )
 
         return segment_keyphrases
 
     def _get_chapter_keyphrases(self, req_data, n_kw=5):
         keyphrase_list = self.compute_keyphrases()
-
         chapter_keyphrases = self.chapter_segment_search(
             input_json=req_data, keyphrase_list=keyphrase_list, top_n=n_kw
         )
@@ -512,18 +529,32 @@ class KeyphraseExtractor(object):
         return chapter_keyphrases
 
     def get_keyphrases(self, req_data, n_kw=10):
+        start = timer()
         segments_array = req_data["segments"]
 
-        # Re-populate the graph if google transcripts are coming in
+        logger.info("Re-populating word graph on google segments")
         self.populate_word_graph(req_data)
 
-        # Decide between PIM or Chapter keyphrases
-        if len(segments_array) > 1:
-            logger.info("Publishing Chapter Keyphrases")
-            keyphrases = self._get_chapter_keyphrases(req_data, n_kw=n_kw)
-        else:
-            logger.info("Publishing PIM Keyphrases")
-            keyphrases = self._get_pim_keyphrases(req_data, n_kw=n_kw)
+        keyphrases = []
+        try:
+            # Decide between PIM or Chapter keyphrases
+            if len(segments_array) > 1:
+                logger.info("Extracting Chapter Keyphrases")
+                keyphrases = self._get_chapter_keyphrases(req_data, n_kw=n_kw)
+            else:
+                logger.info("Extracting PIM Keyphrases")
+                keyphrases = self._get_pim_keyphrases(req_data, n_kw=n_kw)
+        except Exception as e:
+            end = timer()
+            logger.error(
+                "Error extracting keyphrases from segment",
+                extra={
+                    "err": e,
+                    "responseTime": end - start,
+                    "instanceId": req_data["instanceId"],
+                    "segmentObj": req_data["segments"],
+                },
+            )
 
         return keyphrases
 
@@ -536,39 +567,45 @@ class KeyphraseExtractor(object):
         return result
 
     def get_chapter_offset_keyphrases(self, req_data, n_kw=10):
+        start = timer()
         self.populate_word_graph(req_data)
         keyphrase_list = self.compute_keyphrases()
 
         relative_time = self.formatTime(req_data["relativeTime"], datetime_object=True)
-        logger.info(
-            "processing chapter keyphrases with offset",
-            extra={"relativeTime": relative_time},
-        )
-        chapter_keyphrases = self.chapter_segment_offset_search(
-            segments=req_data["segments"],
-            relative_time=relative_time,
-            keyphrase_list=keyphrase_list,
-            top_n=n_kw,
-        )
+        chapter_keyphrases = []
+
+        try:
+            chapter_keyphrases = self.chapter_segment_offset_search(
+                segments=req_data["segments"],
+                relative_time=relative_time,
+                keyphrase_list=keyphrase_list,
+                top_n=n_kw,
+            )
+        except Exception as e:
+            end = timer()
+            logger.error(
+                "Error processing chapter keyphrases with offset",
+                extra={
+                    "err": e,
+                    "responseTime": end - start,
+                    "instanceId": req_data["instanceId"],
+                },
+            )
 
         return chapter_keyphrases
 
     def reset_keyphrase_graph(self, req_data):
-        logger.debug(
-            "Before Reset - Number of nodes; Number of edges",
-            extra={
-                "nodes": self.meeting_graph.number_of_nodes(),
-                "edges": self.meeting_graph.number_of_edges(),
-            },
-        )
+        start = timer()
 
         self.gr.reset_graph()
         self.meeting_graph.clear()
+        end = timer()
         logger.info(
-            "Number of nodes; Number of edges",
+            "Post-reset: Graph info",
             extra={
                 "nodes": self.meeting_graph.number_of_nodes(),
                 "edges": self.meeting_graph.number_of_edges(),
+                "responseTime": end - start,
             },
         )
 

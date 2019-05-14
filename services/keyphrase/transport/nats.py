@@ -1,5 +1,6 @@
 import json
 import logging
+from timeit import default_timer as timer
 
 logger = logging.getLogger(__name__)
 
@@ -11,8 +12,10 @@ class NATSTransport(object):
 
     async def subscribe_context(self):
         context_created_topic = "context.instance.created"
-        logger.info("Subscribing to context instance event: %s",
-                    context_created_topic)
+        logger.info(
+            "Subscribing to context instance event",
+            extra={"topic": context_created_topic},
+        )
         await self.nats_manager.subscribe(
             context_created_topic, handler=self.context_created_handler, queued=True
         )
@@ -20,16 +23,20 @@ class NATSTransport(object):
     async def context_created_handler(self, msg):
         msg_data = json.loads(msg.data)
         context_id = msg_data["contextId"]
-        context_instance_id = msg_data["id"]
-        logger.debug(
-            "instance created: cid = %s, ciid = %s", context_id, context_instance_id
+        context_instance_id = msg_data["instanceId"]
+        logger.info(
+            "instance created",
+            extra={"contextId": context_id, "instanceId": context_instance_id},
         )
         await self.subscribe_context_events(context_instance_id)
+        logger.info(
+            "topics subscribed", extra={"topics": self.nats_manager.subscriptions}
+        )
+
         self.keyphrase_service.initialize_meeting_graph(
             context_id=context_id, context_instance_id=context_instance_id
         )
-
-        logger.debug("subscriptions %s", self.nats_manager.subscriptions)
+        logger.info("Initialized word graph")
 
     async def subscribe_context_events(self, instance_id):
         await self.nats_manager.subscribe(
@@ -115,7 +122,7 @@ class NATSTransport(object):
 
     async def context_end_handler(self, msg):
         msg_data = json.loads(msg.data)
-        instance_id = msg_data["id"]
+        instance_id = msg_data["instanceId"]
         # Close, drain and unsubscribe connections to keyphrase topics
         await self.unsubscribe_lifecycle_events(instance_id)
         # Reset graph
@@ -126,31 +133,63 @@ class NATSTransport(object):
     async def populate_graph(self, msg):
         request = json.loads(msg.data)
 
-        logger.info("Populating word graph ...")
+        logger.info("Populating word graph")
         self.keyphrase_service.populate_word_graph(request)
 
     async def extract_segment_keyphrases(self, msg):
+        start = timer()
         request = json.loads(msg.data)
 
         output = self.keyphrase_service.get_keyphrases(request)
-        logger.debug("output", extra={"output": output})
+        end = timer()
+        logger.info(
+            "Publishing keyphrases",
+            extra={
+                "keyphraseList": output,
+                "instanceId": request["instanceId"],
+                "numOfSegments": len(request["segments"]),
+                "responseTime": end - start,
+            },
+        )
         await self.nats_manager.conn.publish(msg.reply, json.dumps(output).encode())
 
     async def extract_instance_keyphrases(self, msg):
+        start = timer()
         request = json.loads(msg.data)
-        logger.info("Publishing Instance Keyphrases")
         output = self.keyphrase_service.get_instance_keyphrases(request)
+        end = timer()
+
+        logger.info(
+            "Publishing instance keyphrases",
+            extra={
+                "instanceList": output,
+                "instanceId": request["instanceId"],
+                "numOfSegments": len(request["segments"]),
+                "responseTime": end - start,
+            },
+        )
         await self.nats_manager.conn.publish(msg.reply, json.dumps(output).encode())
 
     async def chapter_offset_handler(self, msg):
+        start = timer()
         request = json.loads(msg.data)
-        logger.info("Publishing Chapter Keyphrases with offset")
         output = self.keyphrase_service.get_chapter_offset_keyphrases(request)
-        logger.debug("output", extra={"output": output})
+        end = timer()
+
+        logger.info(
+            "Publishing chapter keyphrases with offset",
+            extra={
+                "chapterOffsetList": output,
+                "instanceId": request["instanceId"],
+                "numOfSegments": len(request["segments"]),
+                "responseTime": end - start,
+            },
+        )
+
         await self.nats_manager.conn.publish(msg.reply, json.dumps(output).encode())
 
     async def reset_keyphrases(self, msg):
         request = json.loads(msg.data)
-        logger.info("Resetting keyphrases graph ...")
+        logger.info("Resetting keyphrases graph")
         output = self.keyphrase_service.reset_keyphrase_graph(request)
         await self.nats_manager.conn.publish(msg, json.dumps(output).encode())
