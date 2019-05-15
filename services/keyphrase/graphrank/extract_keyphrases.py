@@ -464,6 +464,16 @@ class KeyphraseExtractor(object):
 
         processed_entities.extend(single_phrase)
 
+        # Remove single lettered entity that are coming up
+        for entities in processed_entities:
+            tmp_entitites = list(entities)
+            if len(tmp_entitites) < 3:
+                try:
+                    processed_entities.remove(entities)
+                except Exception as e:
+                    logger.debug("entity not found", extra={"warning": e})
+                    continue
+
         return processed_entities
 
     def populate_word_graph(self, req_data):
