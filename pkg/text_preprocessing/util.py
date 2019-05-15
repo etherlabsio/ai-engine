@@ -167,8 +167,9 @@ def get_pos(sentence):
     output : A list of sentence where each sentence contains a list of tuple with word, POS.
     '''
     sentence_pos = []
+    filtered_sentence = sentence.replace('.', '. ')
 
-    tokenized_text = word_tokenize(sentence)
+    tokenized_text = word_tokenize(filtered_sentence)
     pos_tags = nltk.pos_tag(tokenized_text)
     for tags in pos_tags:
         sentence_pos.append(tags)
