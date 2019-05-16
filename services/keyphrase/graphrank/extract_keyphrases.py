@@ -467,7 +467,7 @@ class KeyphraseExtractor(object):
         # Remove single lettered entity that are coming up
         for entities in processed_entities:
             tmp_entitites = list(entities)
-            if len(tmp_entitites) < 3:
+            if len(tmp_entitites) < 4:
                 try:
                     processed_entities.remove(entities)
                 except Exception as e:
