@@ -3,16 +3,15 @@ from nats.aio.client import Client as NATS
 from nats.aio.errors import ErrTimeout, ErrNoServers
 import json
 import logging
+from traceback import print_exc
 
 logger = logging.getLogger(__name__)
 
 
 class Manager:
-    def __init__(self,
-                 loop,
-                 queue_name,
-                 url="nats://docker.for.mac.localhost:4222",
-                 nc=NATS()):
+    def __init__(
+        self, loop, queue_name, url="nats://docker.for.mac.localhost:4222", nc=NATS()
+    ):
         self.conn = nc
         self.loop = loop
         self.url = url
@@ -21,7 +20,7 @@ class Manager:
 
     async def close(self):
         for subject, sid in self.subscriptions.items():
-            logger.info("flushing nats sub %s", sid)
+            logger.info("flushing nats sub", extra={"sid": sid})
             if self.conn.is_connected:
                 await self.conn.unsubscribe(sid)
         await self.conn.drain()
@@ -35,13 +34,14 @@ class Manager:
             loop.stop()
 
         async def reconnected_cb():
-            logger.info("connected to NATS at {}...".format(
-                self.conn.connected_url.netloc))
+            logger.info(
+                "connected to NATS at {}...".format(self.conn.connected_url.netloc)
+            )
 
         options = {
             "io_loop": loop,
             "closed_cb": closed_cb,
-            "reconnected_cb": reconnected_cb
+            "reconnected_cb": reconnected_cb,
         }
 
         try:
@@ -56,12 +56,10 @@ class Manager:
         sid = None
         if queued is True:
             sid = await self.conn.subscribe(
-                topic,
-                queue=self.queue_name,
-                cb=self.message_handler(cb=handler))
+                topic, queue=self.queue_name, cb=self.message_handler(cb=handler)
+            )
         else:
-            sid = await self.conn.subscribe(topic,
-                                            cb=self.message_handler(handler))
+            sid = await self.conn.subscribe(topic, cb=self.message_handler(handler))
         self.subscriptions[topic] = sid
 
     async def unsubscribe(self, topic):
@@ -70,35 +68,41 @@ class Manager:
             await self.conn.unsubscribe(sid)
             self.subscriptions.pop(topic)
         else:
-            logger.debug("Topic not found in the subscription list ",
-                         extra={"topic": topic})
+            logger.debug(
+                "Topic not found in the subscription list ", extra={"topic": topic}
+            )
 
     def message_handler(self, cb):
         async def handle(msg):
             try:
                 subject = msg.subject
                 reply = msg.reply
-                logger.info("received nats message ", extra={
-                            "subject": subject,
-                            "reply": reply,
-                            "data": msg.data})
+                logger.info(
+                    "received nats message ",
+                    extra={"subject": subject, "reply": reply, "data": msg.data},
+                )
                 await cb(msg)
             except Exception as e:
                 send = self.conn.publish
-                if reply:
-                    send = self.conn.reply
                 await send(
                     msg.reply,
-                    json.dumps({
-                        "error": {
-                            "code": 0,
-                            "message": "process message failure",
-                            "cause": str(e)
+                    json.dumps(
+                        {
+                            "error": {
+                                "code": 0,
+                                "message": "process message failure",
+                                "cause": str(e),
+                            }
                         }
-                    }).encode())
-                logger.error("failed to process message:", extra={
-                             "subject": msg.subject,
-                             "data": msg.data,
-                             "err": e})
+                    ).encode(),
+                )
+                logger.error(
+                    "failed to process message:",
+                    extra={
+                        "subject": msg.subject,
+                        "data": msg.data,
+                        "err": print_exc(limit=3),
+                    },
+                )
 
         return handle

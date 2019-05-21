@@ -82,7 +82,7 @@ async def create_context():
     nc = NATS()
     topic = "context.instance.created"
     await nc.connect(servers=[nats_url])
-    resp = {"contextId": "567238", "id": "in5627", "state": "created"}
+    resp = {"contextId": "567238", "instanceId": "in5627", "state": "created"}
     await nc.publish(topic, json.dumps(resp).encode())
     # await start_context()
     # await nc.flush()
@@ -93,7 +93,7 @@ async def start_context():
     nc = NATS()
     topic = "context.instance.in5627.started"
     await nc.connect(servers=[nats_url])
-    resp = {"id": "in5627", "state": "started"}
+    resp = {"instanceId": "in5627", "state": "started"}
     await nc.publish(topic, json.dumps(resp).encode())
     # await asyncio.sleep(10, loop=loop)
     # await nc.flush()
@@ -104,7 +104,7 @@ async def end_context():
     nc = NATS()
     topic = "context.instance.in5627.ended"
     await nc.connect(servers=[nats_url])
-    resp = {"id": "in5627", "state": "ended"}
+    resp = {"instanceId": "in5627", "state": "ended"}
     await nc.publish(topic, json.dumps(resp).encode())
     await nc.flush()
     await nc.close()
@@ -222,8 +222,7 @@ if __name__ == "__main__":
     asyncio.set_event_loop_policy(uvloop.EventLoopPolicy())
     loop = asyncio.get_event_loop()
     single_json_file = os.path.join(os.getcwd(), "single_segment_test.json")
-    multi_json_file = os.path.join(
-        os.getcwd(), "staging_meeting_deepgram.json")
+    multi_json_file = os.path.join(os.getcwd(), "staging_meeting_deepgram.json")
 
     if args.topics == "def":
         t1 = loop.run_until_complete(create_context())

@@ -8,6 +8,7 @@ class GraphSolvers(object):
     """
     Class for computing various graph properties
     """
+
     def __init__(self):
         pass
 
@@ -23,10 +24,12 @@ class GraphSolvers(object):
         """
 
         # TODO Extend to other solvers
-        if solver_fn == 'pagerank':
+        if solver_fn == "pagerank":
             node_weights = nx.pagerank(graph_obj, alpha=0.85, tol=0.0001, weight=None)
         else:
-            node_weights = nx.pagerank_scipy(graph_obj, alpha=0.85, tol=0.0001, weight=None)
+            node_weights = nx.pagerank_scipy(
+                graph_obj, alpha=0.85, tol=0.0001, weight=None
+            )
 
         return node_weights
 
@@ -63,39 +66,45 @@ class GraphSolvers(object):
         Returns:
 
         """
-        if normalize_fn == 'degree':
+        if normalize_fn == "degree":
             node_degrees = self.get_node_degree(graph_obj=graph_obj)
             for k, v in node_weights.items():
                 try:
-                    node_weights[k] = v/node_degrees[k]
+                    node_weights[k] = v / node_degrees[k]
                 except Exception as e:
-                    logger.debug("Zero degree value while computing degree: {}".format(e))
+                    logger.debug(
+                        "Zero degree value while computing degree", extra={"err": e}
+                    )
                     node_weights[k] = v
 
-        elif normalize_fn == 'closeness':
+        elif normalize_fn == "closeness":
             node_closeness = self.get_closeness(graph_obj=graph_obj)
             for k, v in node_weights.items():
                 try:
-                    node_weights[k] = v/node_closeness[k]
+                    node_weights[k] = v / node_closeness[k]
                 except Exception as e:
-                    logger.debug("Zero degree value while computing closeness: {}".format(e))
+                    logger.debug(
+                        "Zero degree value while computing closeness", extra={"err": e}
+                    )
                     node_weights[k] = v
 
-        elif normalize_fn == 'betweenness':
+        elif normalize_fn == "betweenness":
             node_betweenness = self.get_betweenness(graph_obj=graph_obj)
             for k, v in node_weights.items():
                 try:
                     node_weights[k] = v * node_betweenness[k]
                 except Exception as e:
-                    logger.debug("Zero value while computing betweenness: {}".format(e))
+                    logger.debug(
+                        "Zero value while computing betweenness", extra={"err": e}
+                    )
                     node_weights[k] = v
 
-        elif normalize_fn == 'degree_bet':
+        elif normalize_fn == "degree_bet":
             node_degrees = self.get_node_degree(graph_obj)
             node_bet = self.get_betweenness(graph_obj)
             for k, v in node_weights.items():
                 node_norm = node_degrees[k] + node_bet[k]
-                node_weights[k] = v/node_norm
+                node_weights[k] = v / node_norm
         else:
             node_weights = node_weights
 
@@ -107,15 +116,22 @@ class WeightMetrics(object):
     Class for computing aggregated weight scores for multiple nodes. The aggregation funtion helps in forming and
     ranking keyphrases.
     """
+
     def compute_weight_fn(self, weight_metrics, key_terms, score_list, normalize=False):
         weighted_score = 0
 
-        if weight_metrics == 'max':
-            weighted_score = self.compute_max_score(key_terms=key_terms, score_list=score_list, normalize=normalize)
-        elif weight_metrics == 'sum':
-            weighted_score = self.compute_sum_score(key_terms=key_terms, score_list=score_list, normalize=normalize)
+        if weight_metrics == "max":
+            weighted_score = self.compute_max_score(
+                key_terms=key_terms, score_list=score_list, normalize=normalize
+            )
+        elif weight_metrics == "sum":
+            weighted_score = self.compute_sum_score(
+                key_terms=key_terms, score_list=score_list, normalize=normalize
+            )
         else:
-            weighted_score = self.compute_max_score(key_terms=key_terms, score_list=score_list, normalize=normalize)
+            weighted_score = self.compute_max_score(
+                key_terms=key_terms, score_list=score_list, normalize=normalize
+            )
 
         # TODO extend to more weighting metrics
 
@@ -124,7 +140,7 @@ class WeightMetrics(object):
     def compute_max_score(self, key_terms, score_list, normalize=False, threshold=3):
         unit_size = len(key_terms)
         if unit_size > threshold and normalize:
-            weight_score = max(score_list)/float(unit_size)
+            weight_score = max(score_list) / float(unit_size)
         else:
             weight_score = max(score_list)
 
@@ -133,9 +149,8 @@ class WeightMetrics(object):
     def compute_sum_score(self, key_terms, score_list, normalize=False, threshold=3):
         unit_size = len(key_terms)
         if unit_size > threshold and normalize:
-            weight_score = sum(score_list)/float(unit_size)
+            weight_score = sum(score_list) / float(unit_size)
         else:
             weight_score = sum(score_list)
 
         return weight_score
-

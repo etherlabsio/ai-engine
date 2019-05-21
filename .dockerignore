@@ -1,0 +1,9 @@
+virtualenv*/
+.pants.d/
+.cache
+tests/
+Deployfile
+Makefile
+pyproject.toml
+virtualenv-16.4.3.tar.gz
+*/__pycache__/*
