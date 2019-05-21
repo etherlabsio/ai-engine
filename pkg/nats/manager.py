@@ -3,6 +3,7 @@ from nats.aio.client import Client as NATS
 from nats.aio.errors import ErrTimeout, ErrNoServers
 import json
 import logging
+from traceback import print_exc
 
 logger = logging.getLogger(__name__)
 
@@ -95,9 +96,13 @@ class Manager:
                         }
                     ).encode(),
                 )
-                # logger.error("failed to process message:", extra={
-                #              "subject": msg.subject,
-                #              "data": msg.data,
-                #              "err": e})
+                logger.error(
+                    "failed to process message:",
+                    extra={
+                        "subject": msg.subject,
+                        "data": msg.data,
+                        "err": print_exc(limit=3),
+                    },
+                )
 
         return handle
