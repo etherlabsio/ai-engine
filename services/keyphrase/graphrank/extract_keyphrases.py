@@ -6,6 +6,7 @@ import spacy
 from spacy.lang.en.stop_words import STOP_WORDS
 import logging
 from timeit import default_timer as timer
+import traceback
 
 from .graph_rank import GraphRank
 from .utils import TextPreprocess, GraphUtils
@@ -130,6 +131,7 @@ class KeyphraseExtractor(object):
         window=4,
         preserve_common_words=False,
         syntactic_filter=None,
+        add_context=True,
     ):
 
         for i in range(len(text_list)):
@@ -142,6 +144,7 @@ class KeyphraseExtractor(object):
                 syntactic_filter=syntactic_filter,
                 preserve_common_words=preserve_common_words,
                 node_attributes=attrs,
+                add_context=add_context,
             )
 
     def get_custom_keyphrases(
@@ -153,6 +156,7 @@ class KeyphraseExtractor(object):
         normalize_nodes_fn="degree",
         preserve_common_words=False,
         normalize_score=False,
+        descriptive=False,
     ):
 
         keyphrases = self.gr.get_keyphrases(
@@ -163,6 +167,7 @@ class KeyphraseExtractor(object):
             normalize_nodes=normalize_nodes_fn,
             preserve_common_words=preserve_common_words,
             normalize_score=normalize_score,
+            descriptive=descriptive,
         )
 
         return keyphrases
@@ -476,7 +481,7 @@ class KeyphraseExtractor(object):
 
         return processed_entities
 
-    def populate_word_graph(self, req_data):
+    def populate_word_graph(self, req_data, add_context=True):
         start = timer()
         segment_df = self.reformat_input(req_data)
 
@@ -484,7 +489,9 @@ class KeyphraseExtractor(object):
             text_list, attrs = self.read_segments(
                 segment_df=segment_df, node_attrs=False
             )
-            self.build_custom_graph(text_list=text_list, attrs=attrs)
+            self.build_custom_graph(
+                text_list=text_list, attrs=attrs, add_context=add_context
+            )
         except Exception as e:
             end = timer()
             logger.error(
@@ -513,11 +520,19 @@ class KeyphraseExtractor(object):
         keyphrase_list = []
         try:
             keyphrase_list = self.get_custom_keyphrases(graph=self.meeting_graph)
+
+            long_kp_list2 = self.get_custom_keyphrases(
+                graph=self.meeting_graph, descriptive=True
+            )
+            print(long_kp_list2)
         except Exception as e:
             end = timer()
             logger.error(
                 "Error retrieving keyphrases",
-                extra={"err": e, "responseTime": end - start},
+                extra={
+                    "err": traceback.print_exc(limit=2),
+                    "responseTime": end - start,
+                },
             )
 
         return keyphrase_list
@@ -543,7 +558,7 @@ class KeyphraseExtractor(object):
         segments_array = req_data["segments"]
 
         logger.info("Re-populating word graph on google segments")
-        self.populate_word_graph(req_data)
+        self.populate_word_graph(req_data, add_context=False)
 
         keyphrases = []
         try:
