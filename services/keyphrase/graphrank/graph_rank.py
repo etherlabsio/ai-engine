@@ -228,7 +228,6 @@ class GraphRank(object):
         window=2,
         syntactic_filter=None,
         top_t_percent=None,
-        preserve_common_words=False,
         normalize_nodes=None,
     ):
 
@@ -273,7 +272,6 @@ class GraphRank(object):
         top_t_percent=None,
         preserve_common_words=False,
         normalize_nodes=None,
-        long_form=False,
     ):
         """
         Search for co-occurring keyword terms and place them together as multi-keyword terms.
@@ -537,8 +535,7 @@ class GraphRank(object):
                 if r > -1:
                     try:
                         processed_keyphrases.remove(tup)
-                    except Exception as e:
-                        logger.warning("keyword not found", extra={"warning": e})
+                    except:
                         continue
 
         # Remove duplicates from multi-phrases
@@ -597,8 +594,8 @@ class GraphRank(object):
         window=2,
         syntactic_filter=None,
         top_t_percent=None,
-        preserve_common_words=False,
         normalize_nodes=None,
+        preserve_common_words=False,
     ):
 
         node_weights, top_weighted_words = self.node_weighting(
@@ -641,10 +638,12 @@ class GraphRank(object):
                 marker_list.append(marker)
 
             elif len(current_term_units) == 1:
-                if ind > len(marked_text_tokens) - c_window:
-                    c_range = len(marked_text_tokens) - ind
+                if ind == len(marked_text_tokens) - 1:
+                    continue
+                elif ind > len(marked_text_tokens) - c_window:
+                    c_range = len(marked_text_tokens) - ind - 1
                 else:
-                    c_range = ind + c_window
+                    c_range = ind + c_window - 1
 
                 list_range = marked_text_tokens[ind : ind + c_range]
                 for counter, (n_token, n_pos, n_marker) in enumerate(list_range):
@@ -668,49 +667,52 @@ class GraphRank(object):
                                 scores_list.append(0)
                                 marker_list.append(n_marker)
                         else:
-                            if list_range[counter + 1][2] == "e":
-                                if marker_list[-1] == "k" or marker_list[-1] == "p":
-                                    multi_terms.append(
-                                        (current_term_units, scores_list)
-                                    )
+                            if counter == len(list_range) - 1:
+                                break
+                            else:
+                                if list_range[counter + 1][2] == "e":
+                                    if marker_list[-1] == "k" or marker_list[-1] == "p":
+                                        multi_terms.append(
+                                            (current_term_units, scores_list)
+                                        )
 
-                                    # reset for next term candidate
-                                    current_term_units = []
-                                    scores_list = []
-                                    marker_list = []
-                                    break
+                                        # reset for next term candidate
+                                        current_term_units = []
+                                        scores_list = []
+                                        marker_list = []
+                                        break
 
-                                else:
-                                    current_term_units = []
-                                    scores_list = []
-                                    marker_list = []
-                                    break
-                            elif (
-                                list_range[counter + 1][2] == "k"
-                                or list_range[counter + 1] == "p"
-                            ):
-                                if len(current_term_units) == c_window - 1:
-                                    break
-                                else:
+                                    else:
+                                        current_term_units = []
+                                        scores_list = []
+                                        marker_list = []
+                                        break
+                                elif (
+                                    list_range[counter + 1][2] == "k"
+                                    or list_range[counter + 1] == "p"
+                                ):
+                                    if len(current_term_units) == c_window - 1:
+                                        break
+                                    else:
+                                        current_term_units.append(n_token)
+                                        scores_list.append(0)
+                                        marker_list.append(n_marker)
+
+                                elif n_pos not in [
+                                    "SENT",
+                                    ",",
+                                    ".",
+                                    "?",
+                                ] or n_token not in [",", ".", "?"]:
                                     current_term_units.append(n_token)
                                     scores_list.append(0)
                                     marker_list.append(n_marker)
 
-                            elif n_pos not in [
-                                "SENT",
-                                ",",
-                                ".",
-                                "?",
-                            ] or n_token not in [",", ".", "?"]:
-                                current_term_units.append(n_token)
-                                scores_list.append(0)
-                                marker_list.append(n_marker)
-
-                            else:
-                                current_term_units = []
-                                scores_list = []
-                                marker_list = []
-                                break
+                                else:
+                                    current_term_units = []
+                                    scores_list = []
+                                    marker_list = []
+                                    break
 
                     else:
                         current_term_units.append(n_token)
@@ -732,12 +734,26 @@ class GraphRank(object):
                             scores_list = []
                             marker_list = []
                         else:
-                            if marker_list[-1] == "e":
-                                current_term_units.remove(current_term_units[-1])
-                                multi_terms.append((current_term_units, scores_list))
-                                current_term_units = []
-                                scores_list = []
-                                marker_list = []
+                            # if marker_list[-1] == "e":
+                            #     current_term_units.remove(current_term_units[-1])
+                            #     multi_terms.append((current_term_units, scores_list))
+                            #     current_term_units = []
+                            #     scores_list = []
+                            #     marker_list = []
+                            for i in range(len(marker_list)):
+                                try:
+                                    if marker_list[-(i + 1)] == "e":
+                                        current_term_units.remove(
+                                            current_term_units[-(i + 1)]
+                                        )
+                                        scores_list.remove(scores_list[-(i + 1)])
+                                except:
+                                    continue
+
+                            multi_terms.append((current_term_units, scores_list))
+                            current_term_units = []
+                            scores_list = []
+                            marker_list = []
                         break
             else:
                 # Get unique nodes
@@ -745,6 +761,9 @@ class GraphRank(object):
                     len(current_term_units) > 0
                     and (current_term_units, scores_list) not in multi_terms
                 ):
+                    if current_term_units[-1] not in self.graph.nodes():
+                        current_term_units.remove(current_term_units[-1])
+
                     multi_terms.append((current_term_units, scores_list))
 
                 # reset for next term candidate
