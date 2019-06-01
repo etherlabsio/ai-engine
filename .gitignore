@@ -121,3 +121,4 @@ vendor/
 #remove swap file
 
 *.swp
+.version
