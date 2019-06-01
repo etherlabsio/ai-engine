@@ -637,10 +637,8 @@ class GraphRank(object):
                     scores_list.append(node_weights[token])
                 marker_list.append(marker)
 
-            elif len(current_term_units) == 1:
-                if ind == len(marked_text_tokens) - 1:
-                    continue
-                elif ind > len(marked_text_tokens) - c_window:
+            elif len(current_term_units) == 1 and ind != len(marked_text_tokens):
+                if ind > len(marked_text_tokens) - c_window:
                     c_range = len(marked_text_tokens) - ind - 1
                 else:
                     c_range = ind + c_window - 1
@@ -724,7 +722,6 @@ class GraphRank(object):
                             scores_list.append(node_weights[n_token])
                         marker_list.append(n_marker)
 
-                        # multi_terms.append((current_term_units, scores_list))
                         # reset for next term candidate
 
                     if len(current_term_units) >= c_window:
@@ -734,13 +731,7 @@ class GraphRank(object):
                             scores_list = []
                             marker_list = []
                         else:
-                            # if marker_list[-1] == "e":
-                            #     current_term_units.remove(current_term_units[-1])
-                            #     multi_terms.append((current_term_units, scores_list))
-                            #     current_term_units = []
-                            #     scores_list = []
-                            #     marker_list = []
-                            for i in range(len(marker_list)):
+                            for i in range(len(marker_list) - 1):
                                 try:
                                     if marker_list[-(i + 1)] == "e":
                                         current_term_units.remove(
@@ -761,8 +752,13 @@ class GraphRank(object):
                     len(current_term_units) > 0
                     and (current_term_units, scores_list) not in multi_terms
                 ):
-                    if current_term_units[-1] not in self.graph.nodes():
-                        current_term_units.remove(current_term_units[-1])
+                    try:
+                        for i in range(len(current_term_units) - 1):
+                            if marker_list[-(i + 1)] == "e":
+                                current_term_units.remove(current_term_units[-(i + 1)])
+                                scores_list.remove(scores_list[-(i + 1)])
+                    except:
+                        continue
 
                     multi_terms.append((current_term_units, scores_list))
 

@@ -481,6 +481,36 @@ class KeyphraseExtractor(object):
 
         return processed_entities
 
+    def post_process_desc(self, keyphrases):
+
+        # Join 2 similar sentences
+        processed_keyphrase = []
+        for index1, words in enumerate(keyphrases):
+            for index2, words2 in enumerate(keyphrases):
+                if index1 != index2:
+                    word_set = set(list(dict.fromkeys(words.split(" "))))
+                    word_set2 = set(list(dict.fromkeys(words2.split(" "))))
+                    if len(word_set & word_set2) > 2:
+                        new_set = word_set & word_set2
+
+                        # for w in list(new_set)[:1]:
+                        w = list(new_set)[0]
+                        print(w)
+                        word_index1 = words.split(" ").index(w)
+                        word_index2 = words2.split(" ").index(w)
+                        print(word_index1, word_index2)
+                        if word_index1 > word_index2:
+                            word3 = words.split(" ") + words2.split(" ")
+                            word4 = " ".join(list(dict.fromkeys(word3)))
+                            processed_keyphrase.append(word4)
+
+        print(processed_keyphrase)
+
+        if len(processed_keyphrase) == 0:
+            processed_keyphrase = keyphrases
+
+        return processed_keyphrase
+
     def populate_word_graph(self, req_data, add_context=True):
         start = timer()
         segment_df = self.reformat_input(req_data)
@@ -531,7 +561,7 @@ class KeyphraseExtractor(object):
 
         return keyphrase_list, descriptive_keyphrase_list
 
-    def _get_pim_keyphrases(self, req_data, n_kw=5, default_form="original"):
+    def _get_pim_keyphrases(self, req_data, n_kw=10, default_form="original"):
         start = timer()
         keyphrase_list, descriptive_kp = self.compute_keyphrases()
 
@@ -542,6 +572,11 @@ class KeyphraseExtractor(object):
         segment_desc_keyphrases = self.segment_search(
             input_json=req_data, keyphrase_list=descriptive_kp, top_n=n_kw
         )
+
+        processed_descriptive_words = self.post_process_desc(
+            segment_desc_keyphrases["keyphrases"]
+        )
+        segment_desc_keyphrases["keyphrases"] = processed_descriptive_words
 
         end = timer()
         logger.debug(
@@ -573,7 +608,7 @@ class KeyphraseExtractor(object):
 
         return keyphrase
 
-    def _get_chapter_keyphrases(self, req_data, n_kw=5, default_form="original"):
+    def _get_chapter_keyphrases(self, req_data, n_kw=10, default_form="original"):
         start = timer()
         keyphrase_list, descriptive_kp = self.compute_keyphrases()
 
@@ -584,6 +619,11 @@ class KeyphraseExtractor(object):
         chapter_desc_keyphrases = self.chapter_segment_search(
             input_json=req_data, keyphrase_list=descriptive_kp, top_n=n_kw
         )
+
+        processed_descriptive_words = self.post_process_desc(
+            chapter_desc_keyphrases["keyphrases"]
+        )
+        chapter_desc_keyphrases["keyphrases"] = processed_descriptive_words
 
         end = timer()
         logger.debug(
@@ -615,7 +655,7 @@ class KeyphraseExtractor(object):
 
         return keyphrase
 
-    def get_keyphrases(self, req_data, n_kw=10):
+    def get_keyphrases(self, req_data, n_kw=10, words_limit=6):
         start = timer()
         segments_array = req_data["segments"]
 
@@ -632,6 +672,8 @@ class KeyphraseExtractor(object):
                 keyphrases = self._get_chapter_keyphrases(
                     req_data, n_kw=n_kw, default_form="descriptive"
                 )
+                if words_limit:
+                    keyphrases["keyphrases"] = keyphrases["keyphrases"][:words_limit]
             else:
                 keyphrases = self._get_pim_keyphrases(
                     req_data, n_kw=n_kw, default_form="descriptive"
@@ -658,7 +700,9 @@ class KeyphraseExtractor(object):
 
         return result
 
-    def get_chapter_offset_keyphrases(self, req_data, n_kw=10):
+    def get_chapter_offset_keyphrases(
+        self, req_data, n_kw=10, default_form="descriptive"
+    ):
         start = timer()
 
         logger.info(
@@ -673,6 +717,7 @@ class KeyphraseExtractor(object):
 
         relative_time = self.formatTime(req_data["relativeTime"], datetime_object=True)
         chapter_keyphrases = []
+        chapter_desc_keyphrases = []
 
         try:
             chapter_keyphrases = self.chapter_segment_offset_search(
@@ -681,6 +726,17 @@ class KeyphraseExtractor(object):
                 keyphrase_list=keyphrase_list,
                 top_n=n_kw,
             )
+
+            chapter_desc_keyphrases = self.chapter_segment_offset_search(
+                segments=req_data["segments"],
+                relative_time=relative_time,
+                keyphrase_list=descriptive_kp,
+                top_n=n_kw,
+            )
+
+            # processed_descriptive_words = self.post_process_desc(chapter_desc_keyphrases["keyphrases"])
+            # chapter_desc_keyphrases["keyphrases"] = processed_descriptive_words
+
         except Exception as e:
             end = timer()
             logger.error(
@@ -692,7 +748,23 @@ class KeyphraseExtractor(object):
                 },
             )
 
-        return chapter_keyphrases
+        if (
+            default_form == "descriptive"
+            and len(chapter_desc_keyphrases["keyphrases"]) > 0
+        ):
+            keyphrase = chapter_desc_keyphrases
+
+        elif (
+            default_form == "original"
+            and len(chapter_keyphrases["keyphrases"]) < 5
+            and len(chapter_desc_keyphrases["keyphrases"]) > 0
+        ):
+            keyphrase = chapter_desc_keyphrases
+
+        else:
+            keyphrase = chapter_keyphrases
+
+        return keyphrase
 
     def reset_keyphrase_graph(self, req_data):
         start = timer()

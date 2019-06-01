@@ -14,6 +14,11 @@ staging: version
 	sudo docker build -t ${DOCKER_IMAGE}:staging . --build-arg app=${app}
 	docker push ${DOCKER_IMAGE}:staging
 
+.PHONY: staging2
+staging2: version
+	sudo docker build -t ${DOCKER_IMAGE}:staging2 . --build-arg app=${app}
+	docker push ${DOCKER_IMAGE}:staging2
+
 .PHONY: production
 production: version
 	sudo docker build -t ${DOCKER_IMAGE} . --build-arg app=${app}
@@ -28,9 +33,13 @@ clean:
 deploy-staging:
 	sup -f Deployfile staging deploy
 
+.PHONY: deploy-staging2
+deploy-staging2:
+	ecs deploy ml-inference keyphrase-service --timeout 600 --profile staging2
+
 .PHONY: deploy-production
 deploy-production:
-	sup -f Deployfile production deploy
+	ecs deploy ml-inference keyphrase-service --timeout 600 --profile staging2
 
 .PHONY: run
 run:
