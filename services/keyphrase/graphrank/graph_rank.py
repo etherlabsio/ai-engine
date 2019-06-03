@@ -431,6 +431,7 @@ class GraphRank(object):
         normalize_nodes=None,
         post_process=True,
         descriptive=False,
+        post_process_descriptive=False,
     ):
         """
         Get `top_n` keyphrases from the word graph.
@@ -494,6 +495,9 @@ class GraphRank(object):
 
         if post_process:
             sorted_keyphrases = self.post_process(sorted_keyphrases)
+
+        if descriptive and post_process_descriptive:
+            sorted_keyphrases = self.post_process_desc(sorted_keyphrases)
 
         # Choose `top_n` number of keyphrases, if given
         if top_n is not None:
@@ -559,6 +563,41 @@ class GraphRank(object):
         new_processed_keyphrases = self._lemmatize_sentence(processed_keyphrases)
 
         return new_processed_keyphrases
+
+    def post_process_desc(self, keyphrases):
+
+        # Join 2 similar sentences
+        processed_keyphrase = set()
+        temp_keyphrases = set()
+        duplicate_phrases = set()
+        for index1, (words, score) in enumerate(keyphrases):
+            for index2, (words2, score2) in enumerate(keyphrases):
+                if index1 != index2:
+                    word_set = set(list(dict.fromkeys(words.split(" "))))
+                    word_set2 = set(list(dict.fromkeys(words2.split(" "))))
+                    if len(word_set & word_set2) > 2:
+                        new_set = word_set & word_set2
+
+                        w = list(new_set)[0]
+                        word_index1 = words.split(" ").index(w)
+                        word_index2 = words2.split(" ").index(w)
+                        if word_index1 > word_index2:
+                            word3 = words.split(" ") + words2.split(" ")
+                            word4 = " ".join(list(dict.fromkeys(word3)))
+                            new_score = score + score2
+                            processed_keyphrase.add((word4, new_score))
+                            duplicate_phrases.add((words, score))
+                            duplicate_phrases.add((words2, score2))
+                    else:
+                        temp_keyphrases.add((words, score))
+
+        cleaned_phrases = temp_keyphrases.difference(duplicate_phrases)
+
+        processed_descriptive_keyphrase = list(processed_keyphrase) + list(
+            cleaned_phrases
+        )
+
+        return processed_descriptive_keyphrase
 
     def reset_graph(self):
         self.context = []
