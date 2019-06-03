@@ -39,7 +39,7 @@ deploy-staging2:
 
 .PHONY: deploy-production
 deploy-production:
-	ecs deploy ml-inference keyphrase-service --timeout 600 
+	ecs deploy ml-inference keyphrase-service --timeout 600
 
 .PHONY: run
 run:

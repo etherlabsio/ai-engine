@@ -499,6 +499,9 @@ class GraphRank(object):
         if descriptive and post_process_descriptive:
             sorted_keyphrases = self.post_process_desc(sorted_keyphrases)
 
+            # Re-run the algorithm to further join longer phrases
+            sorted_keyphrases = self.post_process_desc(sorted_keyphrases)
+
         # Choose `top_n` number of keyphrases, if given
         if top_n is not None:
             sorted_keyphrases = sorted_keyphrases[:top_n]
@@ -586,6 +589,7 @@ class GraphRank(object):
                             word4 = " ".join(list(dict.fromkeys(word3)))
                             new_score = score + score2
                             processed_keyphrase.add((word4, new_score))
+
                             duplicate_phrases.add((words, score))
                             duplicate_phrases.add((words2, score2))
                     else:
