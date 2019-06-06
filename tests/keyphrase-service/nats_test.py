@@ -137,6 +137,34 @@ def test_keyphrase_quality():
     return keyphrase_list
 
 
+def desc_keyphrase_quality():
+    keyphrase_list = [
+        ("ten on the google processing", 0.3),
+        ("space and zoom is ron", 0.38),
+        ("speakers this morning was sheet", 0.44),
+        ("morning was sheet people", 0.5),
+        ("heavy complete wise", 0.76),
+        ("slack box space", 0.7),
+        ("behavior with zoom going public", 0.2),
+        ("kind of develop the conversation", 0.3),
+        ("explain her behavior with zoom", 0.3),
+        ("meetings to progress the discussions", 0.3),
+        ("set up meetings to progress", 0.2),
+        ("development of a training partner", 0.4),
+        ("help them compete and penetrate", 0.5),
+        ("compete and penetrate accounts", 0.5),
+        ("custom professional services opportunities", 0.4),
+        ("vertical or custom professional services", 0.4),
+        ("san francisco", 0.3),
+        ("high forms", 0.2),
+        ("runs their whole digital practice", 0.6),
+        ("open up the windows command", 0.3),
+        ("standard windows command", 0.5),
+    ]
+
+    return keyphrase_list
+
+
 def post_process():
     keyphrases = test_keyphrase_quality()
     processed_keyphrases = []
@@ -206,6 +234,31 @@ def _lemmatize_sentence(keyphrase_list):
     return result
 
 
+def post_process_desc():
+    keyphrases = desc_keyphrase_quality()
+
+    # Join 2 similar sentences
+    processed_keyphrase = []
+    for index1, (words, score) in enumerate(keyphrases):
+        for index2, (words2, score2) in enumerate(keyphrases):
+            if index1 != index2:
+                word_set = set(list(dict.fromkeys(words.split(" "))))
+                word_set2 = set(list(dict.fromkeys(words2.split(" "))))
+                if len(word_set & word_set2) > 2:
+                    new_set = word_set & word_set2
+
+                    # for w in list(new_set)[:1]:
+                    w = list(new_set)[0]
+                    word_index1 = words.split(" ").index(w)
+                    word_index2 = words2.split(" ").index(w)
+                    if word_index1 > word_index2:
+                        word3 = words.split(" ") + words2.split(" ")
+                        word4 = " ".join(list(dict.fromkeys(word3)))
+                        processed_keyphrase.append(word4)
+
+    logger.info(processed_keyphrase)
+
+
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(
         description="topic arguments for keyphrase_service"
@@ -237,6 +290,6 @@ if __name__ == "__main__":
     elif args.topics == "pub_instance":
         loop.run_until_complete(publish_instance_keyphrase())
     elif args.topics == "quality":
-        post_process()
+        post_process_desc()
     else:
         loop.run_until_complete(end_context())

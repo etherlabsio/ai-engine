@@ -133,7 +133,6 @@ class NATSTransport(object):
     async def populate_graph(self, msg):
         request = json.loads(msg.data)
 
-        logger.info("Populating word graph")
         self.keyphrase_service.populate_word_graph(request)
 
     async def extract_segment_keyphrases(self, msg):
@@ -142,15 +141,29 @@ class NATSTransport(object):
 
         output = self.keyphrase_service.get_keyphrases(request)
         end = timer()
-        logger.info(
-            "Publishing keyphrases",
-            extra={
-                "keyphraseList": output,
-                "instanceId": request["instanceId"],
-                "numOfSegments": len(request["segments"]),
-                "responseTime": end - start,
-            },
-        )
+
+        if len(request["segments"]) > 1:
+            logger.info(
+                "Publishing chapter keyphrases",
+                extra={
+                    "chapterKeyphraseList": output,
+                    "instanceId": request["instanceId"],
+                    "numOfSegments": len(request["segments"]),
+                    "responseTime": end - start,
+                    "requestReceived": request,
+                },
+            )
+        else:
+            logger.info(
+                "Publishing PIM keyphrases",
+                extra={
+                    "pimKeyphraseList": output,
+                    "instanceId": request["instanceId"],
+                    "numOfSegments": len(request["segments"]),
+                    "responseTime": end - start,
+                    "requestReceived": request,
+                },
+            )
         await self.nats_manager.conn.publish(msg.reply, json.dumps(output).encode())
 
     async def extract_instance_keyphrases(self, msg):
@@ -166,6 +179,7 @@ class NATSTransport(object):
                 "instanceId": request["instanceId"],
                 "numOfSegments": len(request["segments"]),
                 "responseTime": end - start,
+                "requestReceived": request,
             },
         )
         await self.nats_manager.conn.publish(msg.reply, json.dumps(output).encode())
@@ -183,6 +197,7 @@ class NATSTransport(object):
                 "instanceId": request["instanceId"],
                 "numOfSegments": len(request["segments"]),
                 "responseTime": end - start,
+                "requestReceived": request,
             },
         )
 
