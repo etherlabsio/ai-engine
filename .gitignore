@@ -122,3 +122,4 @@ vendor/
 
 *.swp
 .version
+*.json
