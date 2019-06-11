@@ -142,9 +142,17 @@ class NATSTransport(object):
         output = self.keyphrase_service.get_keyphrases(request)
         end = timer()
 
+        deadline_time = end - start
+        if deadline_time > 5:
+            timeout_msg = "-Context deadline is exceeding: {}; {}".format(
+                deadline_time, 5
+            )
+        else:
+            timeout_msg = ""
+
         if len(request["segments"]) > 1:
             logger.info(
-                "Publishing chapter keyphrases",
+                "Publishing chapter keyphrases" + timeout_msg,
                 extra={
                     "chapterKeyphraseList": output,
                     "instanceId": request["instanceId"],
@@ -155,7 +163,7 @@ class NATSTransport(object):
             )
         else:
             logger.info(
-                "Publishing PIM keyphrases",
+                "Publishing PIM keyphrases" + timeout_msg,
                 extra={
                     "pimKeyphraseList": output,
                     "instanceId": request["instanceId"],
@@ -172,8 +180,16 @@ class NATSTransport(object):
         output = self.keyphrase_service.get_instance_keyphrases(request)
         end = timer()
 
+        deadline_time = end - start
+        if deadline_time > 5:
+            timeout_msg = "-Context deadline is exceeding: {}; {}".format(
+                deadline_time, 5
+            )
+        else:
+            timeout_msg = ""
+
         logger.info(
-            "Publishing instance keyphrases",
+            "Publishing instance keyphrases" + timeout_msg,
             extra={
                 "instanceList": output,
                 "instanceId": request["instanceId"],
@@ -190,8 +206,16 @@ class NATSTransport(object):
         output = self.keyphrase_service.get_chapter_offset_keyphrases(request)
         end = timer()
 
+        deadline_time = end - start
+        if deadline_time > 5:
+            timeout_msg = "-Context deadline is exceeding: {}; {}".format(
+                deadline_time, 5
+            )
+        else:
+            timeout_msg = ""
+
         logger.info(
-            "Publishing chapter keyphrases with offset",
+            "Publishing chapter keyphrases with offset" + timeout_msg,
             extra={
                 "chapterOffsetList": output,
                 "instanceId": request["instanceId"],

@@ -189,7 +189,7 @@ class GraphRank(object):
 
         if top_t_percent is not None:
             # warn user
-            logging.warning(
+            logger.warning(
                 "Candidates are generated using {}-top".format(top_t_percent)
             )
 
@@ -208,6 +208,7 @@ class GraphRank(object):
         marked_text_tokens = []
         keyword_tag = "k"
         plural_tag = "p"
+        non_keyword_tag = "e"
         for token, pos in original_token_list:
             if token in plural_word_list:
                 stem_form = self.lemma.lemmatize(token)
@@ -216,7 +217,7 @@ class GraphRank(object):
             elif token in keyword_list:
                 marked_text_tokens.append((token, pos, keyword_tag))
             else:
-                marked_text_tokens.append((token, pos, "e"))
+                marked_text_tokens.append((token, pos, non_keyword_tag))
 
         return marked_text_tokens
 
@@ -243,8 +244,12 @@ class GraphRank(object):
         tmp_keywords = [word for word, we in node_weights.items()]
 
         # Check if the graph is to be extended or created from smaller context (segments)
-        if original_tokens is None:
+        if input_pos_text is None:
             original_tokens = self.context
+        else:
+            original_tokens = [
+                (word.lower(), pos) for sent in input_pos_text for word, pos in sent
+            ]
 
         unfiltered_word_tokens = [
             (token.lower(), pos) for token, pos in original_tokens
@@ -436,6 +441,7 @@ class GraphRank(object):
         """
         Get `top_n` keyphrases from the word graph.
         Args:
+            post_process_descriptive:
             descriptive:
             post_process:
             normalize_nodes:
@@ -578,7 +584,7 @@ class GraphRank(object):
                 if index1 != index2:
                     word_set = set(list(dict.fromkeys(words.split(" "))))
                     word_set2 = set(list(dict.fromkeys(words2.split(" "))))
-                    if len(word_set & word_set2) > 2:
+                    if len(word_set & word_set2) >= 2:
                         new_set = word_set & word_set2
 
                         w = list(new_set)[0]
