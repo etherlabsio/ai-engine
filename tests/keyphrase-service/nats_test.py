@@ -51,7 +51,7 @@ async def publish_instance_keyphrase():
     nc = NATS()
     topic = "keyphrase_service.in5627.keyphrases_for_context_instance"
     await nc.connect(servers=[nats_url])
-    test_json = read_json(multi_json_file)
+    test_json = read_json(meeting_json_file)
     await nc.request(topic, json.dumps(test_json).encode())
     # await nc.flush()
     await nc.close()
@@ -61,7 +61,7 @@ async def reset_keyphrase():
     nc = NATS()
     topic = "io.etherlabs.ether.keyphrase_service.reset_keyphrases"
     await nc.connect(servers=[nats_url])
-    test_json = read_json(multi_json_file)
+    test_json = read_json(meeting_json_file)
     await nc.request(topic, json.dumps(test_json).encode())
     # await nc.flush()
     await nc.close()
@@ -72,7 +72,7 @@ async def populate_graph():
     topic = "context.instance.in5627.add_segments"
     await nc.connect(servers=[nats_url])
     # test_json = read_json(multi_json_file)
-    single_test = read_json(single_json_file)
+    single_test = read_json(meeting_json_file)
     await nc.publish(topic, json.dumps(single_test).encode())
     # await nc.flush()
     await nc.close()
@@ -274,8 +274,9 @@ if __name__ == "__main__":
 
     asyncio.set_event_loop_policy(uvloop.EventLoopPolicy())
     loop = asyncio.get_event_loop()
-    single_json_file = os.path.join(os.getcwd(), "single_segment_test.json")
-    multi_json_file = os.path.join(os.getcwd(), "multi_segment_test.json")
+    single_json_file = os.path.join(os.getcwd(), "pim_test.json")
+    multi_json_file = os.path.join(os.getcwd(), "chapter_test.json")
+    meeting_json_file = os.path.join(os.getcwd(), "meeting_test.json")
 
     if args.topics == "def":
         t1 = loop.run_until_complete(create_context())
