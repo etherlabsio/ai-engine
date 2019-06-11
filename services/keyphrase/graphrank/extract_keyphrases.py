@@ -294,11 +294,6 @@ class KeyphraseExtractor(object):
                 entities_list=processed_entities, keyphrase_list=multiphrase_list
             )
 
-        if limit_phrase:
-            processed_entities, multiphrase_list = self.limit_phrase_list(
-                entities_list=chapter_entities, keyphrase_list=multiphrase_list
-            )
-
         processed_entities.extend(multiphrase_list)
         chapter_output = processed_entities
 

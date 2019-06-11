@@ -503,10 +503,10 @@ class GraphRank(object):
             sorted_keyphrases = self.post_process(sorted_keyphrases)
 
         if descriptive and post_process_descriptive:
-            sorted_keyphrases = self.post_process_desc(sorted_keyphrases)
+            sorted_keyphrases = self.post_process_desc(sorted_keyphrases, cleanup=False)
 
             # Re-run the algorithm to further join longer phrases
-            sorted_keyphrases = self.post_process_desc(sorted_keyphrases)
+            sorted_keyphrases = self.post_process_desc(sorted_keyphrases, cleanup=True)
 
         # Choose `top_n` number of keyphrases, if given
         if top_n is not None:
@@ -573,7 +573,7 @@ class GraphRank(object):
 
         return new_processed_keyphrases
 
-    def post_process_desc(self, keyphrases):
+    def post_process_desc(self, keyphrases, cleanup=True):
 
         # Join 2 similar sentences
         processed_keyphrase = set()
@@ -598,6 +598,10 @@ class GraphRank(object):
 
                             duplicate_phrases.add((words, score))
                             duplicate_phrases.add((words2, score2))
+                    elif len(word_set & word_set2) > 3:
+                        print(processed_keyphrase)
+                        processed_keyphrase.remove(words)
+                        processed_keyphrase.remove(words2)
                     else:
                         temp_keyphrases.add((words, score))
 
@@ -606,6 +610,15 @@ class GraphRank(object):
         processed_descriptive_keyphrase = list(processed_keyphrase) + list(
             cleaned_phrases
         )
+
+        if cleanup:
+            for phrase, score in processed_descriptive_keyphrase:
+                for phrase2, score2 in processed_descriptive_keyphrase:
+                    if (
+                        len(set(phrase.split()) & set(phrase2.split())) > 3
+                        and phrase != phrase2
+                    ):
+                        processed_descriptive_keyphrase.remove((phrase2, score2))
 
         return processed_descriptive_keyphrase
 
