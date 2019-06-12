@@ -121,5 +121,5 @@ vendor/
 #remove swap file
 
 *.swp
-.version
+*.version
 *.json
