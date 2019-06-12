@@ -3,7 +3,7 @@ from nats.aio.client import Client as NATS
 from nats.aio.errors import ErrTimeout, ErrNoServers
 import json
 import logging
-from traceback import print_exc
+import traceback
 
 logger = logging.getLogger(__name__)
 
@@ -101,7 +101,7 @@ class Manager:
                     extra={
                         "subject": msg.subject,
                         "data": msg.data,
-                        "err": print_exc(limit=3),
+                        "err": traceback.print_exc(limit=3),
                     },
                 )
 

@@ -6,6 +6,7 @@ import spacy
 from spacy.lang.en.stop_words import STOP_WORDS
 import logging
 from timeit import default_timer as timer
+import traceback
 
 from .graph_rank import GraphRank
 from .utils import TextPreprocess, GraphUtils
@@ -130,6 +131,7 @@ class KeyphraseExtractor(object):
         window=4,
         preserve_common_words=False,
         syntactic_filter=None,
+        add_context=False,
     ):
 
         for i in range(len(text_list)):
@@ -142,27 +144,32 @@ class KeyphraseExtractor(object):
                 syntactic_filter=syntactic_filter,
                 preserve_common_words=preserve_common_words,
                 node_attributes=attrs,
+                add_context=add_context,
             )
 
     def get_custom_keyphrases(
         self,
         graph,
         pos_tuple=None,
-        token_list=None,
+        original_pos_list=None,
         window=4,
         normalize_nodes_fn="degree",
         preserve_common_words=False,
         normalize_score=False,
+        descriptive=False,
+        post_process_descriptive=False,
     ):
 
         keyphrases = self.gr.get_keyphrases(
             graph_obj=graph,
             input_pos_text=pos_tuple,
-            original_tokens=token_list,
+            original_tokens=original_pos_list,
             window=window,
             normalize_nodes=normalize_nodes_fn,
             preserve_common_words=preserve_common_words,
             normalize_score=normalize_score,
+            descriptive=descriptive,
+            post_process_descriptive=post_process_descriptive,
         )
 
         return keyphrases
@@ -191,20 +198,20 @@ class KeyphraseExtractor(object):
                 filtered_entities.append(str(ent))
         t_noun_chunks = [str(item).strip().lower() for item in t_noun_chunks]
 
-        # Post-process entities
-        filtered_entities = self.post_process_entities(filtered_entities)
-
         # remove stop words from noun_chunks/NERs
         entity_dict = []
         for entt in list(zip(filtered_entities, t_ner_type)):
             entity_dict.append({"text": str(entt[0]), "type": entt[1]})
 
-        logger.debug("Processing entities", extra={"entities": entity_dict})
-
         return filtered_entities
 
-    def segment_search(
-        self, input_json, keyphrase_list, top_n=None, preserve_singlewords=False
+    def extract_pim_words(
+        self,
+        input_json,
+        keyphrase_list,
+        top_n=None,
+        preserve_singlewords=False,
+        limit_phrase=False,
     ):
         """
         Search for keyphrases in the top-5 PIM segments and return them for each segment
@@ -213,70 +220,48 @@ class KeyphraseExtractor(object):
             keyphrase_list:
             top_n:
             preserve_singlewords:
+            limit_phrase(bool):
 
         Returns:
 
         """
-        result = {}
-        for i in range(len(input_json["segments"])):
-            sort_list = []
 
-            entity_segment = input_json["segments"][i].get("originalText")
-            input_segment = input_json["segments"][i].get("originalText").lower()
-            keywords_list = []
+        input_segment = input_json["segments"][0].get("originalText")
+        sorted_keyphrase_list = self.sort_by_value(keyphrase_list, order="desc")
+        if top_n is not None:
+            sorted_keyphrase_list = sorted_keyphrase_list[:top_n]
 
-            for tup in keyphrase_list:
-                kw = tup[0]
-                score = tup[1]
+        segment_entity = self.get_entities(input_segment)
+        segment_keyword_list = [words for words, score in sorted_keyphrase_list]
 
-                result = input_segment.find(kw)
-                if result > -1:
-                    keywords_list.append((kw, score))
+        processed_entities, multiphrase_list = self.post_process_output(
+            entity_list=segment_entity,
+            keyphrase_list=segment_keyword_list,
+            preserve_singlewords=preserve_singlewords,
+        )
 
-            sort_list = self.gutils.sort_by_value(keywords_list, order="desc")
-            if top_n is not None:
-                sort_list = sort_list[:top_n]
+        if limit_phrase:
+            processed_entities, multiphrase_list = self.limit_phrase_list(
+                entities_list=processed_entities, keyphrase_list=multiphrase_list
+            )
 
-            segment_entity = self.get_entities(entity_segment)
-            segment_keyword_list = [words for words, score in sort_list]
+        processed_entities.extend(multiphrase_list)
+        segment_output = processed_entities
 
-            # Get distinct entities and keyphrases
-            segment_entity = list(dict.fromkeys(segment_entity))
-            segment_keyword_list = list(dict.fromkeys(segment_keyword_list))
+        return segment_output
 
-            # Post-process entities
-            segment_entity = self.post_process_entities(segment_entity)
-
-            # Remove the first occurrence of entity in the list of keyphrases
-            for entities in segment_entity:
-                for keyphrase in segment_keyword_list:
-                    if keyphrase in entities.lower():
-                        segment_keyword_list.remove(keyphrase)
-
-            # Place the single keywords in the end of the list.
-            segment_multiphrase_list = [
-                words for words in segment_keyword_list if len(words.split()) > 1
-            ]
-            segment_singleword_list = [
-                words for words in segment_keyword_list if len(words.split()) == 1
-            ]
-
-            if preserve_singlewords:
-                segment_multiphrase_list.extend(segment_singleword_list)
-
-            segment_entity.extend(segment_multiphrase_list)
-            segment_output = segment_entity
-
-            result = {"keyphrases": segment_output}
-
-        return result
-
-    def chapter_segment_search(
-        self, input_json, keyphrase_list, top_n=None, preserve_singlewords=False
+    def extract_chapter_words(
+        self,
+        input_json,
+        keyphrase_list,
+        top_n=None,
+        preserve_singlewords=False,
+        limit_phrase=True,
     ):
         """
         Search for keyphrases in an array of N segments and return them as one list of keyphrases
         Args:
+            limit_phrase:
             input_json:
             keyphrase_list:
             top_n:
@@ -285,59 +270,34 @@ class KeyphraseExtractor(object):
         Returns:
 
         """
-        chapter_keywords_list = []
         chapter_entities = []
         for i in range(len(input_json["segments"])):
             entity_segment = input_json["segments"][i].get("originalText")
-            input_segment = input_json["segments"][i].get("originalText").lower()
-
-            for tup in keyphrase_list:
-                kw = tup[0]
-                score = tup[1]
-
-                result = input_segment.find(kw)
-                if result > -1:
-                    chapter_keywords_list.append((kw, score))
 
             entities = self.get_entities(entity_segment)
             chapter_entities.extend(entities)
 
-        sort_list = self.sort_by_value(chapter_keywords_list, order="desc")
+        sorted_keyphrase_list = self.sort_by_value(keyphrase_list, order="desc")
         if top_n is not None:
-            sort_list = sort_list[:top_n]
+            sorted_keyphrase_list = sorted_keyphrase_list[:top_n]
 
-        chapter_keyphrases = [phrases for phrases, score in sort_list]
+        chapter_keyphrases = [phrases for phrases, score in sorted_keyphrase_list]
 
-        # Get distinct entities and keyphrases
-        chapter_entities = list(dict.fromkeys(chapter_entities))
-        chapter_keyphrases = list(dict.fromkeys(chapter_keyphrases))
+        processed_entities, multiphrase_list = self.post_process_output(
+            entity_list=chapter_entities,
+            keyphrase_list=chapter_keyphrases,
+            preserve_singlewords=preserve_singlewords,
+        )
 
-        # Post-process entities
-        chapter_entities = self.post_process_entities(chapter_entities)
+        if limit_phrase:
+            processed_entities, multiphrase_list = self.limit_phrase_list(
+                entities_list=processed_entities, keyphrase_list=multiphrase_list
+            )
 
-        # Remove the first occurrence of entity in the list of keyphrases
-        for entities in chapter_entities:
-            for keyphrase in chapter_keyphrases:
-                if keyphrase in entities.lower():
-                    chapter_keyphrases.remove(keyphrase)
+        processed_entities.extend(multiphrase_list)
+        chapter_output = processed_entities
 
-        # Place the single keywords in the end of the list.
-        chapter_multiphrase_list = [
-            words for words in chapter_keyphrases if len(words.split()) > 1
-        ]
-        chapter_singleword_list = [
-            words for words in chapter_keyphrases if len(words.split()) == 1
-        ]
-
-        if preserve_singlewords:
-            chapter_multiphrase_list.extend(chapter_singleword_list)
-
-        chapter_entities.extend(chapter_multiphrase_list)
-        chapter_output = chapter_entities
-
-        result = {"keyphrases": chapter_output}
-
-        return result
+        return chapter_output
 
     def chapter_segment_offset_search(
         self,
@@ -346,10 +306,12 @@ class KeyphraseExtractor(object):
         keyphrase_list,
         top_n=None,
         preserve_singlewords=False,
+        limit_phrase=True,
     ):
         """
         Search for keyphrases in an array of N segments and return them as one list of keyphrases
         Args:
+            limit_phrase:
             segments:
             top_n:
             preserve_singlewords:
@@ -370,14 +332,9 @@ class KeyphraseExtractor(object):
             start_time = segments[i].get("startTime")
             start_time = self.formatTime(start_time, datetime_object=True)
             offset_time = float((start_time - relative_time).seconds)
-            logger.debug("Checking offset", extra={"diffSec": offset_time})
 
-            for tup in keyphrase_list:
-                kw = tup[0]
-                score = tup[1]
-
-                result = input_segment.find(kw)
-                if result > -1:
+            for kw, score in keyphrase_list:
+                if kw in input_segment:
                     chapter_keywords_list.append(({kw: offset_time}, score))
 
             entities = self.get_entities(entity_segment)
@@ -423,9 +380,14 @@ class KeyphraseExtractor(object):
         if preserve_singlewords:
             chapter_multiphrase_list.extend(chapter_singleword_list)
 
+        if limit_phrase:
+            chapter_entities, chapter_multiphrase_list = self.limit_phrase_list(
+                entities_list=chapter_entities, keyphrase_list=chapter_multiphrase_list
+            )
+
         chapter_entities.extend(chapter_multiphrase_list)
 
-        # Reformat as per contract
+        # Reformat as per api contract
         chapter_output = {
             words: offset
             for elements in chapter_entities
@@ -435,6 +397,36 @@ class KeyphraseExtractor(object):
         result = {"keyphrases": chapter_output}
 
         return result
+
+    def post_process_output(
+        self, entity_list, keyphrase_list, preserve_singlewords=False
+    ):
+
+        # Get distinct entities and keyphrases
+        distinct_entities = list(dict.fromkeys(entity_list))
+        distinct_keyword_list = list(dict.fromkeys(keyphrase_list))
+
+        # Post-process entities
+        distinct_entities = self.post_process_entities(distinct_entities)
+
+        # Remove the first occurrence of entity in the list of keyphrases
+        for entities in distinct_entities:
+            for keyphrase in distinct_keyword_list:
+                if keyphrase in entities.lower():
+                    distinct_keyword_list.remove(keyphrase)
+
+        # Place the single keywords in the end of the list.
+        multiphrase_list = [
+            words for words in distinct_keyword_list if len(words.split()) > 1
+        ]
+        singleword_list = [
+            words for words in distinct_keyword_list if len(words.split()) == 1
+        ]
+
+        if preserve_singlewords:
+            multiphrase_list.extend(singleword_list)
+
+        return distinct_entities, multiphrase_list
 
     def post_process_entities(self, entity_list):
         processed_entities = []
@@ -471,12 +463,11 @@ class KeyphraseExtractor(object):
                 try:
                     processed_entities.remove(entities)
                 except Exception as e:
-                    logger.debug("entity not found", extra={"warning": e})
                     continue
 
         return processed_entities
 
-    def populate_word_graph(self, req_data):
+    def populate_word_graph(self, req_data, add_context=False):
         start = timer()
         segment_df = self.reformat_input(req_data)
 
@@ -484,7 +475,9 @@ class KeyphraseExtractor(object):
             text_list, attrs = self.read_segments(
                 segment_df=segment_df, node_attrs=False
             )
-            self.build_custom_graph(text_list=text_list, attrs=attrs)
+            self.build_custom_graph(
+                text_list=text_list, attrs=attrs, add_context=add_context
+            )
         except Exception as e:
             end = timer()
             logger.error(
@@ -499,7 +492,7 @@ class KeyphraseExtractor(object):
         end = timer()
 
         logger.info(
-            "Graph info",
+            "Populating graph",
             extra={
                 "nodes": self.meeting_graph.number_of_nodes(),
                 "edges": self.meeting_graph.number_of_edges(),
@@ -508,81 +501,193 @@ class KeyphraseExtractor(object):
             },
         )
 
-    def compute_keyphrases(self):
-        start = timer()
+    def compute_keyphrases(self, req_data):
+        segment_df = self.reformat_input(req_data)
+
+        text_list, attrs = self.read_segments(segment_df=segment_df, node_attrs=False)
         keyphrase_list = []
+        descriptive_keyphrase_list = []
         try:
-            keyphrase_list = self.get_custom_keyphrases(graph=self.meeting_graph)
-        except Exception as e:
-            end = timer()
+            for i in range(len(text_list)):
+                text = text_list[i]
+
+                original_tokens, pos_tuple, filtered_pos_tuple = self.process_text(text)
+
+                keyphrase_list.extend(
+                    self.get_custom_keyphrases(
+                        graph=self.meeting_graph, pos_tuple=pos_tuple
+                    )
+                )
+                descriptive_keyphrase_list.extend(
+                    self.get_custom_keyphrases(
+                        graph=self.meeting_graph,
+                        pos_tuple=pos_tuple,
+                        descriptive=True,
+                        post_process_descriptive=True,
+                    )
+                )
+        except Exception:
             logger.error(
-                "Error retrieving keyphrases",
-                extra={"err": e, "responseTime": end - start},
+                "error retrieving descriptive phrases",
+                extra={"err": traceback.print_exc()},
             )
 
-        return keyphrase_list
+        return keyphrase_list, descriptive_keyphrase_list
 
-    def _get_pim_keyphrases(self, req_data, n_kw=5):
-        keyphrase_list = self.compute_keyphrases()
-        segment_keyphrases = self.segment_search(
+    def limit_phrase_list(
+        self, entities_list, keyphrase_list, phrase_limit=6, word_limit=3
+    ):
+
+        if len(entities_list) >= phrase_limit:
+            keyphrase_list = keyphrase_list[:word_limit]
+        else:
+            num_of_entities = len(entities_list)
+            difference = phrase_limit - num_of_entities
+            keyphrase_list = keyphrase_list[:difference]
+
+        return entities_list, keyphrase_list
+
+    def _get_pim_keyphrases(self, req_data, n_kw=10, default_form="original"):
+        start = timer()
+        keyphrase_list, descriptive_kp = self.compute_keyphrases(req_data=req_data)
+
+        segment_keyphrases = self.extract_pim_words(
             input_json=req_data, keyphrase_list=keyphrase_list, top_n=n_kw
         )
 
-        return segment_keyphrases
+        segment_desc_keyphrases = self.extract_pim_words(
+            input_json=req_data, keyphrase_list=descriptive_kp, top_n=n_kw
+        )
 
-    def _get_chapter_keyphrases(self, req_data, n_kw=5):
-        keyphrase_list = self.compute_keyphrases()
-        chapter_keyphrases = self.chapter_segment_search(
+        end = timer()
+        logger.debug(
+            "Comparing keyphrase output",
+            extra={
+                "responseTime": end - start,
+                "instanceId": req_data["instanceId"],
+                "segmentObj": req_data["segments"],
+                "originalKeyphrase": segment_keyphrases,
+                "descriptiveKeyphrase": segment_desc_keyphrases,
+            },
+        )
+
+        if default_form == "descriptive" and len(segment_desc_keyphrases) > 0:
+            keyphrase = segment_desc_keyphrases
+
+        elif (
+            default_form == "original"
+            and len(segment_keyphrases) < 5
+            and len(segment_desc_keyphrases) > 0
+        ):
+            keyphrase = segment_desc_keyphrases
+
+        else:
+            keyphrase = segment_keyphrases
+
+        return keyphrase
+
+    def _get_chapter_keyphrases(self, req_data, n_kw=10, default_form="original"):
+        start = timer()
+        keyphrase_list, descriptive_kp = self.compute_keyphrases(req_data=req_data)
+
+        chapter_keyphrases = self.extract_chapter_words(
             input_json=req_data, keyphrase_list=keyphrase_list, top_n=n_kw
         )
 
-        return chapter_keyphrases
+        chapter_desc_keyphrases = self.extract_chapter_words(
+            input_json=req_data, keyphrase_list=descriptive_kp, top_n=n_kw
+        )
+
+        end = timer()
+        logger.debug(
+            "Comparing keyphrase output",
+            extra={
+                "responseTime": end - start,
+                "instanceId": req_data["instanceId"],
+                "segmentObj": req_data["segments"],
+                "originalKeyphrase": chapter_keyphrases,
+                "descriptiveKeyphrase": chapter_desc_keyphrases,
+            },
+        )
+
+        if default_form == "descriptive" and len(chapter_desc_keyphrases) > 0:
+            keyphrase = chapter_desc_keyphrases
+
+        elif (
+            default_form == "original"
+            and len(chapter_keyphrases) < 5
+            and len(chapter_desc_keyphrases) > 0
+        ):
+            keyphrase = chapter_desc_keyphrases
+
+        else:
+            keyphrase = chapter_keyphrases
+
+        return keyphrase
 
     def get_keyphrases(self, req_data, n_kw=10):
         start = timer()
         segments_array = req_data["segments"]
 
         logger.info("Re-populating word graph on google segments")
-        self.populate_word_graph(req_data)
+        if segments_array[0].get("transcriber") == "google_speech_api":
+            self.populate_word_graph(req_data, add_context=False)
+        else:
+            self.populate_word_graph(req_data, add_context=False)
 
         keyphrases = []
         try:
             # Decide between PIM or Chapter keyphrases
             if len(segments_array) > 1:
-                logger.info("Extracting Chapter Keyphrases")
-                keyphrases = self._get_chapter_keyphrases(req_data, n_kw=n_kw)
+                keyphrases = self._get_chapter_keyphrases(
+                    req_data, n_kw=n_kw, default_form="descriptive"
+                )
             else:
-                logger.info("Extracting PIM Keyphrases")
-                keyphrases = self._get_pim_keyphrases(req_data, n_kw=n_kw)
+                keyphrases = self._get_pim_keyphrases(
+                    req_data, n_kw=n_kw, default_form="descriptive"
+                )
         except Exception as e:
             end = timer()
             logger.error(
                 "Error extracting keyphrases from segment",
                 extra={
-                    "err": e,
                     "responseTime": end - start,
                     "instanceId": req_data["instanceId"],
                     "segmentObj": req_data["segments"],
+                    "err": traceback.print_exc(),
                 },
             )
 
-        return keyphrases
+        result = {"keyphrases": keyphrases}
+
+        return result
 
     def get_instance_keyphrases(self, req_data, n_kw=10):
-        keyphrase_list = self.compute_keyphrases()
+        keyphrase_list, descriptive_kp = self.compute_keyphrases(req_data)
         instance_keyphrases = [words for words, score in keyphrase_list]
 
         result = {"keyphrases": instance_keyphrases[:n_kw]}
 
         return result
 
-    def get_chapter_offset_keyphrases(self, req_data, n_kw=10):
+    def get_chapter_offset_keyphrases(
+        self, req_data, n_kw=10, default_form="descriptive"
+    ):
         start = timer()
-        self.populate_word_graph(req_data)
-        keyphrase_list = self.compute_keyphrases()
+
+        logger.info(
+            "Re-populating word graph on google segments for chapter offset phrases"
+        )
+        if req_data["segments"][0].get("transcriber") == "google_speech_api":
+            self.populate_word_graph(req_data, add_context=False)
+        else:
+            self.populate_word_graph(req_data, add_context=False)
+
+        keyphrase_list, descriptive_kp = self.compute_keyphrases(req_data)
 
         relative_time = self.formatTime(req_data["relativeTime"], datetime_object=True)
         chapter_keyphrases = []
+        chapter_desc_keyphrases = []
 
         try:
             chapter_keyphrases = self.chapter_segment_offset_search(
@@ -591,18 +696,42 @@ class KeyphraseExtractor(object):
                 keyphrase_list=keyphrase_list,
                 top_n=n_kw,
             )
+
+            chapter_desc_keyphrases = self.chapter_segment_offset_search(
+                segments=req_data["segments"],
+                relative_time=relative_time,
+                keyphrase_list=descriptive_kp,
+                top_n=n_kw,
+            )
+
         except Exception as e:
             end = timer()
             logger.error(
                 "Error processing chapter keyphrases with offset",
                 extra={
-                    "err": e,
+                    "err": traceback.print_exc(),
                     "responseTime": end - start,
                     "instanceId": req_data["instanceId"],
                 },
             )
 
-        return chapter_keyphrases
+        if (
+            default_form == "descriptive"
+            and len(chapter_desc_keyphrases["keyphrases"]) > 0
+        ):
+            keyphrase = chapter_desc_keyphrases
+
+        elif (
+            default_form == "original"
+            and len(chapter_keyphrases["keyphrases"]) < 5
+            and len(chapter_desc_keyphrases["keyphrases"]) > 0
+        ):
+            keyphrase = chapter_desc_keyphrases
+
+        else:
+            keyphrase = chapter_keyphrases
+
+        return keyphrase
 
     def reset_keyphrase_graph(self, req_data):
         start = timer()

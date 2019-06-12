@@ -28,8 +28,7 @@ class GraphRank(object):
 
         # Load pkg word list
         root_dir = os.getcwd()
-        local_file = os.path.realpath(os.path.join(
-            root_dir, os.path.dirname(__file__)))
+        local_file = os.path.realpath(os.path.join(root_dir, os.path.dirname(__file__)))
 
         stop_word_file = os.path.join(local_file, "long_stopwords.txt")
         text_file = open(stop_word_file, "r")
@@ -45,6 +44,7 @@ class GraphRank(object):
         node_attributes=None,
         edge_attributes=None,
         preserve_plurals=False,
+        add_context=True,
     ):
         """
         Build co-occurrence of words graph based on the POS tags and the window of occurrence
@@ -82,7 +82,9 @@ class GraphRank(object):
         # Extend the context of the graph
         if reset_graph_context:
             self.reset_graph()
-        self.context.extend(original_token_pos_list)
+
+        if add_context:
+            self.context.extend(original_token_pos_list)
 
         if preserve_common_words:
             common_words = []
@@ -116,8 +118,7 @@ class GraphRank(object):
                 [(word, node_attributes) for word, pos in filtered_pos_list]
             )
         else:
-            self.graph.add_nodes_from(
-                [word for word, pos in filtered_pos_list])
+            self.graph.add_nodes_from([word for word, pos in filtered_pos_list])
 
         # Add edges
         # TODO Consider unfiltered token list to build cooccurrence edges.
@@ -169,8 +170,7 @@ class GraphRank(object):
                 syntactic_filter=syntactic_filter,
             )
         elif graph_obj is None and input_pos_text is None:
-            raise SyntaxError(
-                "Both `graph_obj` and `input_pos_text` cannot be `None`")
+            raise SyntaxError("Both `graph_obj` and `input_pos_text` cannot be `None`")
 
         # Compute node scores using unweighted pagerank implementation
         # TODO Extend to other solvers
@@ -189,7 +189,7 @@ class GraphRank(object):
 
         if top_t_percent is not None:
             # warn user
-            logging.warning(
+            logger.warning(
                 "Candidates are generated using {}-top".format(top_t_percent)
             )
 
@@ -201,6 +201,71 @@ class GraphRank(object):
             top_words = top_words[: int(nodes_to_keep)]
 
         return normalized_node_weights, top_words
+
+    def _tag_text_for_keywords(
+        self, original_token_list, keyword_list, plural_word_list
+    ):
+        marked_text_tokens = []
+        keyword_tag = "k"
+        plural_tag = "p"
+        non_keyword_tag = "e"
+        for token, pos in original_token_list:
+            if token in plural_word_list:
+                stem_form = self.lemma.lemmatize(token)
+                if stem_form in keyword_list:
+                    marked_text_tokens.append((token, pos, plural_tag))
+            elif token in keyword_list:
+                marked_text_tokens.append((token, pos, keyword_tag))
+            else:
+                marked_text_tokens.append((token, pos, non_keyword_tag))
+
+        return marked_text_tokens
+
+    def _mark_tokens_grammar(
+        self,
+        graph_obj,
+        input_pos_text=None,
+        original_tokens=None,
+        window=2,
+        syntactic_filter=None,
+        top_t_percent=None,
+        normalize_nodes=None,
+    ):
+
+        node_weights, top_weighted_words = self.node_weighting(
+            graph_obj=graph_obj,
+            input_pos_text=input_pos_text,
+            window=window,
+            top_t_percent=top_t_percent,
+            syntactic_filter=syntactic_filter,
+            normalize_nodes=normalize_nodes,
+        )
+
+        tmp_keywords = [word for word, we in node_weights.items()]
+
+        # Check if the graph is to be extended or created from smaller context (segments)
+        if input_pos_text is None:
+            original_tokens = self.context
+        else:
+            original_tokens = [
+                (word.lower(), pos) for sent in input_pos_text for word, pos in sent
+            ]
+
+        unfiltered_word_tokens = [
+            (token.lower(), pos) for token, pos in original_tokens
+        ]
+
+        plural_word_tokens = [
+            token.lower() for token, pos in original_tokens if pos == "NNS"
+        ]
+
+        marked_text_tokens = self._tag_text_for_keywords(
+            original_token_list=unfiltered_word_tokens,
+            keyword_list=tmp_keywords,
+            plural_word_list=plural_word_tokens,
+        )
+
+        return marked_text_tokens
 
     def retrieve_multi_keyterms(
         self,
@@ -238,23 +303,14 @@ class GraphRank(object):
             normalize_nodes=normalize_nodes,
         )
 
-        tmp_keywords = [word for word, we in node_weights.items()]
-
-        # Check if the graph is to be extended or created from smaller context (segments)
-        if original_tokens is None:
-            original_tokens = self.context
-
-        unfiltered_word_tokens = [token.lower()
-                                  for token, pos in original_tokens]
-
-        plural_word_tokens = [
-            token.lower() for token, pos in original_tokens if pos == "NNS"
-        ]
-
-        marked_text_tokens = self._tag_text_for_keywords(
-            original_token_list=unfiltered_word_tokens,
-            keyword_list=tmp_keywords,
-            plural_word_list=plural_word_tokens,
+        marked_text_tokens = self._mark_tokens_grammar(
+            graph_obj=graph_obj,
+            input_pos_text=input_pos_text,
+            original_tokens=original_tokens,
+            window=window,
+            top_t_percent=top_t_percent,
+            syntactic_filter=syntactic_filter,
+            normalize_nodes=normalize_nodes,
         )
 
         multi_terms = []
@@ -267,7 +323,7 @@ class GraphRank(object):
             common_words = self.common_words
 
         # use space to construct multi-word term later
-        for token, marker in marked_text_tokens:
+        for token, pos, marker in marked_text_tokens:
             # Don't include stopwords in post-processing
             # TODO Add better ways to combine words to make phrases: grammar rules, n-grams etc.
             if marker == "k" and token not in common_words:
@@ -303,6 +359,7 @@ class GraphRank(object):
         syntactic_filter=None,
         preserve_common_words=True,
         normalize_nodes=None,
+        descriptive=False,
     ):
         """
         Compute aggregated scores for multi-keyword terms. The scores are computed based on the weight metrics.
@@ -336,6 +393,18 @@ class GraphRank(object):
             normalize_nodes=normalize_nodes,
         )
 
+        if descriptive:
+            multi_keyterms = self.get_descriptive_terms(
+                graph_obj=graph_obj,
+                input_pos_text=input_pos_text,
+                original_tokens=original_tokens,
+                window=window,
+                top_t_percent=top_t_percent,
+                syntactic_filter=syntactic_filter,
+                preserve_common_words=preserve_common_words,
+                normalize_nodes=normalize_nodes,
+            )
+
         # TODO extend to more weighting metrics
         # TODO add support for normalization of scores based on word length, degree, betweenness or other factors
         # Decide the criteria to score the multi-word terms
@@ -366,10 +435,14 @@ class GraphRank(object):
         preserve_common_words=False,
         normalize_nodes=None,
         post_process=True,
+        descriptive=False,
+        post_process_descriptive=False,
     ):
         """
         Get `top_n` keyphrases from the word graph.
         Args:
+            post_process_descriptive:
+            descriptive:
             post_process:
             normalize_nodes:
             preserve_common_words:
@@ -400,6 +473,21 @@ class GraphRank(object):
             normalize_nodes=normalize_nodes,
         )
 
+        if descriptive:
+            multi_keywords, multi_term_score = self.compute_multiterm_score(
+                graph_obj=graph_obj,
+                input_pos_text=input_pos_text,
+                original_tokens=original_tokens,
+                window=window,
+                top_t_percent=top_t_percent,
+                weight_metrics=weight_metrics,
+                normalize_score=normalize_score,
+                syntactic_filter=syntactic_filter,
+                preserve_common_words=preserve_common_words,
+                normalize_nodes=normalize_nodes,
+                descriptive=descriptive,
+            )
+
         # Convert list of keywords to form keyphrase/multi-phrases
         keyphrases = [" ".join(terms) for terms in multi_keywords]
 
@@ -413,6 +501,12 @@ class GraphRank(object):
 
         if post_process:
             sorted_keyphrases = self.post_process(sorted_keyphrases)
+
+        if descriptive and post_process_descriptive:
+            sorted_keyphrases = self.post_process_desc(sorted_keyphrases, cleanup=False)
+
+            # Re-run the algorithm to further join longer phrases
+            sorted_keyphrases = self.post_process_desc(sorted_keyphrases, cleanup=True)
 
         # Choose `top_n` number of keyphrases, if given
         if top_n is not None:
@@ -454,9 +548,7 @@ class GraphRank(object):
                 if r > -1:
                     try:
                         processed_keyphrases.remove(tup)
-                    except Exception as e:
-                        logger.warning("keyword not found",
-                                       extra={"warning": e})
+                    except:
                         continue
 
         # Remove duplicates from multi-phrases
@@ -477,10 +569,58 @@ class GraphRank(object):
         )
 
         # Remove occurrences of Plurals if their singular form is existing
-        new_processed_keyphrases = self._lemmatize_sentence(
-            processed_keyphrases)
+        new_processed_keyphrases = self._lemmatize_sentence(processed_keyphrases)
 
         return new_processed_keyphrases
+
+    def post_process_desc(self, keyphrases, cleanup=True):
+
+        # Join 2 similar sentences
+        processed_keyphrase = set()
+        temp_keyphrases = set()
+        duplicate_phrases = set()
+        for index1, (words, score) in enumerate(keyphrases):
+            for index2, (words2, score2) in enumerate(keyphrases):
+                if index1 != index2:
+                    word_set = set(list(dict.fromkeys(words.split(" "))))
+                    word_set2 = set(list(dict.fromkeys(words2.split(" "))))
+                    if len(word_set & word_set2) >= 2:
+                        new_set = word_set & word_set2
+
+                        w = list(new_set)[0]
+                        word_index1 = words.split(" ").index(w)
+                        word_index2 = words2.split(" ").index(w)
+                        if word_index1 > word_index2:
+                            word3 = words.split(" ") + words2.split(" ")
+                            word4 = " ".join(list(dict.fromkeys(word3)))
+                            new_score = score + score2
+                            processed_keyphrase.add((word4, new_score))
+
+                            duplicate_phrases.add((words, score))
+                            duplicate_phrases.add((words2, score2))
+                    elif len(word_set & word_set2) > 3:
+                        print(processed_keyphrase)
+                        processed_keyphrase.remove(words)
+                        processed_keyphrase.remove(words2)
+                    else:
+                        temp_keyphrases.add((words, score))
+
+        cleaned_phrases = temp_keyphrases.difference(duplicate_phrases)
+
+        processed_descriptive_keyphrase = list(processed_keyphrase) + list(
+            cleaned_phrases
+        )
+
+        if cleanup:
+            for phrase, score in processed_descriptive_keyphrase:
+                for phrase2, score2 in processed_descriptive_keyphrase:
+                    if (
+                        len(set(phrase.split()) & set(phrase2.split())) > 3
+                        and phrase != phrase2
+                    ):
+                        processed_descriptive_keyphrase.remove((phrase2, score2))
+
+        return processed_descriptive_keyphrase
 
     def reset_graph(self):
         self.context = []
@@ -490,24 +630,6 @@ class GraphRank(object):
     def populate_dgraph(self, graph_obj, meeting_id):
         update_graph(graph_obj=graph_obj, meetingid=meeting_id)
 
-    def _tag_text_for_keywords(
-        self, original_token_list, keyword_list, plural_word_list
-    ):
-        marked_text_tokens = []
-        keyword_tag = "k"
-        plural_tag = "p"
-        for token in original_token_list:
-            if token in plural_word_list:
-                stem_form = self.lemma.lemmatize(token)
-                if stem_form in keyword_list:
-                    marked_text_tokens.append((token, plural_tag))
-            elif token in keyword_list:
-                marked_text_tokens.append((token, keyword_tag))
-            else:
-                marked_text_tokens.append((token, ""))
-
-        return marked_text_tokens
-
     def _lemmatize_sentence(self, keyphrase_list):
         tmp_check_list = keyphrase_list
         result = []
@@ -516,8 +638,7 @@ class GraphRank(object):
             phrase = tup[0]
             score = tup[1]
             tokenize_phrase = word_tokenize(phrase)
-            singular_tokens = [self.lemma.lemmatize(
-                word) for word in tokenize_phrase]
+            singular_tokens = [self.lemma.lemmatize(word) for word in tokenize_phrase]
             singular_sentence = " ".join(singular_tokens)
             if len(singular_sentence) > 0:
                 if singular_sentence in result:
@@ -526,3 +647,186 @@ class GraphRank(object):
                     result.append((phrase, score))
 
         return result
+
+    def get_descriptive_terms(
+        self,
+        graph_obj,
+        input_pos_text=None,
+        original_tokens=None,
+        window=2,
+        syntactic_filter=None,
+        top_t_percent=None,
+        normalize_nodes=None,
+        preserve_common_words=False,
+    ):
+
+        node_weights, top_weighted_words = self.node_weighting(
+            graph_obj=graph_obj,
+            input_pos_text=input_pos_text,
+            window=window,
+            top_t_percent=top_t_percent,
+            syntactic_filter=syntactic_filter,
+            normalize_nodes=normalize_nodes,
+        )
+
+        marked_text_tokens = self._mark_tokens_grammar(
+            graph_obj=graph_obj,
+            input_pos_text=input_pos_text,
+            original_tokens=original_tokens,
+            window=window,
+            top_t_percent=top_t_percent,
+            syntactic_filter=syntactic_filter,
+            normalize_nodes=normalize_nodes,
+        )
+
+        multi_terms = []
+        current_term_units = []
+        scores_list = []
+        marker_list = []
+
+        c_window = 5
+
+        for ind, (token, pos, marker) in enumerate(marked_text_tokens):
+            # Form a sentence by connecting from marked word to another, while including common words
+
+            if marker == "k" or marker == "p":
+                current_term_units.append(token)
+
+                if marker == "p":
+                    root_token = self.lemma.lemmatize(token)
+                    scores_list.append(node_weights[root_token])
+                else:
+                    scores_list.append(node_weights[token])
+                marker_list.append(marker)
+
+            elif len(current_term_units) == 1 and ind != len(marked_text_tokens):
+                if ind > len(marked_text_tokens) - c_window:
+                    c_range = len(marked_text_tokens) - ind - 1
+                else:
+                    c_range = ind + c_window - 1
+
+                list_range = marked_text_tokens[ind : ind + c_range]
+                for counter, (n_token, n_pos, n_marker) in enumerate(list_range):
+
+                    if n_marker == "e":
+                        if len(current_term_units) == 1:
+                            if n_pos in ["SENT", ",", ".", "?"] or n_token in [
+                                ",",
+                                ".",
+                                "?",
+                            ]:
+                                multi_terms.append((current_term_units, scores_list))
+                                # reset for next term candidate
+                                current_term_units = []
+                                scores_list = []
+                                marker_list = []
+                                break
+
+                            else:
+                                current_term_units.append(n_token)
+                                scores_list.append(0)
+                                marker_list.append(n_marker)
+                        else:
+                            if counter == len(list_range) - 1:
+                                break
+                            else:
+                                if list_range[counter + 1][2] == "e":
+                                    if marker_list[-1] == "k" or marker_list[-1] == "p":
+                                        multi_terms.append(
+                                            (current_term_units, scores_list)
+                                        )
+
+                                        # reset for next term candidate
+                                        current_term_units = []
+                                        scores_list = []
+                                        marker_list = []
+                                        break
+
+                                    else:
+                                        current_term_units = []
+                                        scores_list = []
+                                        marker_list = []
+                                        break
+                                elif (
+                                    list_range[counter + 1][2] == "k"
+                                    or list_range[counter + 1] == "p"
+                                ):
+                                    if len(current_term_units) == c_window - 1:
+                                        break
+                                    else:
+                                        current_term_units.append(n_token)
+                                        scores_list.append(0)
+                                        marker_list.append(n_marker)
+
+                                elif n_pos not in [
+                                    "SENT",
+                                    ",",
+                                    ".",
+                                    "?",
+                                ] or n_token not in [",", ".", "?"]:
+                                    current_term_units.append(n_token)
+                                    scores_list.append(0)
+                                    marker_list.append(n_marker)
+
+                                else:
+                                    current_term_units = []
+                                    scores_list = []
+                                    marker_list = []
+                                    break
+
+                    else:
+                        current_term_units.append(n_token)
+
+                        if n_marker == "p":
+                            root_token = self.lemma.lemmatize(n_token)
+                            scores_list.append(node_weights[root_token])
+                        else:
+                            scores_list.append(node_weights[n_token])
+                        marker_list.append(n_marker)
+
+                        # reset for next term candidate
+
+                    if len(current_term_units) >= c_window:
+                        if marker_list[-1] == "k" or marker_list[-1] == "p":
+                            multi_terms.append((current_term_units, scores_list))
+                            current_term_units = []
+                            scores_list = []
+                            marker_list = []
+                        else:
+                            for i in range(len(marker_list) - 1):
+                                try:
+                                    if marker_list[-(i + 1)] == "e":
+                                        current_term_units.remove(
+                                            current_term_units[-(i + 1)]
+                                        )
+                                        scores_list.remove(scores_list[-(i + 1)])
+                                except:
+                                    continue
+
+                            multi_terms.append((current_term_units, scores_list))
+                            current_term_units = []
+                            scores_list = []
+                            marker_list = []
+                        break
+            else:
+                # Get unique nodes
+                if (
+                    len(current_term_units) > 0
+                    and (current_term_units, scores_list) not in multi_terms
+                ):
+                    try:
+                        for i in range(len(current_term_units) - 1):
+                            if marker_list[-(i + 1)] == "e":
+                                current_term_units.remove(current_term_units[-(i + 1)])
+                                scores_list.remove(scores_list[-(i + 1)])
+                    except:
+                        continue
+
+                    multi_terms.append((current_term_units, scores_list))
+
+                # reset for next term candidate
+                current_term_units = []
+                scores_list = []
+                marker_list = []
+
+        return multi_terms
