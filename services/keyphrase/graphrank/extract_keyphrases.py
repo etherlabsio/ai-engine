@@ -225,9 +225,15 @@ class KeyphraseExtractor(object):
         Returns:
 
         """
-
+        cleaned_keyphrase_list = []
         input_segment = input_json["segments"][0].get("originalText")
-        sorted_keyphrase_list = self.sort_by_value(keyphrase_list, order="desc")
+
+        for word, score in keyphrase_list:
+            loc = input_segment.lower().find(word)
+            if loc > -1:
+                cleaned_keyphrase_list.append((word, score))
+
+        sorted_keyphrase_list = self.sort_by_value(cleaned_keyphrase_list, order="desc")
         if top_n is not None:
             sorted_keyphrase_list = sorted_keyphrase_list[:top_n]
 
@@ -271,13 +277,23 @@ class KeyphraseExtractor(object):
 
         """
         chapter_entities = []
-        for i in range(len(input_json["segments"])):
-            entity_segment = input_json["segments"][i].get("originalText")
+        cleaned_keyphrase_list = []
+        segments = input_json["segments"]
+        for i in range(len(segments)):
+            entity_segment = segments[i].get("originalText")
+            input_segment = segments[i].get("originalText").lower()
 
+            # Get chapter entities
             entities = self.get_entities(entity_segment)
             chapter_entities.extend(entities)
 
-        sorted_keyphrase_list = self.sort_by_value(keyphrase_list, order="desc")
+            # Get cleaned chapter words
+            for word, score in keyphrase_list:
+                loc = input_segment.find(word)
+                if loc > -1:
+                    cleaned_keyphrase_list.append((word, score))
+
+        sorted_keyphrase_list = self.sort_by_value(cleaned_keyphrase_list, order="desc")
         if top_n is not None:
             sorted_keyphrase_list = sorted_keyphrase_list[:top_n]
 
