@@ -72,8 +72,8 @@ class GraphSolvers(object):
                 try:
                     node_weights[k] = v / node_degrees[k]
                 except Exception as e:
-                    logger.debug(
-                        "Zero degree value while computing degree", extra={"err": e}
+                    logger.warning(
+                        "Zero degree value while computing degree", extra={"warning": e}
                     )
                     node_weights[k] = v
 
@@ -83,8 +83,9 @@ class GraphSolvers(object):
                 try:
                     node_weights[k] = v / node_closeness[k]
                 except Exception as e:
-                    logger.debug(
-                        "Zero degree value while computing closeness", extra={"err": e}
+                    logger.warning(
+                        "Zero degree value while computing closeness",
+                        extra={"warning": e},
                     )
                     node_weights[k] = v
 
@@ -94,8 +95,8 @@ class GraphSolvers(object):
                 try:
                     node_weights[k] = v * node_betweenness[k]
                 except Exception as e:
-                    logger.debug(
-                        "Zero value while computing betweenness", extra={"err": e}
+                    logger.warning(
+                        "Zero value while computing betweenness", extra={"warning": e}
                     )
                     node_weights[k] = v
 

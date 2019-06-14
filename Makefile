@@ -33,9 +33,13 @@ clean:
 deploy-staging:
 	sup -f Deployfile staging deploy
 
+.PHONY: deploy-staging2
+deploy-staging2:
+	ecs deploy ml-inference keyphrase-service --timeout 600 --profile staging2
+
 .PHONY: deploy-production
 deploy-production:
-	sup -f Deployfile production deploy
+	ecs deploy ml-inference keyphrase-service --timeout 600
 
 .PHONY: run
 run:
