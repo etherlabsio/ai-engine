@@ -39,23 +39,30 @@ class SentenceScorer:
     def __init__(self, client):
         self.mind_client = client
 
-    def calculate(self, mind_id: str, request: TextSegment) -> Score:
+    def score(self, mind_id: str, request: TextSegment) -> Score:
         text = pre_process(request.text)
-        score = Score(id=request.id,
-                      text=text,
-                      speaker=request.speaker,
-                      score=0.00001)
-
-        ## TODO: penalize score
 
         try:
             resp: MindResponse = self.mind_client.calculate(mind_id, text)
         except Exception as err:
             logger.error("error from mind service for input: {} as {}".format(
                 mind_id, err))
-            return score
 
-        if not resp.feature_vector:
+        calc = self.process_response(resp)
+
+        # Penalize sentences with smaller word count
+        with text.split(" ") as words:
+            if len(words) < 40:
+                calc = 0.1 * calc
+
+        return Score(id=request.id,
+                     text=text,
+                     speaker=request.speaker,
+                     score=calc)
+
+    def process_response(self, resp: MindResponse,
+                         score: float = 0.00001) -> float:
+        if len(resp.feature_vector) == 0:
             logger.warn(
                 'transcript too small to process. Returning default score')
             return score
