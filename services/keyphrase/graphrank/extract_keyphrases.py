@@ -488,8 +488,7 @@ class KeyphraseExtractor(object):
                 if r > -1:
                     try:
                         single_phrase.remove(kw)
-                    except Exception as e:
-                        logger.warning("entity not found", extra={"warning": e})
+                    except:
                         continue
 
         # Remove same word occurrences in a multi-keyphrase
@@ -508,7 +507,7 @@ class KeyphraseExtractor(object):
             if len(tmp_entitites) < 4:
                 try:
                     processed_entities.remove(entities)
-                except Exception as e:
+                except:
                     continue
 
         return processed_entities

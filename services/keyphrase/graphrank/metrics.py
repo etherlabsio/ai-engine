@@ -72,10 +72,8 @@ class GraphSolvers(object):
                 try:
                     node_weights[k] = v / node_degrees[k]
                 except Exception as e:
-                    logger.warning(
-                        "Zero degree value while computing degree", extra={"warning": e}
-                    )
                     node_weights[k] = v
+                    continue
 
         elif normalize_fn == "closeness":
             node_closeness = self.get_closeness(graph_obj=graph_obj)
@@ -83,11 +81,8 @@ class GraphSolvers(object):
                 try:
                     node_weights[k] = v / node_closeness[k]
                 except Exception as e:
-                    logger.warning(
-                        "Zero degree value while computing closeness",
-                        extra={"warning": e},
-                    )
                     node_weights[k] = v
+                    continue
 
         elif normalize_fn == "betweenness":
             node_betweenness = self.get_betweenness(graph_obj=graph_obj)
@@ -95,10 +90,8 @@ class GraphSolvers(object):
                 try:
                     node_weights[k] = v * node_betweenness[k]
                 except Exception as e:
-                    logger.warning(
-                        "Zero value while computing betweenness", extra={"warning": e}
-                    )
                     node_weights[k] = v
+                    continue
 
         elif normalize_fn == "degree_bet":
             node_degrees = self.get_node_degree(graph_obj)
