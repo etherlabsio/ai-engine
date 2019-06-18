@@ -1,6 +1,35 @@
 DOCKER_IMAGE=registry.gitlab.com/etherlabs/ether/keyphrase-server
 ENV=staging
 
+SLACK_WEBHOOK_URL="https://hooks.slack.com/services/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"
+BRANCH=$(shell git rev-parse HEAD || echo -e '$CI_COMMIT_SHA')
+
+AWS_ACCESS_KEY_ID=$(shell aws configure get aws_access_key_id --profile ${AWS_PROFILE})
+AWS_SECRET_ACCESS_KEY=$(shell aws configure get aws_secret_access_key --profile ${AWS_PROFILE})
+AWS_REGION=$(shell aws configure get region --profile ${AWS_PROFILE})
+
+pre-deploy-notify:
+	@curl -X POST --data-urlencode 'payload={"text": "[${ENVIRONMENT}] [${BRANCH}] ${USER}: ${ARTIFACT} is being deployed"}' \
+				 ${SLACK_WEBHOOK_URL}
+
+post-deploy-notify:
+	@curl -X POST --data-urlencode 'payload={"text": "[${ENVIRONMENT}] [${BRANCH}] ${USER}: ${ARTIFACT} is deployed"}' \
+				 ${SLACK_WEBHOOK_URL}
+
+deploy_ecs:
+	$(MAKE) pre-deploy-notify
+	ecs deploy ${CLUSTER_NAME} ${SERVICE_NAME} --timeout 600 --profile ${AWS_PROFILE}
+	$(MAKE) post-deploy-notify
+
+deploy-staging2:
+	$(MAKE) deploy_ecs ARTIFACT=keyphrase-server CONTAINER_TAG=staging2 CONTAINER_IMAGE=registry.gitlab.com/etherlabs/ether/keyphrase-server \
+			ENVIRONMENT=staging2 CLUSTER_NAME=ml-inference SERVICE_NAME=keyphrase-service AWS_PROFILE=staging2
+
+deploy-production:
+    $(MAKE) deploy_ecs ARTIFACT=keyphrase-server CONTAINER_TAG=latest CONTAINER_IMAGE=registry.gitlab.com/etherlabs/ether/keyphrase-server \
+			ENVIRONMENT=production CLUSTER_NAME=ml-inference SERVICE_NAME=keyphrase-service AWS_PROFILE=default
+
+
 .PHONY: dependencies
 dependencies:
 	pipenv install
@@ -32,14 +61,6 @@ clean:
 .PHONY: deploy-staging
 deploy-staging:
 	sup -f Deployfile staging deploy
-
-.PHONY: deploy-staging2
-deploy-staging2:
-	ecs deploy ml-inference keyphrase-service --timeout 600 --profile staging2
-
-.PHONY: deploy-production
-deploy-production:
-	ecs deploy ml-inference keyphrase-service --timeout 600
 
 .PHONY: run
 run:

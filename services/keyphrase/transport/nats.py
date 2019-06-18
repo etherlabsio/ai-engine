@@ -33,11 +33,6 @@ class NATSTransport(object):
             "topics subscribed", extra={"topics": self.nats_manager.subscriptions}
         )
 
-        self.keyphrase_service.initialize_meeting_graph(
-            context_id=context_id, context_instance_id=context_instance_id
-        )
-        logger.info("Initialized word graph")
-
     async def subscribe_context_events(self, instance_id):
         await self.nats_manager.subscribe(
             topic="context.instance." + instance_id + ".started",
@@ -110,6 +105,7 @@ class NATSTransport(object):
         msg_data = json.loads(msg.data)
         if msg_data["state"] == "started":
             logger.info("Instance started")
+            self.keyphrase_service.initialize_meeting_graph(req_data=msg_data)
         pass
 
     async def context_change_handler(self, msg):
@@ -154,6 +150,9 @@ class NATSTransport(object):
             logger.info(
                 "Publishing chapter keyphrases" + timeout_msg,
                 extra={
+                    "graphId": self.keyphrase_service.meeting_graph.graph.get(
+                        "graphId"
+                    ),
                     "chapterKeyphraseList": output,
                     "instanceId": request["instanceId"],
                     "numOfSegments": len(request["segments"]),
@@ -165,6 +164,9 @@ class NATSTransport(object):
             logger.info(
                 "Publishing PIM keyphrases" + timeout_msg,
                 extra={
+                    "graphId": self.keyphrase_service.meeting_graph.graph.get(
+                        "graphId"
+                    ),
                     "pimKeyphraseList": output,
                     "instanceId": request["instanceId"],
                     "numOfSegments": len(request["segments"]),
@@ -191,6 +193,7 @@ class NATSTransport(object):
         logger.info(
             "Publishing instance keyphrases" + timeout_msg,
             extra={
+                "graphId": self.keyphrase_service.meeting_graph.graph.get("graphId"),
                 "instanceList": output,
                 "instanceId": request["instanceId"],
                 "numOfSegments": len(request["segments"]),
@@ -217,6 +220,7 @@ class NATSTransport(object):
         logger.info(
             "Publishing chapter keyphrases with offset" + timeout_msg,
             extra={
+                "graphId": self.keyphrase_service.meeting_graph.graph.get("graphId"),
                 "chapterOffsetList": output,
                 "instanceId": request["instanceId"],
                 "numOfSegments": len(request["segments"]),

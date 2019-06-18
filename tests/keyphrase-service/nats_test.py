@@ -19,9 +19,12 @@ logger = logging.getLogger(__name__)
 
 async def publish_keyphrase():
     nc = NATS()
-    topic = "keyphrase_service.in5627.extract_keyphrases"
+    topic = "keyphrase_service.*.extract_keyphrases"
     await nc.connect(servers=[nats_url])
     test_json = read_json(single_json_file)
+    topic, resp = replace_ids(
+        test_json["contextId"], test_json["instanceId"], topic, resp={}
+    )
     await nc.request(topic, json.dumps(test_json).encode())
     # await nc.flush()
     # await nc.close()
@@ -29,9 +32,12 @@ async def publish_keyphrase():
 
 async def publish_chapter_keyphrase():
     nc = NATS()
-    topic = "keyphrase_service.in5627.extract_keyphrases"
+    topic = "keyphrase_service.*.extract_keyphrases"
     await nc.connect(servers=[nats_url])
     test_json = read_json(multi_json_file)
+    topic, resp = replace_ids(
+        test_json["contextId"], test_json["instanceId"], topic, resp={}
+    )
     await nc.request(topic, json.dumps(test_json).encode())
     # await nc.flush()
     await nc.close()
@@ -39,9 +45,12 @@ async def publish_chapter_keyphrase():
 
 async def publish_chapter_offset_keyphrase():
     nc = NATS()
-    topic = "keyphrase_service.in5627.extract_keyphrases_with_offset"
+    topic = "keyphrase_service.*.extract_keyphrases_with_offset"
     await nc.connect(servers=[nats_url])
     test_json = read_json(multi_json_file)
+    topic, resp = replace_ids(
+        test_json["contextId"], test_json["instanceId"], topic, resp={}
+    )
     await nc.request(topic, json.dumps(test_json).encode())
     # await nc.flush()
     await nc.close()
@@ -49,9 +58,12 @@ async def publish_chapter_offset_keyphrase():
 
 async def publish_instance_keyphrase():
     nc = NATS()
-    topic = "keyphrase_service.in5627.keyphrases_for_context_instance"
+    topic = "keyphrase_service.*.keyphrases_for_context_instance"
     await nc.connect(servers=[nats_url])
     test_json = read_json(meeting_json_file)
+    topic, resp = replace_ids(
+        test_json["contextId"], test_json["instanceId"], topic, resp={}
+    )
     await nc.request(topic, json.dumps(test_json).encode())
     # await nc.flush()
     await nc.close()
@@ -62,6 +74,9 @@ async def reset_keyphrase():
     topic = "io.etherlabs.ether.keyphrase_service.reset_keyphrases"
     await nc.connect(servers=[nats_url])
     test_json = read_json(meeting_json_file)
+    topic, resp = replace_ids(
+        test_json["contextId"], test_json["instanceId"], topic, resp={}
+    )
     await nc.request(topic, json.dumps(test_json).encode())
     # await nc.flush()
     await nc.close()
@@ -69,11 +84,14 @@ async def reset_keyphrase():
 
 async def populate_graph():
     nc = NATS()
-    topic = "context.instance.in5627.add_segments"
+    topic = "context.instance.*.add_segments"
     await nc.connect(servers=[nats_url])
     # test_json = read_json(multi_json_file)
-    single_test = read_json(meeting_json_file)
-    await nc.publish(topic, json.dumps(single_test).encode())
+    test_json = read_json(meeting_json_file)
+    topic, resp = replace_ids(
+        test_json["contextId"], test_json["instanceId"], topic, resp={}
+    )
+    await nc.publish(topic, json.dumps(test_json).encode())
     # await nc.flush()
     await nc.close()
 
@@ -82,7 +100,9 @@ async def create_context():
     nc = NATS()
     topic = "context.instance.created"
     await nc.connect(servers=[nats_url])
-    resp = {"contextId": "567238", "instanceId": "in5627", "state": "created"}
+    resp = {"contextId": "*", "instanceId": "*", "state": "created"}
+
+    topic, resp = replace_ids(topic=topic, resp=resp)
     await nc.publish(topic, json.dumps(resp).encode())
     # await start_context()
     # await nc.flush()
@@ -91,9 +111,10 @@ async def create_context():
 
 async def start_context():
     nc = NATS()
-    topic = "context.instance.in5627.started"
+    topic = "context.instance.*.started"
     await nc.connect(servers=[nats_url])
-    resp = {"instanceId": "in5627", "state": "started"}
+    resp = {"instanceId": "*", "state": "started", "contextId": "*"}
+    topic, resp = replace_ids(topic=topic, resp=resp)
     await nc.publish(topic, json.dumps(resp).encode())
     # await asyncio.sleep(10, loop=loop)
     # await nc.flush()
@@ -102,9 +123,10 @@ async def start_context():
 
 async def end_context():
     nc = NATS()
-    topic = "context.instance.in5627.ended"
+    topic = "context.instance.*.ended"
     await nc.connect(servers=[nats_url])
-    resp = {"instanceId": "in5627", "state": "ended"}
+    resp = {"instanceId": "*", "state": "ended"}
+    topic, resp = replace_ids(topic=topic, resp=resp)
     await nc.publish(topic, json.dumps(resp).encode())
     await nc.flush()
     await nc.close()
@@ -259,6 +281,23 @@ def post_process_desc():
     logger.info(processed_keyphrase)
 
 
+def replace_ids(context_id=None, instance_id=None, topic=None, resp=dict()):
+
+    if context_id is None and instance_id is None:
+        context_id = "new6baa3490-69d6-48fc-b5d4-3994e3e8fae0"
+        instance_id = "newb5d4-3994e3e8fae0"
+
+    resp["instanceId"] = instance_id
+    resp["contextId"] = context_id
+
+    if "*" in topic:
+        formatted_topic = topic.replace("*", instance_id)
+    else:
+        formatted_topic = topic
+
+    return formatted_topic, resp
+
+
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(
         description="topic arguments for keyphrase_service"
@@ -274,12 +313,13 @@ if __name__ == "__main__":
 
     asyncio.set_event_loop_policy(uvloop.EventLoopPolicy())
     loop = asyncio.get_event_loop()
-    single_json_file = os.path.join(os.getcwd(), "pim_test.json")
+    single_json_file = os.path.join(os.getcwd(), "pim_test2.json")
     multi_json_file = os.path.join(os.getcwd(), "chapter_test.json")
-    meeting_json_file = os.path.join(os.getcwd(), "meeting_test.json")
+    meeting_json_file = os.path.join(os.getcwd(), "meeting_test2.json")
 
     if args.topics == "def":
         t1 = loop.run_until_complete(create_context())
+        loop.run_until_complete(start_context())
     elif args.topics == "populate":
         loop.run_until_complete(populate_graph())
     elif args.topics == "pub_chapter":
