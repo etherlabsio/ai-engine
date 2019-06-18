@@ -259,7 +259,7 @@ class KeyphraseExtractor(object):
         input_segment = input_json["segments"][0].get("originalText")
 
         for word, score in keyphrase_list:
-            loc = input_segment.lower().find(word)
+            loc = input_segment.find(word)
             if loc > -1:
                 cleaned_keyphrase_list.append((word, score))
 
@@ -311,7 +311,7 @@ class KeyphraseExtractor(object):
         segments = input_json["segments"]
         for i in range(len(segments)):
             entity_segment = segments[i].get("originalText")
-            input_segment = segments[i].get("originalText").lower()
+            input_segment = segments[i].get("originalText")
 
             # Get chapter entities
             entities = self.get_entities(entity_segment)
@@ -372,7 +372,7 @@ class KeyphraseExtractor(object):
 
         for i in range(len(segments)):
             entity_segment = segments[i].get("originalText")
-            input_segment = segments[i].get("originalText").lower()
+            input_segment = segments[i].get("originalText")
 
             # Set offset time for every keywords
             start_time = segments[i].get("startTime")
@@ -406,7 +406,7 @@ class KeyphraseExtractor(object):
         for entities in chapter_entities_list:
             for i, keyphrase_dict in enumerate(chapter_keyphrases):
                 for keyphrase in keyphrase_dict.keys():
-                    if keyphrase in entities.lower():
+                    if keyphrase in entities:
                         del chapter_keyphrases[i]
 
         # Place the single keywords in the end of the list.
@@ -458,7 +458,7 @@ class KeyphraseExtractor(object):
         # Remove the first occurrence of entity in the list of keyphrases
         for entities in distinct_entities:
             for keyphrase in distinct_keyword_list:
-                if keyphrase in entities.lower():
+                if keyphrase in entities:
                     distinct_keyword_list.remove(keyphrase)
 
         # Place the single keywords in the end of the list.

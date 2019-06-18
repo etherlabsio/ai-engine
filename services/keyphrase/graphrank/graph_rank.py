@@ -82,7 +82,7 @@ class GraphRank(object):
             ]
 
         original_token_pos_list = [
-            (word.lower(), pos) for sent in input_pos_text for word, pos in sent
+            (word, pos) for sent in input_pos_text for word, pos in sent
         ]
 
         # Extend the context of the graph
@@ -100,14 +100,14 @@ class GraphRank(object):
         # Filter input based on common words and Flatten it
         if preserve_plurals:
             filtered_pos_list = [
-                (word.lower(), pos)
+                (word, pos)
                 for sent in input_pos_text
                 for word, pos in sent
                 if pos in syntactic_filter and word.lower() not in common_words
             ]
         else:
             filtered_pos_list = [
-                (word.lower(), pos)
+                (word, pos)
                 for sent in input_pos_text
                 for word, pos in sent
                 if pos in syntactic_filter and word.lower() not in common_words
@@ -254,16 +254,12 @@ class GraphRank(object):
             original_tokens = self.context
         else:
             original_tokens = [
-                (word.lower(), pos) for sent in input_pos_text for word, pos in sent
+                (word, pos) for sent in input_pos_text for word, pos in sent
             ]
 
-        unfiltered_word_tokens = [
-            (token.lower(), pos) for token, pos in original_tokens
-        ]
+        unfiltered_word_tokens = [(token, pos) for token, pos in original_tokens]
 
-        plural_word_tokens = [
-            token.lower() for token, pos in original_tokens if pos == "NNS"
-        ]
+        plural_word_tokens = [token for token, pos in original_tokens if pos == "NNS"]
 
         marked_text_tokens = self._tag_text_for_keywords(
             original_token_list=unfiltered_word_tokens,
