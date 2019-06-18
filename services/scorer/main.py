@@ -1,8 +1,8 @@
 import logging
 import json
-from scorer import getScore
+from scorer import SentenceScorer, Score
 from text import pre_process
-
+from mind.lambda_client import AWSLambdaClient
 from dataclasses import dataclass
 from typing import List
 from scorer import TextSegment
@@ -30,39 +30,20 @@ def decode_request(body) -> Request:
 
     mind_id = str(req['mindId']).lower()
     segments = map(req['segments'], decode_segments)
-    return Request(mind_id, segments)
+    return Request(mind_id, list(segments))
 
 
 def lambda_handler(event, context):
     print("event['body']: ", event['body'])
 
+    client = AWSLambdaClient()
+    scorer = SentenceScorer(client)
     request = decode_request(event['body'])
-    lambda_function_name = "mind-" + request.mind_id
+    mind_id = request.mind_id
 
-    transcript_text = request.segments[0].text
-    pre_processed_input = pre_process(transcript_text)
+    scores = map(lambda segment: scorer.score(mind_id, segment),
+                 request.segments)
 
-    if len(pre_processed_input) != 0:
-        mind_input = json.dumps({"text": pre_processed_input})
-        mind_input = json.dumps({"body": mind_input})
-        transcript_score = getScore(mind_input, lambda_function_name)
-    else:
-        transcript_score = 0.00001
-        logger.warn('processing transcript: {}'.format(transcript_text))
-        logger.warn('transcript too small to process. Returning default score')
-
-    # hack to penalize out of domain small transcripts coming as PIMs - word level
-    if len(pre_processed_input.split(' ')) < 40:
-        transcript_score = 0.1 * transcript_score
-
-    out_response = json.dumps({
-        'text': transcript_text,
-        'distance': 1 / transcript_score,
-        'id': request.segments[0].id,
-        'conversationLength': 1000,
-        'speaker': request.segments[0].speaker,
-    })
-    print("out_response", out_response)
     return {
         "statusCode":
         200,

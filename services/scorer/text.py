@@ -35,4 +35,5 @@ def pre_process(text: str) -> str:
     filtered_sentences = filter(filter_less_than_word_count(), sentences)
     trimmed_sentences = map(lambda x: x.strip(), filtered_sentences)
     processed = '. '.join(trimmed_sentences)
+    processed = append_punctuation_at_end(processed)
     return processed

@@ -12,13 +12,12 @@ config = Config(
     read_timeout=240,
     retries={'max_attempts': 0},
 )
-lambda_client = boto3_client('lambda', config=config)
 
 logger = logging.getLogger()
 
 
 class AWSLambdaClient:
-    def __init__(self, aws=boto3_client('pim-scorer')):
+    def __init__(self, aws=boto3_client('lambda', config=config)):
         self.client = aws
 
     def calculate(self, mind_id: str, text: str) -> MindResponse:
