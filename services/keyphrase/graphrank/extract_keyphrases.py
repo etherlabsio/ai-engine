@@ -84,6 +84,15 @@ class KeyphraseExtractor(object):
                 },
             )
 
+        if self.meeting_graph.graph.get("graphId") is None:
+            logger.warning(
+                "Null graphId",
+                extra={
+                    "graphId": self.meeting_graph.graph.get("graphId"),
+                    "graphServiceIdentifier": graph_id,
+                },
+            )
+
     def initialize_meeting_graph(self, req_data):
         graph_id = self.get_graph_id(req_data=req_data)
         self.graph_obj_dict[graph_id] = nx.Graph(graphId=graph_id)
@@ -93,7 +102,7 @@ class KeyphraseExtractor(object):
         logger.info(
             "Meeting graph intialized and updated",
             extra={
-                "currentGraphObjectList": self.graph_obj_dict.keys(),
+                "currentGraphObjectList": list(self.graph_obj_dict.keys()),
                 "currentGraphId": self.meeting_graph.graph.get("graphId"),
             },
         )
@@ -799,7 +808,8 @@ class KeyphraseExtractor(object):
         logger.info(
             "Post-reset: Graph info",
             extra={
-                "graphId": deleted_graph_id,
+                "deletedGraphId": deleted_graph_id,
+                "currentGraphObjectList": list(self.graph_obj_dict.keys()),
                 "numOfGraphInstances": len(self.graph_obj_dict),
                 "nodes": self.meeting_graph.number_of_nodes(),
                 "edges": self.meeting_graph.number_of_edges(),

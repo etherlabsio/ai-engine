@@ -627,7 +627,6 @@ class GraphRank(object):
     def reset_graph(self):
         self.context = []
         self.graph.clear()
-        self.graph = nx.Graph(type="keyphrases")
 
     def populate_dgraph(self, graph_obj, meeting_id):
         update_graph(graph_obj=graph_obj, meetingid=meeting_id)
