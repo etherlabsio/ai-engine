@@ -21,6 +21,7 @@ class KeyphraseExtractor(object):
         self.gr = GraphRank()
         self.tp = TextPreprocess()
         self.gutils = GraphUtils()
+        self.graph_obj_dict = {}
         self.meeting_graph = nx.Graph()
         self.syntactic_filter = [
             "JJ",
@@ -65,6 +66,38 @@ class KeyphraseExtractor(object):
 
         return json_df_ts
 
+    def get_graph_id(self, req_data):
+        context_id = req_data["contextId"]
+        instance_id = req_data["instanceId"]
+        graph_id = context_id + ":" + instance_id
+        return graph_id
+
+    def get_graph_instance_object(self, graph_id):
+        if graph_id in list(self.graph_obj_dict.keys()):
+            self.meeting_graph = self.graph_obj_dict.get(graph_id)
+        else:
+            logger.warning(
+                "Graph object does not exist",
+                extra={
+                    "graphId": self.meeting_graph.graph.get("graphId"),
+                    "graphServiceIdentifier": graph_id,
+                },
+            )
+
+    def initialize_meeting_graph(self, req_data):
+        graph_id = self.get_graph_id(req_data=req_data)
+        self.graph_obj_dict[graph_id] = nx.Graph(graphId=graph_id)
+
+        # Set the current instance as the active one
+        self.get_graph_instance_object(graph_id=graph_id)
+        logger.info(
+            "Meeting graph intialized and updated",
+            extra={
+                "currentGraphObjectList": self.graph_obj_dict.keys(),
+                "currentGraphId": self.meeting_graph.graph.get("graphId"),
+            },
+        )
+
     def sort_by_value(self, item_list, order="desc"):
         """
         A utility function to sort lists by their value.
@@ -82,11 +115,6 @@ class KeyphraseExtractor(object):
             sorted_list = sorted(item_list, key=lambda x: x[1], reverse=False)
 
         return sorted_list
-
-    def initialize_meeting_graph(self, context_id, instance_id):
-        self.meeting_graph = nx.Graph(
-            context_instance_id=instance_id, context_id=context_id
-        )
 
     def read_segments(self, segment_df, node_attrs=False):
         text_list = []
@@ -126,6 +154,7 @@ class KeyphraseExtractor(object):
 
     def build_custom_graph(
         self,
+        graph,
         text_list,
         attrs,
         window=4,
@@ -138,7 +167,8 @@ class KeyphraseExtractor(object):
             text = text_list[i]
 
             original_tokens, pos_tuple, filtered_pos_tuple = self.process_text(text)
-            self.meeting_graph = self.gr.build_word_graph(
+            graph = self.gr.build_word_graph(
+                graph_obj=graph,
                 input_pos_text=pos_tuple,
                 window=window,
                 syntactic_filter=syntactic_filter,
@@ -486,13 +516,19 @@ class KeyphraseExtractor(object):
     def populate_word_graph(self, req_data, add_context=False):
         start = timer()
         segment_df = self.reformat_input(req_data)
+        graph_id = self.get_graph_id(req_data=req_data)
+
+        self.get_graph_instance_object(graph_id=graph_id)
 
         try:
             text_list, attrs = self.read_segments(
                 segment_df=segment_df, node_attrs=False
             )
             self.build_custom_graph(
-                text_list=text_list, attrs=attrs, add_context=add_context
+                text_list=text_list,
+                attrs=attrs,
+                add_context=add_context,
+                graph=self.meeting_graph,
             )
         except Exception as e:
             end = timer()
@@ -510,6 +546,8 @@ class KeyphraseExtractor(object):
         logger.info(
             "Populating graph",
             extra={
+                "graphId": self.meeting_graph.graph.get("graphId"),
+                "graphServiceIdentifier": graph_id,
                 "nodes": self.meeting_graph.number_of_nodes(),
                 "edges": self.meeting_graph.number_of_edges(),
                 "instanceId": req_data["instanceId"],
@@ -518,8 +556,11 @@ class KeyphraseExtractor(object):
         )
 
     def compute_keyphrases(self, req_data):
-        segment_df = self.reformat_input(req_data)
+        # Select the right graph Id to extract keyphrases
+        graph_id = self.get_graph_id(req_data=req_data)
+        self.get_graph_instance_object(graph_id=graph_id)
 
+        segment_df = self.reformat_input(req_data)
         text_list, attrs = self.read_segments(segment_df=segment_df, node_attrs=False)
         keyphrase_list = []
         descriptive_keyphrase_list = []
@@ -645,11 +686,8 @@ class KeyphraseExtractor(object):
         start = timer()
         segments_array = req_data["segments"]
 
-        logger.info("Re-populating word graph on google segments")
-        if segments_array[0].get("transcriber") == "google_speech_api":
-            self.populate_word_graph(req_data, add_context=False)
-        else:
-            self.populate_word_graph(req_data, add_context=False)
+        # Re-populate graph in case google transcripts are present
+        self.populate_word_graph(req_data, add_context=False)
 
         keyphrases = []
         try:
@@ -694,10 +732,9 @@ class KeyphraseExtractor(object):
         logger.info(
             "Re-populating word graph on google segments for chapter offset phrases"
         )
-        if req_data["segments"][0].get("transcriber") == "google_speech_api":
-            self.populate_word_graph(req_data, add_context=False)
-        else:
-            self.populate_word_graph(req_data, add_context=False)
+
+        # Re-populate graph for google transcripts
+        self.populate_word_graph(req_data, add_context=False)
 
         keyphrase_list, descriptive_kp = self.compute_keyphrases(req_data)
 
@@ -751,6 +788,11 @@ class KeyphraseExtractor(object):
 
     def reset_keyphrase_graph(self, req_data):
         start = timer()
+        graph_id = self.get_graph_id(req_data=req_data)
+        self.get_graph_instance_object(graph_id=graph_id)
+
+        deleted_graph = self.graph_obj_dict.pop(graph_id)
+        deleted_graph_id = deleted_graph.graph.get("graphId")
 
         self.gr.reset_graph()
         self.meeting_graph.clear()
@@ -758,6 +800,8 @@ class KeyphraseExtractor(object):
         logger.info(
             "Post-reset: Graph info",
             extra={
+                "graphId": deleted_graph_id,
+                "numOfGraphInstances": len(self.graph_obj_dict),
                 "nodes": self.meeting_graph.number_of_nodes(),
                 "edges": self.meeting_graph.number_of_edges(),
                 "responseTime": end - start,

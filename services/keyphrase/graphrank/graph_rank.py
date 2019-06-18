@@ -15,7 +15,7 @@ logger = logging.getLogger(__name__)
 
 class GraphRank(object):
     def __init__(self):
-        self.graph = nx.Graph(type="keyphrases")
+        # self.graph = nx.Graph(type="keyphrases")
         self.graph_utils = GraphUtils()
         self.graph_solver = GraphSolvers()
         self.metric_object = WeightMetrics()
@@ -37,6 +37,7 @@ class GraphRank(object):
     def build_word_graph(
         self,
         input_pos_text,
+        graph_obj=None,
         window=2,
         syntactic_filter=None,
         reset_graph_context=False,
@@ -61,6 +62,11 @@ class GraphRank(object):
         Returns:
             cooccurrence_graph (Networkx graph obj): Graph of co-occurring keywords
         """
+        if graph_obj is None:
+            self.graph = nx.Graph()
+        else:
+            self.graph = graph_obj
+
         if syntactic_filter is None:
             syntactic_filter = [
                 "JJ",
