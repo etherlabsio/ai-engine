@@ -1,4 +1,4 @@
-DOCKER_IMAGE=registry.gitlab.com/etherlabs/ether/keyphrase-server
+CONTAINER_IMAGE=registry.gitlab.com/etherlabs/ether/keyphrase-server
 ENV=staging
 
 SLACK_WEBHOOK_URL="https://hooks.slack.com/services/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"
@@ -26,9 +26,8 @@ deploy-staging2:
 			ENVIRONMENT=staging2 CLUSTER_NAME=ml-inference SERVICE_NAME=keyphrase-service AWS_PROFILE=staging2
 
 deploy-production:
-    $(MAKE) deploy_ecs ARTIFACT=keyphrase-server CONTAINER_TAG=latest CONTAINER_IMAGE=registry.gitlab.com/etherlabs/ether/keyphrase-server \
+	$(MAKE) deploy_ecs ARTIFACT=keyphrase-server CONTAINER_TAG=latest CONTAINER_IMAGE=registry.gitlab.com/etherlabs/ether/keyphrase-server \
 			ENVIRONMENT=production CLUSTER_NAME=ml-inference SERVICE_NAME=keyphrase-service AWS_PROFILE=default
-
 
 .PHONY: dependencies
 dependencies:
