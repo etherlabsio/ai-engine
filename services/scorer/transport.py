@@ -32,11 +32,13 @@ def decode_json_request(body) -> Request:
     return Request(mind_id, list(segments))
 
 
-def encode_aws_lambda_response(body: Response):
-    return {
-        "statusCode": 200,
-        "headers": {
-            "Content-Type": "application/json"
-        },
-        "body": json.dumps(asdict(body))
-    }
+class AWSLambdaTransport:
+    @staticmethod
+    def encode_response(body: Response):
+        return {
+            "statusCode": 200,
+            "headers": {
+                "Content-Type": "application/json"
+            },
+            "body": json.dumps(asdict(body))
+        }

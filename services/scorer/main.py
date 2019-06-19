@@ -3,7 +3,7 @@ from mind import AWSLambdaClient
 from dataclasses import dataclass, asdict
 from typing import List
 from scorer import TextSegment
-from transport import decode_json_request, Response, Request, encode_aws_lambda_response
+from transport import decode_json_request, Response, Request, AWSLambdaTransport
 
 SCORER = SentenceScorer(client=AWSLambdaClient())
 
@@ -13,4 +13,4 @@ def lambda_handler(event, context):
     mind_id = request.mind_id
     scores = map(lambda s: SCORER.score(mind_id, s), request.segments)
     resp = Response(scores)
-    return encode_aws_lambda_response(resp)
+    return AWSLambdaTransport.encode_response(resp)
