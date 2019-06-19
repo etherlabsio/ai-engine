@@ -1,25 +1,32 @@
 import json
-import logging
-from boto3 import client as boto3_client
+from dataclasses import dataclass
 import numpy as np
-from mind.response import MindResponse
 
 from boto3 import client as boto3_client
 from botocore.client import Config
 
-config = Config(
-    connect_timeout=60,
-    read_timeout=240,
-    retries={'max_attempts': 0},
-)
 
-logger = logging.getLogger()
+@dataclass
+class MindResponse:
+    feature_vector: np.array
+    mind_vector: np.array
+    nsp_scores: np.array
+
+
+def default_aws_lambda_client():
+    return boto3_client('scorer_lambda',
+                        config=Config(
+                            connect_timeout=60,
+                            read_timeout=240,
+                            retries={'max_attempts': 0},
+                        ))
 
 
 class AWSLambdaClient:
-    def __init__(self, aws=boto3_client('lambda', config=config)):
+    def __init__(self, aws=default_aws_lambda_client()):
         self.client = aws
 
+    @staticmethod
     def calculate(self, mind_id: str, text: str) -> MindResponse:
         req = json.dumps({"body": {"text": text}})
         invoke_response = self.client.invoke(FunctionName="mind-" +

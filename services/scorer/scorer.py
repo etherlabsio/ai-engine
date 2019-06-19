@@ -4,7 +4,7 @@ from numpy import dot
 from numpy.linalg import norm
 from dataclasses import dataclass
 from text import pre_process
-from mind.response import MindResponse
+from mind import MindResponse
 
 logger = logging.getLogger()
 
