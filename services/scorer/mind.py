@@ -26,7 +26,6 @@ class AWSLambdaClient:
     def __init__(self, aws=default_aws_lambda_client()):
         self.client = aws
 
-    @staticmethod
     def calculate(self, mind_id: str, text: str) -> MindResponse:
         req = json.dumps({"body": {"text": text}})
         invoke_response = self.client.invoke(FunctionName="mind-" +
