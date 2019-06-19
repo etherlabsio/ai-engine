@@ -95,7 +95,7 @@ class GraphUtils(object):
 
         Args:
             filename (str): Filename ending in `.pkl`, `.gpickle` or `.gz, .bz2`. Defaults to None
-            file_string (bytearray): Pickled bytes stream object
+            byte_string (str): Pickled bytes stream object
 
         Returns:
             graph_obj: Returns a NetworkX graph
