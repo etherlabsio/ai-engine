@@ -1,63 +1,16 @@
-import logging
-import json
 from scorer import SentenceScorer, Score
-from text import pre_process
-from mind.lambda_client import AWSLambdaClient
-from dataclasses import dataclass
+from mind import AWSLambdaClient
+from dataclasses import dataclass, asdict
 from typing import List
 from scorer import TextSegment
+from transport import decode_json_request, Response, Request, AWSLambdaTransport
 
-logger = logging.getLogger()
-
-
-@dataclass
-class Request:
-    mind_id: str
-    segments: List[TextSegment] = []
-
-
-def decode_request(body) -> Request:
-    if isinstance(body, str):
-        req = json.loads(body)
-    else:
-        req = body
-
-    def decode_segments(seg):
-        seg_id = seg['id']
-        text = seg["originalText"]
-        speaker = seg["spokenBy"]
-        return TextSegment(seg_id, text, speaker)
-
-    mind_id = str(req['mindId']).lower()
-    segments = map(req['segments'], decode_segments)
-    return Request(mind_id, list(segments))
+SCORER = SentenceScorer(client=AWSLambdaClient())
 
 
 def lambda_handler(event, context):
-    print("event['body']: ", event['body'])
-
-    client = AWSLambdaClient()
-    scorer = SentenceScorer(client)
-    request = decode_request(event['body'])
+    request = decode_json_request(event['body'])
     mind_id = request.mind_id
-
-    scores = map(lambda segment: scorer.score(mind_id, segment),
-                 request.segments)
-
-    return {
-        "statusCode":
-        200,
-        "headers": {
-            "Content-Type": "application/json"
-        },
-        "body":
-        json.dumps({
-            'd2vResult': [{
-                'text': transcript_text,
-                'distance': 1 / transcript_score,
-                'id': request.segments[0].id,
-                'conversationLength': 1000,
-                'speaker': request.segments[0].speaker,
-            }]
-        })
-    }
+    scores = map(lambda s: SCORER.score(mind_id, s), request.segments)
+    resp = Response(scores)
+    return AWSLambdaTransport.encode_response(resp)
