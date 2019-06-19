@@ -3,6 +3,7 @@ from mind import AWSLambdaClient
 from dataclasses import dataclass, asdict
 from typing import List
 from scorer import TextSegment
+from sentence_scorer import SentenceScorer
 from transport import decode_json_request, Response, Request, AWSLambdaTransport
 
 SCORER = SentenceScorer(client=AWSLambdaClient())
