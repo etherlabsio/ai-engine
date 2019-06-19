@@ -21,6 +21,7 @@ class KeyphraseExtractor(object):
         self.gr = GraphRank()
         self.tp = TextPreprocess()
         self.gutils = GraphUtils()
+        self.graph_obj_dict = {}
         self.meeting_graph = nx.Graph()
         self.syntactic_filter = [
             "JJ",
@@ -48,7 +49,8 @@ class KeyphraseExtractor(object):
 
         json_df_ts = pd.DataFrame(input_json["segments"], index=None)
         json_df_ts["id"] = json_df_ts["id"].astype(str)
-        json_df_ts["originalText"] = json_df_ts["originalText"].apply(lambda x: str(x))
+        json_df_ts["originalText"] = json_df_ts["originalText"].apply(
+            lambda x: str(x))
         json_df_ts["createdAt"] = json_df_ts["createdAt"].apply(
             lambda x: self.formatTime(x)
         )
@@ -64,6 +66,47 @@ class KeyphraseExtractor(object):
         json_df_ts = json_df_ts.sort_values(["createdAt"], ascending=[1])
 
         return json_df_ts
+
+    def get_graph_id(self, req_data):
+        context_id = req_data["contextId"]
+        instance_id = req_data["instanceId"]
+        graph_id = context_id + ":" + instance_id
+        return graph_id
+
+    def get_graph_instance_object(self, graph_id):
+        if graph_id in list(self.graph_obj_dict.keys()):
+            self.meeting_graph = self.graph_obj_dict.get(graph_id)
+        else:
+            logger.warning(
+                "Graph object does not exist",
+                extra={
+                    "graphId": self.meeting_graph.graph.get("graphId"),
+                    "graphServiceIdentifier": graph_id,
+                },
+            )
+
+        if self.meeting_graph.graph.get("graphId") is None:
+            logger.warning(
+                "Null graphId",
+                extra={
+                    "graphId": self.meeting_graph.graph.get("graphId"),
+                    "graphServiceIdentifier": graph_id,
+                },
+            )
+
+    def initialize_meeting_graph(self, req_data):
+        graph_id = self.get_graph_id(req_data=req_data)
+        self.graph_obj_dict[graph_id] = nx.Graph(graphId=graph_id)
+
+        # Set the current instance as the active one
+        self.get_graph_instance_object(graph_id=graph_id)
+        logger.info(
+            "Meeting graph intialized and updated",
+            extra={
+                "currentGraphObjectList": list(self.graph_obj_dict.keys()),
+                "currentGraphId": self.meeting_graph.graph.get("graphId"),
+            },
+        )
 
     def sort_by_value(self, item_list, order="desc"):
         """
@@ -83,11 +126,6 @@ class KeyphraseExtractor(object):
 
         return sorted_list
 
-    def initialize_meeting_graph(self, context_id, instance_id):
-        self.meeting_graph = nx.Graph(
-            context_instance_id=instance_id, context_id=context_id
-        )
-
     def read_segments(self, segment_df, node_attrs=False):
         text_list = []
         attrs = {
@@ -106,8 +144,10 @@ class KeyphraseExtractor(object):
                 attrs["spokenBy"].append(segment_df.iloc[i].get("spokenBy"))
                 attrs["id"].append(segment_df.iloc[i].get("id"))
                 attrs["createdAt"].append(segment_df.iloc[i].get("createdAt"))
-                attrs["recordingId"].append(segment_df.iloc[i].get("recordingId"))
-                attrs["transcriber"].append(segment_df.iloc[i].get("transcriber"))
+                attrs["recordingId"].append(
+                    segment_df.iloc[i].get("recordingId"))
+                attrs["transcriber"].append(
+                    segment_df.iloc[i].get("transcriber"))
             else:
                 attrs = None
         return text_list, attrs
@@ -126,6 +166,7 @@ class KeyphraseExtractor(object):
 
     def build_custom_graph(
         self,
+        graph,
         text_list,
         attrs,
         window=4,
@@ -137,8 +178,10 @@ class KeyphraseExtractor(object):
         for i in range(len(text_list)):
             text = text_list[i]
 
-            original_tokens, pos_tuple, filtered_pos_tuple = self.process_text(text)
-            self.meeting_graph = self.gr.build_word_graph(
+            original_tokens, pos_tuple, filtered_pos_tuple = self.process_text(
+                text)
+            graph = self.gr.build_word_graph(
+                graph_obj=graph,
                 input_pos_text=pos_tuple,
                 window=window,
                 syntactic_filter=syntactic_filter,
@@ -175,7 +218,8 @@ class KeyphraseExtractor(object):
         return keyphrases
 
     def get_entities(self, input_segment):
-        spacy_list = ["PRODUCT", "EVENT", "LOC", "ORG", "PERSON", "WORK_OF_ART"]
+        spacy_list = ["PRODUCT", "EVENT", "LOC",
+                      "ORG", "PERSON", "WORK_OF_ART"]
         comprehend_list = [
             "COMMERCIAL_ITEM",
             "EVENT",
@@ -229,16 +273,18 @@ class KeyphraseExtractor(object):
         input_segment = input_json["segments"][0].get("originalText")
 
         for word, score in keyphrase_list:
-            loc = input_segment.lower().find(word)
+            loc = input_segment.find(word)
             if loc > -1:
                 cleaned_keyphrase_list.append((word, score))
 
-        sorted_keyphrase_list = self.sort_by_value(cleaned_keyphrase_list, order="desc")
+        sorted_keyphrase_list = self.sort_by_value(
+            cleaned_keyphrase_list, order="desc")
         if top_n is not None:
             sorted_keyphrase_list = sorted_keyphrase_list[:top_n]
 
         segment_entity = self.get_entities(input_segment)
-        segment_keyword_list = [words for words, score in sorted_keyphrase_list]
+        segment_keyword_list = [words for words,
+                                score in sorted_keyphrase_list]
 
         processed_entities, multiphrase_list = self.post_process_output(
             entity_list=segment_entity,
@@ -281,7 +327,7 @@ class KeyphraseExtractor(object):
         segments = input_json["segments"]
         for i in range(len(segments)):
             entity_segment = segments[i].get("originalText")
-            input_segment = segments[i].get("originalText").lower()
+            input_segment = segments[i].get("originalText")
 
             # Get chapter entities
             entities = self.get_entities(entity_segment)
@@ -293,11 +339,13 @@ class KeyphraseExtractor(object):
                 if loc > -1:
                     cleaned_keyphrase_list.append((word, score))
 
-        sorted_keyphrase_list = self.sort_by_value(cleaned_keyphrase_list, order="desc")
+        sorted_keyphrase_list = self.sort_by_value(
+            cleaned_keyphrase_list, order="desc")
         if top_n is not None:
             sorted_keyphrase_list = sorted_keyphrase_list[:top_n]
 
-        chapter_keyphrases = [phrases for phrases, score in sorted_keyphrase_list]
+        chapter_keyphrases = [phrases for phrases,
+                              score in sorted_keyphrase_list]
 
         processed_entities, multiphrase_list = self.post_process_output(
             entity_list=chapter_entities,
@@ -342,7 +390,7 @@ class KeyphraseExtractor(object):
 
         for i in range(len(segments)):
             entity_segment = segments[i].get("originalText")
-            input_segment = segments[i].get("originalText").lower()
+            input_segment = segments[i].get("originalText")
 
             # Set offset time for every keywords
             start_time = segments[i].get("startTime")
@@ -354,7 +402,8 @@ class KeyphraseExtractor(object):
                     chapter_keywords_list.append(({kw: offset_time}, score))
 
             entities = self.get_entities(entity_segment)
-            chapter_entities.extend([{entity: offset_time} for entity in entities])
+            chapter_entities.extend([{entity: offset_time}
+                                     for entity in entities])
 
         chapter_entities_list = [
             entities for ent in chapter_entities for entities, off in ent.items()
@@ -370,13 +419,14 @@ class KeyphraseExtractor(object):
         chapter_entities_list = list(dict.fromkeys(chapter_entities_list))
 
         # Post-process entities
-        chapter_entities_list = self.post_process_entities(chapter_entities_list)
+        chapter_entities_list = self.post_process_entities(
+            chapter_entities_list)
 
         # Remove the first occurrence of entity in the list of keyphrases
         for entities in chapter_entities_list:
             for i, keyphrase_dict in enumerate(chapter_keyphrases):
                 for keyphrase in keyphrase_dict.keys():
-                    if keyphrase in entities.lower():
+                    if keyphrase in entities:
                         del chapter_keyphrases[i]
 
         # Place the single keywords in the end of the list.
@@ -428,7 +478,7 @@ class KeyphraseExtractor(object):
         # Remove the first occurrence of entity in the list of keyphrases
         for entities in distinct_entities:
             for keyphrase in distinct_keyword_list:
-                if keyphrase in entities.lower():
+                if keyphrase in entities:
                     distinct_keyword_list.remove(keyphrase)
 
         # Place the single keywords in the end of the list.
@@ -448,7 +498,8 @@ class KeyphraseExtractor(object):
         processed_entities = []
 
         # Remove duplicates from the single phrases which are occurring in multi-keyphrases
-        multi_phrases = [phrases for phrases in entity_list if len(phrases.split()) > 1]
+        multi_phrases = [
+            phrases for phrases in entity_list if len(phrases.split()) > 1]
         single_phrase = [
             phrases for phrases in entity_list if len(phrases.split()) == 1
         ]
@@ -458,8 +509,7 @@ class KeyphraseExtractor(object):
                 if r > -1:
                     try:
                         single_phrase.remove(kw)
-                    except Exception as e:
-                        logger.warning("entity not found", extra={"warning": e})
+                    except:
                         continue
 
         # Remove same word occurrences in a multi-keyphrase
@@ -478,7 +528,7 @@ class KeyphraseExtractor(object):
             if len(tmp_entitites) < 4:
                 try:
                     processed_entities.remove(entities)
-                except Exception as e:
+                except:
                     continue
 
         return processed_entities
@@ -486,13 +536,19 @@ class KeyphraseExtractor(object):
     def populate_word_graph(self, req_data, add_context=False):
         start = timer()
         segment_df = self.reformat_input(req_data)
+        graph_id = self.get_graph_id(req_data=req_data)
+
+        self.get_graph_instance_object(graph_id=graph_id)
 
         try:
             text_list, attrs = self.read_segments(
                 segment_df=segment_df, node_attrs=False
             )
             self.build_custom_graph(
-                text_list=text_list, attrs=attrs, add_context=add_context
+                text_list=text_list,
+                attrs=attrs,
+                add_context=add_context,
+                graph=self.meeting_graph,
             )
         except Exception as e:
             end = timer()
@@ -510,6 +566,8 @@ class KeyphraseExtractor(object):
         logger.info(
             "Populating graph",
             extra={
+                "graphId": self.meeting_graph.graph.get("graphId"),
+                "graphServiceIdentifier": graph_id,
                 "nodes": self.meeting_graph.number_of_nodes(),
                 "edges": self.meeting_graph.number_of_edges(),
                 "instanceId": req_data["instanceId"],
@@ -518,16 +576,21 @@ class KeyphraseExtractor(object):
         )
 
     def compute_keyphrases(self, req_data):
-        segment_df = self.reformat_input(req_data)
+        # Select the right graph Id to extract keyphrases
+        graph_id = self.get_graph_id(req_data=req_data)
+        self.get_graph_instance_object(graph_id=graph_id)
 
-        text_list, attrs = self.read_segments(segment_df=segment_df, node_attrs=False)
+        segment_df = self.reformat_input(req_data)
+        text_list, attrs = self.read_segments(
+            segment_df=segment_df, node_attrs=False)
         keyphrase_list = []
         descriptive_keyphrase_list = []
         try:
             for i in range(len(text_list)):
                 text = text_list[i]
 
-                original_tokens, pos_tuple, filtered_pos_tuple = self.process_text(text)
+                original_tokens, pos_tuple, filtered_pos_tuple = self.process_text(
+                    text)
 
                 keyphrase_list.extend(
                     self.get_custom_keyphrases(
@@ -565,7 +628,8 @@ class KeyphraseExtractor(object):
 
     def _get_pim_keyphrases(self, req_data, n_kw=10, default_form="original"):
         start = timer()
-        keyphrase_list, descriptive_kp = self.compute_keyphrases(req_data=req_data)
+        keyphrase_list, descriptive_kp = self.compute_keyphrases(
+            req_data=req_data)
 
         segment_keyphrases = self.extract_pim_words(
             input_json=req_data, keyphrase_list=keyphrase_list, top_n=n_kw
@@ -604,7 +668,8 @@ class KeyphraseExtractor(object):
 
     def _get_chapter_keyphrases(self, req_data, n_kw=10, default_form="original"):
         start = timer()
-        keyphrase_list, descriptive_kp = self.compute_keyphrases(req_data=req_data)
+        keyphrase_list, descriptive_kp = self.compute_keyphrases(
+            req_data=req_data)
 
         chapter_keyphrases = self.extract_chapter_words(
             input_json=req_data, keyphrase_list=keyphrase_list, top_n=n_kw
@@ -645,11 +710,8 @@ class KeyphraseExtractor(object):
         start = timer()
         segments_array = req_data["segments"]
 
-        logger.info("Re-populating word graph on google segments")
-        if segments_array[0].get("transcriber") == "google_speech_api":
-            self.populate_word_graph(req_data, add_context=False)
-        else:
-            self.populate_word_graph(req_data, add_context=False)
+        # Re-populate graph in case google transcripts are present
+        self.populate_word_graph(req_data, add_context=False)
 
         keyphrases = []
         try:
@@ -694,14 +756,14 @@ class KeyphraseExtractor(object):
         logger.info(
             "Re-populating word graph on google segments for chapter offset phrases"
         )
-        if req_data["segments"][0].get("transcriber") == "google_speech_api":
-            self.populate_word_graph(req_data, add_context=False)
-        else:
-            self.populate_word_graph(req_data, add_context=False)
+
+        # Re-populate graph for google transcripts
+        self.populate_word_graph(req_data, add_context=False)
 
         keyphrase_list, descriptive_kp = self.compute_keyphrases(req_data)
 
-        relative_time = self.formatTime(req_data["relativeTime"], datetime_object=True)
+        relative_time = self.formatTime(
+            req_data["relativeTime"], datetime_object=True)
         chapter_keyphrases = []
         chapter_desc_keyphrases = []
 
@@ -751,6 +813,11 @@ class KeyphraseExtractor(object):
 
     def reset_keyphrase_graph(self, req_data):
         start = timer()
+        graph_id = self.get_graph_id(req_data=req_data)
+        self.get_graph_instance_object(graph_id=graph_id)
+
+        deleted_graph = self.graph_obj_dict.pop(graph_id)
+        deleted_graph_id = deleted_graph.graph.get("graphId")
 
         self.gr.reset_graph()
         self.meeting_graph.clear()
@@ -758,6 +825,9 @@ class KeyphraseExtractor(object):
         logger.info(
             "Post-reset: Graph info",
             extra={
+                "deletedGraphId": deleted_graph_id,
+                "currentGraphObjectList": list(self.graph_obj_dict.keys()),
+                "numOfGraphInstances": len(self.graph_obj_dict),
                 "nodes": self.meeting_graph.number_of_nodes(),
                 "edges": self.meeting_graph.number_of_edges(),
                 "responseTime": end - start,
