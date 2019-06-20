@@ -1,6 +1,6 @@
 import os
 import logging
-from boto3 import client
+from boto3 import client, session
 
 logger = logging.getLogger(__name__)
 
@@ -10,29 +10,32 @@ class S3Manager(object):
     Common class for performing operations on S3
     """
 
-    bucket_name = "defaultbucket"
-
     def __init__(self, *args, **kwargs):
-        region = kwargs.get("region_name", "us-east-1")
-        self.bucket_name = kwargs.get("bucket_name", self.bucket_name)
-        self.conn = client("s3", region_name=region)
+        self.profile_name = kwargs.get("profile_name")
+        self.bucket_name = kwargs.get("bucket_name")
 
-    def upload_to_s3(self, file_name, path=None):
+        self.s3_session = session.Session(profile_name=self.profile_name)
+        self.conn = self.s3_session.client("s3")
+
+    def upload_to_s3(self, object_name, file_name=None):
         """
         Upload given file to s3.
         Args:
+            object_name:
             file_name:
-            path:
 
         Returns:
 
         """
         s3_client = self.conn
-        if path:
-            full_path = os.path.join(path, file_name)
-        else:
-            full_path = file_name
-        s3_client.upload_file(file_name, self.bucket_name, full_path.split("tmp/")[-1])
+
+        if file_name is None:
+            file_name = object_name
+
+        try:
+            s3_client.upload_file(file_name, self.bucket_name, object_name)
+        except Exception as e:
+            logger.error("s3 upload failed", extra={"err": e})
 
     def upload_object(self, body, s3_key):
         """
@@ -45,17 +48,24 @@ class S3Manager(object):
 
         """
         s3_client = self.conn
-        return s3_client.put_object(Body=body, Key=s3_key)
+        try:
+            s3_client.put_object(Body=body, Key=s3_key, Bucket=self.bucket_name)
+        except Exception as e:
+            logger.error("s3 upload failed", extra={"err": e})
 
-    def download_file(self, file_name):
+        return
+
+    def download_file(self, file_name, download_dir=None):
         """
         Download a file given s3 prefix
         inside /tmp directory.
         Args:
-            file_name:
+            download_dir: Defaults to None. Specify if need to download the file to disk
+            file_name: Points to the object name in S3 bucket
 
         Returns:
-            Returns the download file path
+            file_obj (byte_string): Returns the download file object if `download_dir` is not specified.
+            file_name (str): Download path if `download_dir` is specified
         """
         s3_client = self.conn
         file_name = file_name.split("tmp/")[-1]
@@ -63,17 +73,31 @@ class S3Manager(object):
         file_name_only = file_name.split("/")[-1]
         file_name_only_len = len(file_name_only)
         file_name_len = len(file_name)
-        file_dir = "/tmp/" + file_name[0 : file_name_len - file_name_only_len]
-        if not os.path.exists(file_dir):
-            os.makedirs(file_dir)
-        try:
-            s3_client.download_file(self.bucket_name, file_name, "/tmp/" + file_name)
-            return file_name
-        except Exception as e:
-            logger.error(
-                "Cannot download file", extra={"err": e, "fileName": file_name}
-            )
-            return
+
+        if download_dir is None:
+            # Download the file as an object
+            try:
+                file_obj = s3_client.get_object(Bucket=self.bucket_name, Key=file_name)
+                return file_obj
+            except Exception as e:
+                logger.error(
+                    "Cannot download file", extra={"err": e, "fileName": file_name}
+                )
+                return
+        else:
+            file_dir = download_dir + file_name[0 : file_name_len - file_name_only_len]
+            if not os.path.exists(file_dir):
+                os.makedirs(file_dir)
+            try:
+                s3_client.download_file(
+                    self.bucket_name, file_name, download_dir + file_name
+                )
+                return file_name
+            except Exception as e:
+                logger.error(
+                    "Cannot download file", extra={"err": e, "fileName": file_name}
+                )
+                return
 
     def get_s3_results(self, dir_name):
         """

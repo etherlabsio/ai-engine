@@ -21,11 +21,12 @@ if __name__ == "__main__":
 
     active_env = getenv("ACTIVE_ENV", "development")
     nats_url = getenv("NATS_URL", "nats://localhost:4222")
-    graph_bucket = getenv("S3_BUCKET", "default_bucket")
+    bucket_store = getenv("STORAGE_BUCKET", "io.etherlabs.staging2.contexts")
+
     asyncio.set_event_loop_policy(uvloop.EventLoopPolicy())
     loop = asyncio.get_event_loop()
 
-    s3_client = S3Manager(bucket_name=graph_bucket)
+    s3_client = S3Manager(bucket_name=bucket_store)
     keyphrase_extractor = KeyphraseExtractor(s3_client=s3_client)
 
     nats_manager = Manager(
