@@ -3,6 +3,10 @@ import logging
 from boto3 import client, session
 
 logger = logging.getLogger(__name__)
+logging.getLogger("boto3").setLevel(logging.CRITICAL)
+logging.getLogger("botocore").setLevel(logging.CRITICAL)
+logging.getLogger("s3transfer").setLevel(logging.CRITICAL)
+logging.getLogger("urllib3").setLevel(logging.CRITICAL)
 
 
 class S3Manager(object):
@@ -50,10 +54,10 @@ class S3Manager(object):
         s3_client = self.conn
         try:
             s3_client.put_object(Body=body, Key=s3_key, Bucket=self.bucket_name)
+            return True
         except Exception as e:
             logger.error("s3 upload failed", extra={"err": e})
-
-        return
+            return False
 
     def download_file(self, file_name, download_dir=None):
         """

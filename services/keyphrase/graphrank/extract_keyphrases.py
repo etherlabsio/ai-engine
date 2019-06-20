@@ -837,12 +837,20 @@ class KeyphraseExtractor(object):
             serialized_graph_string = self.gutils.write_to_pickle(graph_obj=graph_obj)
             s3_key = str(context_id) + "/keyphrase-graphs/" + graph_id
 
-            self.s3_client.upload_object(body=serialized_graph_string, s3_key=s3_key)
-            logger.info(
-                "Uploaded graph object to s3",
-                extra={"graphId": graph_obj.graph.get("graphId"), "fileName": s3_key},
+            resp = self.s3_client.upload_object(
+                body=serialized_graph_string, s3_key=s3_key
             )
-            return True
+            if resp:
+                logger.info(
+                    "Uploaded graph object to s3",
+                    extra={
+                        "graphId": graph_obj.graph.get("graphId"),
+                        "fileName": s3_key,
+                    },
+                )
+                return True
+            else:
+                return False
         else:
             logger.error(
                 "graphId and context info not matching",
