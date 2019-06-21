@@ -50,7 +50,8 @@ class KeyphraseExtractor(object):
 
         json_df_ts = pd.DataFrame(input_json["segments"], index=None)
         json_df_ts["id"] = json_df_ts["id"].astype(str)
-        json_df_ts["originalText"] = json_df_ts["originalText"].apply(lambda x: str(x))
+        json_df_ts["originalText"] = json_df_ts["originalText"].apply(
+            lambda x: str(x))
         json_df_ts["createdAt"] = json_df_ts["createdAt"].apply(
             lambda x: self.formatTime(x)
         )
@@ -144,8 +145,10 @@ class KeyphraseExtractor(object):
                 attrs["spokenBy"].append(segment_df.iloc[i].get("spokenBy"))
                 attrs["id"].append(segment_df.iloc[i].get("id"))
                 attrs["createdAt"].append(segment_df.iloc[i].get("createdAt"))
-                attrs["recordingId"].append(segment_df.iloc[i].get("recordingId"))
-                attrs["transcriber"].append(segment_df.iloc[i].get("transcriber"))
+                attrs["recordingId"].append(
+                    segment_df.iloc[i].get("recordingId"))
+                attrs["transcriber"].append(
+                    segment_df.iloc[i].get("transcriber"))
             else:
                 attrs = None
         return text_list, attrs
@@ -176,7 +179,8 @@ class KeyphraseExtractor(object):
         for i in range(len(text_list)):
             text = text_list[i]
 
-            original_tokens, pos_tuple, filtered_pos_tuple = self.process_text(text)
+            original_tokens, pos_tuple, filtered_pos_tuple = self.process_text(
+                text)
             graph = self.gr.build_word_graph(
                 graph_obj=graph,
                 input_pos_text=pos_tuple,
@@ -215,7 +219,8 @@ class KeyphraseExtractor(object):
         return keyphrases
 
     def get_entities(self, input_segment):
-        spacy_list = ["PRODUCT", "EVENT", "LOC", "ORG", "PERSON", "WORK_OF_ART"]
+        spacy_list = ["PRODUCT", "EVENT", "LOC",
+                      "ORG", "PERSON", "WORK_OF_ART"]
         comprehend_list = [
             "COMMERCIAL_ITEM",
             "EVENT",
@@ -273,12 +278,14 @@ class KeyphraseExtractor(object):
             if loc > -1:
                 cleaned_keyphrase_list.append((word, score))
 
-        sorted_keyphrase_list = self.sort_by_value(cleaned_keyphrase_list, order="desc")
+        sorted_keyphrase_list = self.sort_by_value(
+            cleaned_keyphrase_list, order="desc")
         if top_n is not None:
             sorted_keyphrase_list = sorted_keyphrase_list[:top_n]
 
         segment_entity = self.get_entities(input_segment)
-        segment_keyword_list = [words for words, score in sorted_keyphrase_list]
+        segment_keyword_list = [words for words,
+                                score in sorted_keyphrase_list]
 
         processed_entities, multiphrase_list = self.post_process_output(
             entity_list=segment_entity,
@@ -333,11 +340,13 @@ class KeyphraseExtractor(object):
                 if loc > -1:
                     cleaned_keyphrase_list.append((word, score))
 
-        sorted_keyphrase_list = self.sort_by_value(cleaned_keyphrase_list, order="desc")
+        sorted_keyphrase_list = self.sort_by_value(
+            cleaned_keyphrase_list, order="desc")
         if top_n is not None:
             sorted_keyphrase_list = sorted_keyphrase_list[:top_n]
 
-        chapter_keyphrases = [phrases for phrases, score in sorted_keyphrase_list]
+        chapter_keyphrases = [phrases for phrases,
+                              score in sorted_keyphrase_list]
 
         processed_entities, multiphrase_list = self.post_process_output(
             entity_list=chapter_entities,
@@ -394,7 +403,8 @@ class KeyphraseExtractor(object):
                     chapter_keywords_list.append(({kw: offset_time}, score))
 
             entities = self.get_entities(entity_segment)
-            chapter_entities.extend([{entity: offset_time} for entity in entities])
+            chapter_entities.extend([{entity: offset_time}
+                                     for entity in entities])
 
         chapter_entities_list = [
             entities for ent in chapter_entities for entities, off in ent.items()
@@ -410,7 +420,8 @@ class KeyphraseExtractor(object):
         chapter_entities_list = list(dict.fromkeys(chapter_entities_list))
 
         # Post-process entities
-        chapter_entities_list = self.post_process_entities(chapter_entities_list)
+        chapter_entities_list = self.post_process_entities(
+            chapter_entities_list)
 
         # Remove the first occurrence of entity in the list of keyphrases
         for entities in chapter_entities_list:
@@ -488,7 +499,8 @@ class KeyphraseExtractor(object):
         processed_entities = []
 
         # Remove duplicates from the single phrases which are occurring in multi-keyphrases
-        multi_phrases = [phrases for phrases in entity_list if len(phrases.split()) > 1]
+        multi_phrases = [
+            phrases for phrases in entity_list if len(phrases.split()) > 1]
         single_phrase = [
             phrases for phrases in entity_list if len(phrases.split()) == 1
         ]
@@ -570,14 +582,16 @@ class KeyphraseExtractor(object):
         self.get_graph_instance_object(graph_id=graph_id)
 
         segment_df = self.reformat_input(req_data)
-        text_list, attrs = self.read_segments(segment_df=segment_df, node_attrs=False)
+        text_list, attrs = self.read_segments(
+            segment_df=segment_df, node_attrs=False)
         keyphrase_list = []
         descriptive_keyphrase_list = []
         try:
             for i in range(len(text_list)):
                 text = text_list[i]
 
-                original_tokens, pos_tuple, filtered_pos_tuple = self.process_text(text)
+                original_tokens, pos_tuple, filtered_pos_tuple = self.process_text(
+                    text)
 
                 keyphrase_list.extend(
                     self.get_custom_keyphrases(
@@ -615,7 +629,8 @@ class KeyphraseExtractor(object):
 
     def _get_pim_keyphrases(self, req_data, n_kw=10, default_form="original"):
         start = timer()
-        keyphrase_list, descriptive_kp = self.compute_keyphrases(req_data=req_data)
+        keyphrase_list, descriptive_kp = self.compute_keyphrases(
+            req_data=req_data)
 
         segment_keyphrases = self.extract_pim_words(
             input_json=req_data, keyphrase_list=keyphrase_list, top_n=n_kw
@@ -654,7 +669,8 @@ class KeyphraseExtractor(object):
 
     def _get_chapter_keyphrases(self, req_data, n_kw=10, default_form="original"):
         start = timer()
-        keyphrase_list, descriptive_kp = self.compute_keyphrases(req_data=req_data)
+        keyphrase_list, descriptive_kp = self.compute_keyphrases(
+            req_data=req_data)
 
         chapter_keyphrases = self.extract_chapter_words(
             input_json=req_data, keyphrase_list=keyphrase_list, top_n=n_kw
@@ -747,7 +763,8 @@ class KeyphraseExtractor(object):
 
         keyphrase_list, descriptive_kp = self.compute_keyphrases(req_data)
 
-        relative_time = self.formatTime(req_data["relativeTime"], datetime_object=True)
+        relative_time = self.formatTime(
+            req_data["relativeTime"], datetime_object=True)
         chapter_keyphrases = []
         chapter_desc_keyphrases = []
 
@@ -834,7 +851,8 @@ class KeyphraseExtractor(object):
         instance_id = graph_id.split(":")[1]
 
         if graph_id == context_id + ":" + instance_id:
-            serialized_graph_string = self.gutils.write_to_pickle(graph_obj=graph_obj)
+            serialized_graph_string = self.gutils.write_to_pickle(
+                graph_obj=graph_obj)
             s3_key = str(context_id) + "/keyphrase-graphs/" + graph_id
 
             resp = self.s3_client.upload_object(
@@ -868,7 +886,8 @@ class KeyphraseExtractor(object):
         file_obj = self.s3_client.download_file(file_name=s3_path)
         file_obj_bytestring = file_obj["Body"].read()
 
-        graph_obj = self.gutils.load_graph_from_pickle(byte_string=file_obj_bytestring)
+        graph_obj = self.gutils.load_graph_from_pickle(
+            byte_string=file_obj_bytestring)
 
         logger.info(
             "Downloaded graph object from s3",
