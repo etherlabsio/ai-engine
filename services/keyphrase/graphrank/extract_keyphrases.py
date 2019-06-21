@@ -23,7 +23,7 @@ class KeyphraseExtractor(object):
         self.tp = TextPreprocess()
         self.gutils = GraphUtils()
         self.graph_obj_dict = {}
-        self.meeting_graph = nx.Graph()
+        self.meeting_graph = nx.Graph(graphId="undefined")
         self.syntactic_filter = [
             "JJ",
             "JJR",
@@ -76,6 +76,14 @@ class KeyphraseExtractor(object):
     def get_graph_instance_object(self, graph_id):
         if graph_id in list(self.graph_obj_dict.keys()):
             self.meeting_graph = self.graph_obj_dict.get(graph_id)
+
+            logger.info(
+                "assigned graph object to meeting",
+                extra={
+                    "graphId": self.meeting_graph.graph.get("graphId"),
+                    "graphServiceIdentifier": graph_id,
+                },
+            )
         else:
             logger.warning(
                 "Graph object does not exist",
