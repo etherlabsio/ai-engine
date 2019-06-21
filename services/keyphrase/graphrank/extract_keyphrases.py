@@ -15,7 +15,8 @@ logger = logging.getLogger(__name__)
 
 
 class KeyphraseExtractor(object):
-    def __init__(self):
+    def __init__(self, s3_client=None):
+        self.s3_client = s3_client
         self.stop_words = list(STOP_WORDS)
         self.nlp = spacy.load("vendor/en_core_web_sm/en_core_web_sm-2.1.0")
         self.gr = GraphRank()
@@ -802,6 +803,12 @@ class KeyphraseExtractor(object):
         deleted_graph = self.graph_obj_dict.pop(graph_id)
         deleted_graph_id = deleted_graph.graph.get("graphId")
 
+        # Upload the graph object to s3 before resetting it
+        logger.info("starting upload session")
+        success = self.upload_s3(graph_obj=deleted_graph)
+        if success:
+            logger.info("Upload completed")
+
         self.gr.reset_graph()
         self.meeting_graph.clear()
         end = timer()
@@ -818,3 +825,58 @@ class KeyphraseExtractor(object):
         )
 
         return {"result": "done", "message": "reset successful"}
+
+    # S3 storage utility functions
+
+    def upload_s3(self, graph_obj):
+        graph_id = graph_obj.graph.get("graphId")
+        context_id = graph_id.split(":")[0]
+        instance_id = graph_id.split(":")[1]
+
+        if graph_id == context_id + ":" + instance_id:
+            serialized_graph_string = self.gutils.write_to_pickle(graph_obj=graph_obj)
+            s3_key = str(context_id) + "/keyphrase-graphs/" + graph_id
+
+            resp = self.s3_client.upload_object(
+                body=serialized_graph_string, s3_key=s3_key
+            )
+            if resp:
+                logger.info(
+                    "Uploaded graph object to s3",
+                    extra={
+                        "graphId": graph_obj.graph.get("graphId"),
+                        "fileName": s3_key,
+                    },
+                )
+                return True
+            else:
+                return False
+        else:
+            logger.error(
+                "graphId and context info not matching",
+                extra={
+                    "graphId": graph_id,
+                    "contextInfo": context_id + ":" + instance_id,
+                },
+            )
+            return False
+
+    def download_s3(self, context_id, instance_id):
+        graph_id = context_id + ":" + instance_id
+        s3_path = str(context_id) + "/keyphrase-graphs/" + graph_id
+
+        file_obj = self.s3_client.download_file(file_name=s3_path)
+        file_obj_bytestring = file_obj["Body"].read()
+
+        graph_obj = self.gutils.load_graph_from_pickle(byte_string=file_obj_bytestring)
+
+        logger.info(
+            "Downloaded graph object from s3",
+            extra={
+                "graphId": graph_obj.graph.get("graphId"),
+                "nodes": graph_obj.number_of_nodes(),
+                "edges": graph_obj.number_of_edges(),
+            },
+        )
+
+        return graph_obj

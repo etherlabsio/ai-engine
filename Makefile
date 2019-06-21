@@ -1,4 +1,4 @@
-DOCKER_IMAGE=registry.gitlab.com/etherlabs/ether/keyphrase-server
+CONTAINER_IMAGE=registry.gitlab.com/etherlabs/ether/keyphrase-server
 ENV=staging
 
 SLACK_WEBHOOK_URL="https://hooks.slack.com/services/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"
@@ -26,9 +26,8 @@ deploy-staging2:
 			ENVIRONMENT=staging2 CLUSTER_NAME=ml-inference SERVICE_NAME=keyphrase-service AWS_PROFILE=staging2
 
 deploy-production:
-    $(MAKE) deploy_ecs ARTIFACT=keyphrase-server CONTAINER_TAG=latest CONTAINER_IMAGE=registry.gitlab.com/etherlabs/ether/keyphrase-server \
+	$(MAKE) deploy_ecs ARTIFACT=keyphrase-server CONTAINER_TAG=latest CONTAINER_IMAGE=registry.gitlab.com/etherlabs/ether/keyphrase-server \
 			ENVIRONMENT=production CLUSTER_NAME=ml-inference SERVICE_NAME=keyphrase-service AWS_PROFILE=default
-
 
 .PHONY: dependencies
 dependencies:
@@ -40,18 +39,18 @@ version:
 
 .PHONY: staging
 staging: version
-	sudo docker build -t ${DOCKER_IMAGE}:staging . --build-arg app=${app}
-	docker push ${DOCKER_IMAGE}:staging
+	sudo docker build -t ${CONTAINER_IMAGE}:staging . --build-arg app=${app}
+	docker push ${CONTAINER_IMAGE}:staging
 
 .PHONY: staging2
 staging2: version
-	sudo docker build -t ${DOCKER_IMAGE}:staging2 . --build-arg app=${app}
-	docker push ${DOCKER_IMAGE}:staging2
+	sudo docker build -t ${CONTAINER_IMAGE}:staging2 . --build-arg app=${app}
+	docker push ${CONTAINER_IMAGE}:staging2
 
 .PHONY: production
 production: version
-	sudo docker build -t ${DOCKER_IMAGE} . --build-arg app=${app}
-	docker push ${DOCKER_IMAGE}
+	sudo docker build -t ${CONTAINER_IMAGE} . --build-arg app=${app}
+	docker push ${CONTAINER_IMAGE}
 
 .PHONY: clean
 clean:

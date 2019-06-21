@@ -4,7 +4,6 @@ textblob==0.15.1
 tornado
 langdetect==1.0.7
 six==1.11.0
-structlog
 pydgraph
 pandas
 iso8601
@@ -15,3 +14,4 @@ python-dotenv
 python_version==3.7
 uvloop
 python-json-logger
+boto3
