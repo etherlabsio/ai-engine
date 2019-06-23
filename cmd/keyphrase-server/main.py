@@ -30,7 +30,7 @@ if __name__ == "__main__":
     keyphrase_extractor = KeyphraseExtractor(s3_client=s3_client)
 
     nats_manager = Manager(
-        loop=loop, url=nats_url, queue_name="io.etherlabs.keyphrase.ether_service"
+        loop=loop, url=nats_url, queue_name="io.etherlabs.keyphrase_service"
     )
     nats_transport = NATSTransport(
         nats_manager=nats_manager, keyphrase_service=keyphrase_extractor
