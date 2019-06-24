@@ -134,8 +134,9 @@ class NATSTransport(object):
     async def extract_segment_keyphrases(self, msg):
         start = timer()
         request = json.loads(msg.data)
+        limit = request["limit"]
 
-        output = self.keyphrase_service.get_keyphrases(request)
+        output = self.keyphrase_service.get_keyphrases(request, n_kw=limit)
         end = timer()
 
         deadline_time = end - start
@@ -146,7 +147,7 @@ class NATSTransport(object):
         else:
             timeout_msg = ""
 
-        if len(request["segments"]) > 1:
+        if limit == 6:
             logger.info(
                 "Publishing chapter keyphrases" + timeout_msg,
                 extra={
@@ -156,6 +157,7 @@ class NATSTransport(object):
                     "chapterKeyphraseList": output,
                     "instanceId": request["instanceId"],
                     "numOfSegments": len(request["segments"]),
+                    "limit": limit,
                     "responseTime": end - start,
                     "requestReceived": request,
                 },
@@ -170,6 +172,7 @@ class NATSTransport(object):
                     "pimKeyphraseList": output,
                     "instanceId": request["instanceId"],
                     "numOfSegments": len(request["segments"]),
+                    "limit": limit,
                     "responseTime": end - start,
                     "requestReceived": request,
                 },
@@ -179,7 +182,8 @@ class NATSTransport(object):
     async def extract_instance_keyphrases(self, msg):
         start = timer()
         request = json.loads(msg.data)
-        output = self.keyphrase_service.get_instance_keyphrases(request)
+        limit = request["limit"]
+        output = self.keyphrase_service.get_instance_keyphrases(request, n_kw=limit)
         end = timer()
 
         deadline_time = end - start
@@ -197,6 +201,7 @@ class NATSTransport(object):
                 "instanceList": output,
                 "instanceId": request["instanceId"],
                 "numOfSegments": len(request["segments"]),
+                "limit": limit,
                 "responseTime": end - start,
                 "requestReceived": request,
             },
@@ -206,7 +211,8 @@ class NATSTransport(object):
     async def chapter_offset_handler(self, msg):
         start = timer()
         request = json.loads(msg.data)
-        output = self.keyphrase_service.get_chapter_offset_keyphrases(request)
+        limit = request["limit"]
+        output = self.keyphrase_service.get_chapter_offset_keyphrases(request, n_kw=limit)
         end = timer()
 
         deadline_time = end - start
@@ -224,6 +230,7 @@ class NATSTransport(object):
                 "chapterOffsetList": output,
                 "instanceId": request["instanceId"],
                 "numOfSegments": len(request["segments"]),
+                "limit": limit,
                 "responseTime": end - start,
                 "requestReceived": request,
             },

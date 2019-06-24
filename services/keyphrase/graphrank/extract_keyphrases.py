@@ -296,7 +296,7 @@ class KeyphraseExtractor(object):
 
         if limit_phrase:
             processed_entities, multiphrase_list = self.limit_phrase_list(
-                entities_list=processed_entities, keyphrase_list=multiphrase_list
+                entities_list=processed_entities, keyphrase_list=multiphrase_list, phrase_limit=top_n
             )
 
         processed_entities.extend(multiphrase_list)
@@ -354,7 +354,7 @@ class KeyphraseExtractor(object):
 
         if limit_phrase:
             processed_entities, multiphrase_list = self.limit_phrase_list(
-                entities_list=processed_entities, keyphrase_list=multiphrase_list
+                entities_list=processed_entities, keyphrase_list=multiphrase_list, phrase_limit=top_n
             )
 
         processed_entities.extend(multiphrase_list)
@@ -444,7 +444,7 @@ class KeyphraseExtractor(object):
 
         if limit_phrase:
             chapter_entities, chapter_multiphrase_list = self.limit_phrase_list(
-                entities_list=chapter_entities, keyphrase_list=chapter_multiphrase_list
+                entities_list=chapter_entities, keyphrase_list=chapter_multiphrase_list, phrase_limit=top_n
             )
 
         chapter_entities.extend(chapter_multiphrase_list)
@@ -658,7 +658,7 @@ class KeyphraseExtractor(object):
 
         return keyphrase
 
-    def _get_chapter_keyphrases(self, req_data, n_kw=10, default_form="original"):
+    def _get_chapter_keyphrases(self, req_data, n_kw=6, default_form="original"):
         start = timer()
         keyphrase_list, descriptive_kp = self.compute_keyphrases(req_data=req_data)
 
@@ -699,7 +699,6 @@ class KeyphraseExtractor(object):
 
     def get_keyphrases(self, req_data, n_kw=10):
         start = timer()
-        segments_array = req_data["segments"]
 
         # Re-populate graph in case google transcripts are present
         self.populate_word_graph(req_data, add_context=False)
@@ -707,7 +706,7 @@ class KeyphraseExtractor(object):
         keyphrases = []
         try:
             # Decide between PIM or Chapter keyphrases
-            if len(segments_array) > 1:
+            if n_kw == 6:
                 keyphrases = self._get_chapter_keyphrases(
                     req_data, n_kw=n_kw, default_form="descriptive"
                 )
