@@ -26,7 +26,7 @@ if __name__ == "__main__":
     asyncio.set_event_loop_policy(uvloop.EventLoopPolicy())
     loop = asyncio.get_event_loop()
 
-    s3_client = S3Manager(bucket_name=bucket_store, profile_name="staging2")
+    s3_client = S3Manager(bucket_name=bucket_store)
     keyphrase_extractor = KeyphraseExtractor(s3_client=s3_client)
 
     nats_manager = Manager(
