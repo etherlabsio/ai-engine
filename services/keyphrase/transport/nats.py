@@ -28,75 +28,63 @@ class NATSTransport(object):
             "instance created",
             extra={"contextId": context_id, "instanceId": context_instance_id},
         )
-        await self.subscribe_context_events(context_instance_id)
+        await self.subscribe_context_events()
         logger.info(
             "topics subscribed", extra={"topics": self.nats_manager.subscriptions}
         )
 
-    async def subscribe_context_events(self, instance_id):
+    async def subscribe_context_events(self):
         await self.nats_manager.subscribe(
-            topic="context.instance." + instance_id + ".started",
+            topic="context.instance." + "started",
             handler=self.context_start_handler,
             queued=True,
         )
         await self.nats_manager.subscribe(
-            topic="context.instance." + instance_id + ".context_changed",
+            topic="context.instance." + "context_changed",
             handler=self.context_change_handler,
             queued=True,
         )
         await self.nats_manager.subscribe(
-            topic="context.instance." + instance_id + ".ended",
+            topic="context.instance." + "ended",
             handler=self.context_end_handler,
             queued=True,
         )
         await self.nats_manager.subscribe(
-            topic="keyphrase_service." + instance_id + ".extract_keyphrases",
+            topic="keyphrase_service." + "extract_keyphrases",
             handler=self.extract_segment_keyphrases,
             queued=True,
         )
         await self.nats_manager.subscribe(
-            topic="keyphrase_service."
-            + instance_id
-            + ".keyphrases_for_context_instance",
+            topic="keyphrase_service." + "keyphrases_for_context_instance",
             handler=self.extract_instance_keyphrases,
             queued=True,
         )
         await self.nats_manager.subscribe(
-            topic="context.instance." + instance_id + ".add_segments",
+            topic="context.instance." + "add_segments",
             handler=self.populate_graph,
             queued=True,
         )
         await self.nats_manager.subscribe(
-            topic="keyphrase_service."
-            + instance_id
-            + ".extract_keyphrases_with_offset",
+            topic="keyphrase_service." + "extract_keyphrases_with_offset",
             handler=self.chapter_offset_handler,
             queued=True,
         )
 
-    async def unsubscribe_lifecycle_events(self, instance_id):
+    async def unsubscribe_lifecycle_events(self):
+        await self.nats_manager.unsubscribe(topic="context.instance." + "started")
         await self.nats_manager.unsubscribe(
-            topic="context.instance." + instance_id + ".started"
+            topic="context.instance." + "context_changed"
+        )
+        await self.nats_manager.unsubscribe(topic="context.instance." + "ended")
+        await self.nats_manager.unsubscribe(
+            topic="keyphrase_service." + "extract_keyphrases"
         )
         await self.nats_manager.unsubscribe(
-            topic="context.instance." + instance_id + ".context_changed"
+            topic="keyphrase_service." + "keyphrases_for_context_instance"
         )
+        await self.nats_manager.unsubscribe(topic="context.instance." + "add_segments")
         await self.nats_manager.unsubscribe(
-            topic="context.instance." + instance_id + ".ended"
-        )
-        await self.nats_manager.unsubscribe(
-            topic="keyphrase_service." + instance_id + ".extract_keyphrases"
-        )
-        await self.nats_manager.unsubscribe(
-            topic="keyphrase_service."
-            + instance_id
-            + ".keyphrases_for_context_instance"
-        )
-        await self.nats_manager.unsubscribe(
-            topic="context.instance." + instance_id + ".add_segments"
-        )
-        await self.nats_manager.unsubscribe(
-            topic="keyphrase_service." + instance_id + ".extract_keyphrases_with_offset"
+            topic="keyphrase_service." + "extract_keyphrases_with_offset"
         )
 
     # NATS context handlers
@@ -117,10 +105,8 @@ class NATSTransport(object):
         pass
 
     async def context_end_handler(self, msg):
-        msg_data = json.loads(msg.data)
-        instance_id = msg_data["instanceId"]
         # Close, drain and unsubscribe connections to keyphrase topics
-        await self.unsubscribe_lifecycle_events(instance_id)
+        await self.unsubscribe_lifecycle_events()
         # Reset graph
         await self.reset_keyphrases(msg)
 
@@ -212,7 +198,9 @@ class NATSTransport(object):
         start = timer()
         request = json.loads(msg.data)
         limit = request["limit"]
-        output = self.keyphrase_service.get_chapter_offset_keyphrases(request, n_kw=limit)
+        output = self.keyphrase_service.get_chapter_offset_keyphrases(
+            request, n_kw=limit
+        )
         end = timer()
 
         deadline_time = end - start

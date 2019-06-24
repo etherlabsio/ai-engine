@@ -108,6 +108,7 @@ class KeyphraseExtractor(object):
 
         # Set the current instance as the active one
         self.get_graph_instance_object(graph_id=graph_id)
+
         logger.info(
             "Meeting graph intialized and updated",
             extra={
@@ -115,6 +116,18 @@ class KeyphraseExtractor(object):
                 "currentGraphId": self.meeting_graph.graph.get("graphId"),
             },
         )
+
+        logger.info("starting upload session")
+        status = self.upload_s3(graph_obj=self.meeting_graph, req_data=req_data)
+        if status:
+            logger.info(
+                "Upload completed",
+                extra={
+                    "graphId": self.meeting_graph.graph.get("graphId"),
+                    "nodes": self.meeting_graph.number_of_nodes(),
+                    "edges": self.meeting_graph.number_of_edges(),
+                },
+            )
 
     def sort_by_value(self, item_list, order="desc"):
         """
@@ -296,7 +309,9 @@ class KeyphraseExtractor(object):
 
         if limit_phrase:
             processed_entities, multiphrase_list = self.limit_phrase_list(
-                entities_list=processed_entities, keyphrase_list=multiphrase_list, phrase_limit=top_n
+                entities_list=processed_entities,
+                keyphrase_list=multiphrase_list,
+                phrase_limit=top_n,
             )
 
         processed_entities.extend(multiphrase_list)
@@ -354,7 +369,9 @@ class KeyphraseExtractor(object):
 
         if limit_phrase:
             processed_entities, multiphrase_list = self.limit_phrase_list(
-                entities_list=processed_entities, keyphrase_list=multiphrase_list, phrase_limit=top_n
+                entities_list=processed_entities,
+                keyphrase_list=multiphrase_list,
+                phrase_limit=top_n,
             )
 
         processed_entities.extend(multiphrase_list)
@@ -444,7 +461,9 @@ class KeyphraseExtractor(object):
 
         if limit_phrase:
             chapter_entities, chapter_multiphrase_list = self.limit_phrase_list(
-                entities_list=chapter_entities, keyphrase_list=chapter_multiphrase_list, phrase_limit=top_n
+                entities_list=chapter_entities,
+                keyphrase_list=chapter_multiphrase_list,
+                phrase_limit=top_n,
             )
 
         chapter_entities.extend(chapter_multiphrase_list)
@@ -533,7 +552,8 @@ class KeyphraseExtractor(object):
         segment_df = self.reformat_input(req_data)
         graph_id = self.get_graph_id(req_data=req_data)
 
-        self.get_graph_instance_object(graph_id=graph_id)
+        # Get graph object from S3
+        self.meeting_graph = self.download_s3(req_data=req_data)
 
         try:
             text_list, attrs = self.read_segments(
@@ -556,10 +576,12 @@ class KeyphraseExtractor(object):
                 },
             )
 
-        end = timer()
+        # Write back the graph object to S3
+        self.upload_s3(graph_obj=self.meeting_graph, req_data=req_data)
 
+        end = timer()
         logger.info(
-            "Populating graph",
+            "Populating graph and writing to s3",
             extra={
                 "graphId": self.meeting_graph.graph.get("graphId"),
                 "graphServiceIdentifier": graph_id,
@@ -571,9 +593,8 @@ class KeyphraseExtractor(object):
         )
 
     def compute_keyphrases(self, req_data):
-        # Select the right graph Id to extract keyphrases
-        graph_id = self.get_graph_id(req_data=req_data)
-        self.get_graph_instance_object(graph_id=graph_id)
+        # Get graph object from s3
+        self.meeting_graph = self.download_s3(req_data=req_data)
 
         segment_df = self.reformat_input(req_data)
         text_list, attrs = self.read_segments(segment_df=segment_df, node_attrs=False)
@@ -603,6 +624,9 @@ class KeyphraseExtractor(object):
                 "error retrieving descriptive phrases",
                 extra={"err": traceback.print_exc()},
             )
+
+        # Write back the graph object
+        self.upload_s3(graph_obj=self.meeting_graph, req_data=req_data)
 
         return keyphrase_list, descriptive_keyphrase_list
 
@@ -802,20 +826,18 @@ class KeyphraseExtractor(object):
 
     def reset_keyphrase_graph(self, req_data):
         start = timer()
-        graph_id = self.get_graph_id(req_data=req_data)
-        self.get_graph_instance_object(graph_id=graph_id)
 
-        deleted_graph = self.graph_obj_dict.pop(graph_id)
-        deleted_graph_id = deleted_graph.graph.get("graphId")
+        context_id = req_data["contextId"]
+        instance_id = req_data["instanceId"]
+        context_info = context_id + ":" + instance_id
 
-        # Upload the graph object to s3 before resetting it
-        logger.info("starting upload session")
-        success = self.upload_s3(graph_obj=deleted_graph)
-        if success:
-            logger.info("Upload completed")
+        deleted_graph_id = self.meeting_graph.graph.get("graphId")
 
-        self.gr.reset_graph()
-        self.meeting_graph.clear()
+        if context_info == deleted_graph_id:
+            del self.graph_obj_dict[deleted_graph_id]
+            self.gr.reset_graph()
+            self.meeting_graph.clear()
+
         end = timer()
         logger.info(
             "Post-reset: Graph info",
@@ -833,54 +855,65 @@ class KeyphraseExtractor(object):
 
     # S3 storage utility functions
 
-    def upload_s3(self, graph_obj):
+    def upload_s3(self, graph_obj, req_data):
+        start = timer()
+        context_id = req_data["contextId"]
+        instance_id = req_data["instanceId"]
         graph_id = graph_obj.graph.get("graphId")
-        context_id = graph_id.split(":")[0]
-        instance_id = graph_id.split(":")[1]
 
         if graph_id == context_id + ":" + instance_id:
             serialized_graph_string = self.gutils.write_to_pickle(graph_obj=graph_obj)
-            s3_key = str(context_id) + "/keyphrase-graphs/" + graph_id
+            s3_key = context_id + "/keyphrase-graphs/" + graph_id
 
             resp = self.s3_client.upload_object(
                 body=serialized_graph_string, s3_key=s3_key
             )
+            end = timer()
             if resp:
                 logger.info(
                     "Uploaded graph object to s3",
                     extra={
                         "graphId": graph_obj.graph.get("graphId"),
                         "fileName": s3_key,
+                        "responseTime": end - start,
                     },
                 )
                 return True
             else:
                 return False
         else:
+            end = timer()
             logger.error(
                 "graphId and context info not matching",
                 extra={
                     "graphId": graph_id,
                     "contextInfo": context_id + ":" + instance_id,
+                    "responseTime": end - start,
                 },
             )
             return False
 
-    def download_s3(self, context_id, instance_id):
+    def download_s3(self, req_data):
+        start = timer()
+        context_id = req_data["contextId"]
+        instance_id = req_data["instanceId"]
+
         graph_id = context_id + ":" + instance_id
-        s3_path = str(context_id) + "/keyphrase-graphs/" + graph_id
+        s3_path = context_id + "/keyphrase-graphs/" + graph_id
 
         file_obj = self.s3_client.download_file(file_name=s3_path)
         file_obj_bytestring = file_obj["Body"].read()
 
         graph_obj = self.gutils.load_graph_from_pickle(byte_string=file_obj_bytestring)
 
+        end = timer()
         logger.info(
             "Downloaded graph object from s3",
             extra={
                 "graphId": graph_obj.graph.get("graphId"),
                 "nodes": graph_obj.number_of_nodes(),
                 "edges": graph_obj.number_of_edges(),
+                "responseTime": end - start,
             },
         )
 

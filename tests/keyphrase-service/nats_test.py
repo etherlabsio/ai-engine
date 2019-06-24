@@ -19,7 +19,7 @@ logger = logging.getLogger(__name__)
 
 async def publish_keyphrase():
     nc = NATS()
-    topic = "keyphrase_service.*.extract_keyphrases"
+    topic = "keyphrase_service.extract_keyphrases"
     await nc.connect(servers=[nats_url])
     test_json = read_json(single_json_file)
     topic, resp = replace_ids(
@@ -32,7 +32,7 @@ async def publish_keyphrase():
 
 async def publish_chapter_keyphrase():
     nc = NATS()
-    topic = "keyphrase_service.*.extract_keyphrases"
+    topic = "keyphrase_service.extract_keyphrases"
     await nc.connect(servers=[nats_url])
     test_json = read_json(multi_json_file)
     topic, resp = replace_ids(
@@ -45,7 +45,7 @@ async def publish_chapter_keyphrase():
 
 async def publish_chapter_offset_keyphrase():
     nc = NATS()
-    topic = "keyphrase_service.*.extract_keyphrases_with_offset"
+    topic = "keyphrase_service.extract_keyphrases_with_offset"
     await nc.connect(servers=[nats_url])
     test_json = read_json(multi_json_file)
     topic, resp = replace_ids(
@@ -58,7 +58,7 @@ async def publish_chapter_offset_keyphrase():
 
 async def publish_instance_keyphrase():
     nc = NATS()
-    topic = "keyphrase_service.*.keyphrases_for_context_instance"
+    topic = "keyphrase_service.keyphrases_for_context_instance"
     await nc.connect(servers=[nats_url])
     test_json = read_json(meeting_json_file)
     topic, resp = replace_ids(
@@ -84,7 +84,7 @@ async def reset_keyphrase():
 
 async def populate_graph():
     nc = NATS()
-    topic = "context.instance.*.add_segments"
+    topic = "context.instance.add_segments"
     await nc.connect(servers=[nats_url])
     # test_json = read_json(multi_json_file)
     test_json = read_json(meeting_json_file)
@@ -111,7 +111,7 @@ async def create_context():
 
 async def start_context():
     nc = NATS()
-    topic = "context.instance.*.started"
+    topic = "context.instance.started"
     await nc.connect(servers=[nats_url])
     resp = {"instanceId": "*", "state": "started", "contextId": "*"}
     topic, resp = replace_ids(topic=topic, resp=resp)
@@ -123,7 +123,7 @@ async def start_context():
 
 async def end_context():
     nc = NATS()
-    topic = "context.instance.*.ended"
+    topic = "context.instance.ended"
     await nc.connect(servers=[nats_url])
     resp = {"instanceId": "*", "state": "ended"}
     topic, resp = replace_ids(topic=topic, resp=resp)
