@@ -747,8 +747,6 @@ class KeyphraseExtractor(object):
             },
         )
 
-        return {"result": "done", "message": "reset successful"}
-
     # S3 storage utility functions
 
     def upload_s3(self, graph_obj, req_data):
