@@ -1,6 +1,6 @@
 import os
 import logging
-from boto3 import client, session
+from boto3 import client
 
 logger = logging.getLogger(__name__)
 logging.getLogger("boto3").setLevel(logging.CRITICAL)
@@ -15,11 +15,8 @@ class S3Manager(object):
     """
 
     def __init__(self, *args, **kwargs):
-        self.profile_name = kwargs.get("profile_name")
         self.bucket_name = kwargs.get("bucket_name")
-
-        self.s3_session = session.Session(profile_name=self.profile_name)
-        self.conn = self.s3_session.client("s3")
+        self.conn = client("s3")
 
     def upload_to_s3(self, object_name, file_name=None):
         """
