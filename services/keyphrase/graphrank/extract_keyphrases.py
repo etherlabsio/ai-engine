@@ -23,7 +23,6 @@ class KeyphraseExtractor(object):
         self.tp = TextPreprocess()
         self.gutils = GraphUtils()
         self.graph_obj_dict = {}
-        self.meeting_graph = nx.Graph(graphId="undefined")
         self.syntactic_filter = [
             "JJ",
             "JJR",
@@ -74,13 +73,14 @@ class KeyphraseExtractor(object):
         return graph_id
 
     def get_graph_instance_object(self, graph_id):
+        meeting_word_graph = nx.Graph()
         if graph_id in list(self.graph_obj_dict.keys()):
-            self.meeting_graph = self.graph_obj_dict.get(graph_id)
+            meeting_word_graph = self.graph_obj_dict.get(graph_id)
 
             logger.info(
                 "assigned graph object to meeting",
                 extra={
-                    "graphId": self.meeting_graph.graph.get("graphId"),
+                    "graphId": meeting_word_graph.graph.get("graphId"),
                     "graphServiceIdentifier": graph_id,
                 },
             )
@@ -88,44 +88,40 @@ class KeyphraseExtractor(object):
             logger.warning(
                 "Graph object does not exist",
                 extra={
-                    "graphId": self.meeting_graph.graph.get("graphId"),
+                    "graphId": meeting_word_graph.graph.get("graphId"),
                     "graphServiceIdentifier": graph_id,
                 },
             )
 
-        if self.meeting_graph.graph.get("graphId") is None:
-            logger.warning(
-                "Null graphId",
-                extra={
-                    "graphId": self.meeting_graph.graph.get("graphId"),
-                    "graphServiceIdentifier": graph_id,
-                },
-            )
+        return meeting_word_graph
 
     def initialize_meeting_graph(self, req_data):
         graph_id = self.get_graph_id(req_data=req_data)
         self.graph_obj_dict[graph_id] = nx.Graph(graphId=graph_id)
 
         # Set the current instance as the active one
-        self.get_graph_instance_object(graph_id=graph_id)
+        meeting_word_graph = self.get_graph_instance_object(graph_id=graph_id)
 
         logger.info(
             "Meeting graph intialized and updated",
             extra={
                 "currentGraphObjectList": list(self.graph_obj_dict.keys()),
-                "currentGraphId": self.meeting_graph.graph.get("graphId"),
+                "currentGraphId": meeting_word_graph.graph.get("graphId"),
             },
         )
 
         logger.info("starting upload session")
-        status = self.upload_s3(graph_obj=self.meeting_graph, req_data=req_data)
+        start = timer()
+        status = self.upload_s3(graph_obj=meeting_word_graph, req_data=req_data)
+        end = timer()
         if status:
             logger.info(
                 "Upload completed",
                 extra={
-                    "graphId": self.meeting_graph.graph.get("graphId"),
-                    "nodes": self.meeting_graph.number_of_nodes(),
-                    "edges": self.meeting_graph.number_of_edges(),
+                    "graphId": meeting_word_graph.graph.get("graphId"),
+                    "nodes": meeting_word_graph.number_of_nodes(),
+                    "edges": meeting_word_graph.number_of_edges(),
+                    "responseTime": end - start,
                 },
             )
 
@@ -147,29 +143,14 @@ class KeyphraseExtractor(object):
 
         return sorted_list
 
-    def read_segments(self, segment_df, node_attrs=False):
+    def read_segments(self, segment_df):
         text_list = []
-        attrs = {
-            "spokenBy": [],
-            "id": [],
-            "createdAt": [],
-            "recordingId": [],
-            "transcriber": [],
-        }
 
         for i in range(len(segment_df)):
             segment_text = segment_df.iloc[i]["originalText"]
             text_list.append(segment_text)
 
-            if node_attrs:
-                attrs["spokenBy"].append(segment_df.iloc[i].get("spokenBy"))
-                attrs["id"].append(segment_df.iloc[i].get("id"))
-                attrs["createdAt"].append(segment_df.iloc[i].get("createdAt"))
-                attrs["recordingId"].append(segment_df.iloc[i].get("recordingId"))
-                attrs["transcriber"].append(segment_df.iloc[i].get("transcriber"))
-            else:
-                attrs = None
-        return text_list, attrs
+        return text_list
 
     def process_text(
         self, text, filter_by_pos=True, stop_words=False, syntactic_filter=None
@@ -187,26 +168,26 @@ class KeyphraseExtractor(object):
         self,
         graph,
         text_list,
-        attrs,
         window=4,
         preserve_common_words=False,
         syntactic_filter=None,
         add_context=False,
     ):
-
+        meeting_word_graph = nx.Graph()
         for i in range(len(text_list)):
             text = text_list[i]
 
             original_tokens, pos_tuple, filtered_pos_tuple = self.process_text(text)
-            graph = self.gr.build_word_graph(
+            meeting_word_graph = self.gr.build_word_graph(
                 graph_obj=graph,
                 input_pos_text=pos_tuple,
                 window=window,
                 syntactic_filter=syntactic_filter,
                 preserve_common_words=preserve_common_words,
-                node_attributes=attrs,
                 add_context=add_context,
             )
+
+        return meeting_word_graph
 
     def get_custom_keyphrases(
         self,
@@ -500,17 +481,12 @@ class KeyphraseExtractor(object):
         graph_id = self.get_graph_id(req_data=req_data)
 
         # Get graph object from S3
-        self.meeting_graph = self.download_s3(req_data=req_data)
+        meeting_word_graph = self.download_s3(req_data=req_data)
 
         try:
-            text_list, attrs = self.read_segments(
-                segment_df=segment_df, node_attrs=False
-            )
-            self.build_custom_graph(
-                text_list=text_list,
-                attrs=attrs,
-                add_context=add_context,
-                graph=self.meeting_graph,
+            text_list = self.read_segments(segment_df=segment_df)
+            meeting_word_graph = self.build_custom_graph(
+                text_list=text_list, add_context=add_context, graph=meeting_word_graph
             )
         except Exception as e:
             end = timer()
@@ -524,27 +500,29 @@ class KeyphraseExtractor(object):
             )
 
         # Write back the graph object to S3
-        self.upload_s3(graph_obj=self.meeting_graph, req_data=req_data)
+        self.upload_s3(graph_obj=meeting_word_graph, req_data=req_data)
 
         end = timer()
         logger.info(
             "Populated graph and written to s3",
             extra={
-                "graphId": self.meeting_graph.graph.get("graphId"),
+                "graphId": meeting_word_graph.graph.get("graphId"),
                 "graphServiceIdentifier": graph_id,
-                "nodes": self.meeting_graph.number_of_nodes(),
-                "edges": self.meeting_graph.number_of_edges(),
+                "nodes": meeting_word_graph.number_of_nodes(),
+                "edges": meeting_word_graph.number_of_edges(),
                 "instanceId": req_data["instanceId"],
                 "responseTime": end - start,
             },
         )
 
+        return meeting_word_graph
+
     def compute_keyphrases(self, req_data):
         # Re-populate graph in case google transcripts are present
-        self.populate_word_graph(req_data, add_context=False)
+        meeting_word_graph = self.populate_word_graph(req_data, add_context=False)
 
         segment_df = self.reformat_input(req_data)
-        text_list, attrs = self.read_segments(segment_df=segment_df, node_attrs=False)
+        text_list = self.read_segments(segment_df=segment_df)
         keyphrase_list = []
         descriptive_keyphrase_list = []
         try:
@@ -555,12 +533,12 @@ class KeyphraseExtractor(object):
 
                 keyphrase_list.extend(
                     self.get_custom_keyphrases(
-                        graph=self.meeting_graph, pos_tuple=pos_tuple
+                        graph=meeting_word_graph, pos_tuple=pos_tuple
                     )
                 )
                 descriptive_keyphrase_list.extend(
                     self.get_custom_keyphrases(
-                        graph=self.meeting_graph,
+                        graph=meeting_word_graph,
                         pos_tuple=pos_tuple,
                         descriptive=True,
                         post_process_descriptive=True,
@@ -727,12 +705,12 @@ class KeyphraseExtractor(object):
         instance_id = req_data["instanceId"]
         context_info = context_id + ":" + instance_id
 
-        deleted_graph_id = self.meeting_graph.graph.get("graphId")
+        reset_graph_obj = self.graph_obj_dict[context_info]
+        deleted_graph_id = reset_graph_obj.graph.get("graphId")
 
-        if context_info == deleted_graph_id:
-            del self.graph_obj_dict[deleted_graph_id]
-            self.gr.reset_graph()
-            self.meeting_graph.clear()
+        del self.graph_obj_dict[deleted_graph_id]
+        self.gr.reset_graph()
+        reset_graph_obj.clear()
 
         end = timer()
         logger.info(
@@ -741,8 +719,8 @@ class KeyphraseExtractor(object):
                 "deletedGraphId": deleted_graph_id,
                 "currentGraphObjectList": list(self.graph_obj_dict.keys()),
                 "numOfGraphInstances": len(self.graph_obj_dict),
-                "nodes": self.meeting_graph.number_of_nodes(),
-                "edges": self.meeting_graph.number_of_edges(),
+                "nodes": reset_graph_obj.number_of_nodes(),
+                "edges": reset_graph_obj.number_of_edges(),
                 "responseTime": end - start,
             },
         )
@@ -750,7 +728,6 @@ class KeyphraseExtractor(object):
     # S3 storage utility functions
 
     def upload_s3(self, graph_obj, req_data):
-        start = timer()
         context_id = req_data["contextId"]
         instance_id = req_data["instanceId"]
         graph_id = graph_obj.graph.get("graphId")
@@ -762,27 +739,16 @@ class KeyphraseExtractor(object):
             resp = self.s3_client.upload_object(
                 body=serialized_graph_string, s3_key=s3_key
             )
-            end = timer()
             if resp:
-                logger.info(
-                    "Uploaded graph object to s3",
-                    extra={
-                        "graphId": graph_obj.graph.get("graphId"),
-                        "fileName": s3_key,
-                        "responseTime": end - start,
-                    },
-                )
                 return True
             else:
                 return False
         else:
-            end = timer()
             logger.error(
                 "graphId and context info not matching",
                 extra={
                     "graphId": graph_id,
                     "contextInfo": context_id + ":" + instance_id,
-                    "responseTime": end - start,
                 },
             )
             return False

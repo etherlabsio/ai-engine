@@ -120,8 +120,9 @@ class NATSTransport(object):
     async def extract_segment_keyphrases(self, msg):
         start = timer()
         request = json.loads(msg.data)
-        limit = request["limit"]
+        context_info = request["contextId"] + ":" + request["instanceId"]
 
+        limit = request.get("limit", 10)
         output = self.keyphrase_service.get_keyphrases(request, n_kw=limit)
         end = timer()
 
@@ -137,9 +138,7 @@ class NATSTransport(object):
             logger.info(
                 "Publishing chapter keyphrases" + timeout_msg,
                 extra={
-                    "graphId": self.keyphrase_service.meeting_graph.graph.get(
-                        "graphId"
-                    ),
+                    "graphId": context_info,
                     "chapterKeyphraseList": output,
                     "instanceId": request["instanceId"],
                     "numOfSegments": len(request["segments"]),
@@ -152,9 +151,7 @@ class NATSTransport(object):
             logger.info(
                 "Publishing PIM keyphrases" + timeout_msg,
                 extra={
-                    "graphId": self.keyphrase_service.meeting_graph.graph.get(
-                        "graphId"
-                    ),
+                    "graphId": context_info,
                     "pimKeyphraseList": output,
                     "instanceId": request["instanceId"],
                     "numOfSegments": len(request["segments"]),
@@ -168,7 +165,9 @@ class NATSTransport(object):
     async def extract_instance_keyphrases(self, msg):
         start = timer()
         request = json.loads(msg.data)
-        limit = request["limit"]
+        context_info = request["contextId"] + ":" + request["instanceId"]
+
+        limit = request.get("limit", 10)
         output = self.keyphrase_service.get_instance_keyphrases(request, n_kw=limit)
         end = timer()
 
@@ -183,7 +182,7 @@ class NATSTransport(object):
         logger.info(
             "Publishing instance keyphrases" + timeout_msg,
             extra={
-                "graphId": self.keyphrase_service.meeting_graph.graph.get("graphId"),
+                "graphId": context_info,
                 "instanceList": output,
                 "instanceId": request["instanceId"],
                 "numOfSegments": len(request["segments"]),
@@ -197,7 +196,9 @@ class NATSTransport(object):
     async def chapter_offset_handler(self, msg):
         start = timer()
         request = json.loads(msg.data)
-        limit = request["limit"]
+        context_info = request["contextId"] + ":" + request["instanceId"]
+
+        limit = request.get("limit", 10)
         output = self.keyphrase_service.get_chapter_offset_keyphrases(
             request, n_kw=limit
         )
@@ -214,7 +215,7 @@ class NATSTransport(object):
         logger.info(
             "Publishing chapter keyphrases with offset" + timeout_msg,
             extra={
-                "graphId": self.keyphrase_service.meeting_graph.graph.get("graphId"),
+                "graphId": context_info,
                 "chapterOffsetList": output,
                 "instanceId": request["instanceId"],
                 "numOfSegments": len(request["segments"]),
