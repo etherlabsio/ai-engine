@@ -105,8 +105,6 @@ class NATSTransport(object):
         pass
 
     async def context_end_handler(self, msg):
-        # Close, drain and unsubscribe connections to keyphrase topics
-        await self.unsubscribe_lifecycle_events()
         # Reset graph
         await self.reset_keyphrases(msg)
 

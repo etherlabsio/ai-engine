@@ -78,7 +78,7 @@ class KeyphraseExtractor(object):
             meeting_word_graph = self.graph_obj_dict.get(graph_id)
 
             logger.info(
-                "assigned graph object to meeting",
+                "assigned unique id to graph object",
                 extra={
                     "graphId": meeting_word_graph.graph.get("graphId"),
                     "graphServiceIdentifier": graph_id,
@@ -280,7 +280,7 @@ class KeyphraseExtractor(object):
             # Get cleaned chapter words
             for word, score in keyphrase_list:
                 loc = input_segment.find(word)
-                if loc > -1:
+                if loc > -1 and ("*" not in word or "." not in word):
                     cleaned_keyphrase_list.append((word, score))
 
         sorted_keyphrase_list = self.sort_by_value(cleaned_keyphrase_list, order="desc")
@@ -341,7 +341,8 @@ class KeyphraseExtractor(object):
             offset_time = float((start_time - relative_time).seconds)
 
             for kw, score in keyphrase_list:
-                if kw in input_segment:
+                loc = input_segment.find(kw)
+                if loc > -1 and ("*" not in kw or "." not in kw):
                     chapter_keywords_list.append(({kw: offset_time}, score))
 
             entities = self.get_entities(input_segment)
@@ -467,7 +468,7 @@ class KeyphraseExtractor(object):
         # Remove single lettered entity that are coming up
         for entities in processed_entities:
             tmp_entitites = list(entities)
-            if len(tmp_entitites) < 4:
+            if len(tmp_entitites) < 4 or ("*" in entities or "." in entities):
                 try:
                     processed_entities.remove(entities)
                 except:
