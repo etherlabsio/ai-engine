@@ -785,9 +785,6 @@ class KeyphraseExtractor(object):
 
         # Delete KG object from dictionary and clear it
         del self.kg_obj_dict[deleted_kg_id]
-
-        # For testing, create gephi format
-        nx.write_gexf(G=reset_meeting_kg_obj, path=deleted_kg_id + ".gexf")
         reset_meeting_kg_obj.clear()
 
         end = timer()
