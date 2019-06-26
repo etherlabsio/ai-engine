@@ -15,3 +15,7 @@ python-dotenv
 python_version==3.7
 uvloop
 python-json-logger
+sanic
+torch
+pytorch-pretrained-bert
+python-louvain

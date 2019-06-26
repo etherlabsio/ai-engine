@@ -123,3 +123,11 @@ vendor/
 *.swp
 *.version
 *.json
+
+#model files
+
+*.bin
+
+#testing data files
+
+*.csv
