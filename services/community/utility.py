@@ -7,7 +7,6 @@ from datetime import datetime
 import json
 from pytorch_pretrained_bert import BertTokenizer, BertConfig, BertModel
 from pytorch_pretrained_bert.modeling import BertPreTrainedModel, BertPreTrainingHeads
-from community import bert
 import torch
 import numpy as np
 
@@ -81,6 +80,7 @@ def getSentMatchScore_wfeature_test(sent1, sent2, sent1_feats, sent2_feats, nsp_
     else:
         score = np.mean([cosine_distance,nsp_score])
     return score, cosine_distance, nsp_score
+
 def getBERTFeatures(model, text, attn_head_idx = -1): #attn_head_idx - index o[]
     tokenized_text = tokenizer.tokenize(text)
     if len(tokenized_text)>200:

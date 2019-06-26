@@ -2,8 +2,8 @@ python_binary(
 	name="server",
 	dependencies = [
 		'pkg:common-libs',
-		'services/keyphrase:keyphrase-libs',
-		':keyphrase-dep',
+		'services/community:community-libs',
+		':community-dep',
 		'vendor:vendor-libs',
 		'services:global-services'
 	],
@@ -13,7 +13,7 @@ python_binary(
 )
 
 python_library(
-	name="keyphrase-dep",
+	name="community-dep",
 	dependencies=[
 		'3rdparty/python:asyncio-nats-client',
                 '3rdparty/python:python-json-logger',

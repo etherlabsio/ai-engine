@@ -39,4 +39,5 @@ COPY vendor vendor
 COPY --from=compile-image /build/dist/server.pex .
 
 ENTRYPOINT ["./server.pex"]
+EXPOSE 8080
 CMD []
