@@ -23,7 +23,7 @@ class KnowledgeGraph(object):
         self.segment_keyphrase_rel = {"relation": "hasKeywords"}
 
         self.mind_label = {"label": "mindId"}
-        self.instance_mind_rel = {"relation": "associatedMind"}
+        self.context_mind_rel = {"relation": "associatedMind"}
 
     def read_json(self, json_file):
         with open(json_file) as f:
@@ -117,7 +117,7 @@ class KnowledgeGraph(object):
 
         segment_list = request["segments"]
         mind_id = request["mindId"]
-        instance_id = request["instanceId"]
+        context_id = request["contextId"]
 
         for segment in segment_list:
             segment_node = segment["id"]
@@ -130,6 +130,6 @@ class KnowledgeGraph(object):
         g.add_nodes_from(keyphrase_node_list)
         g.add_nodes_from([(mind_id, self.mind_label)])
 
-        g.add_edges_from([(instance_id, mind_id, self.instance_mind_rel)])
+        g.add_edges_from([(context_id, mind_id, self.context_mind_rel)])
 
         return g
