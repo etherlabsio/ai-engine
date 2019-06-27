@@ -15,7 +15,7 @@ logger = logging.getLogger(__name__)
 
 class GraphRank(object):
     def __init__(self):
-        self.graph = nx.Graph(type="keyphrases")
+        # self.graph = nx.Graph(type="keyphrases")
         self.graph_utils = GraphUtils()
         self.graph_solver = GraphSolvers()
         self.metric_object = WeightMetrics()
@@ -37,6 +37,7 @@ class GraphRank(object):
     def build_word_graph(
         self,
         input_pos_text,
+        graph_obj=None,
         window=2,
         syntactic_filter=None,
         reset_graph_context=False,
@@ -61,6 +62,11 @@ class GraphRank(object):
         Returns:
             cooccurrence_graph (Networkx graph obj): Graph of co-occurring keywords
         """
+        if graph_obj is None:
+            self.graph = nx.Graph()
+        else:
+            self.graph = graph_obj
+
         if syntactic_filter is None:
             syntactic_filter = [
                 "JJ",
@@ -76,7 +82,7 @@ class GraphRank(object):
             ]
 
         original_token_pos_list = [
-            (word.lower(), pos) for sent in input_pos_text for word, pos in sent
+            (word, pos) for sent in input_pos_text for word, pos in sent
         ]
 
         # Extend the context of the graph
@@ -94,14 +100,14 @@ class GraphRank(object):
         # Filter input based on common words and Flatten it
         if preserve_plurals:
             filtered_pos_list = [
-                (word.lower(), pos)
+                (word, pos)
                 for sent in input_pos_text
                 for word, pos in sent
                 if pos in syntactic_filter and word.lower() not in common_words
             ]
         else:
             filtered_pos_list = [
-                (word.lower(), pos)
+                (word, pos)
                 for sent in input_pos_text
                 for word, pos in sent
                 if pos in syntactic_filter and word.lower() not in common_words
@@ -248,16 +254,12 @@ class GraphRank(object):
             original_tokens = self.context
         else:
             original_tokens = [
-                (word.lower(), pos) for sent in input_pos_text for word, pos in sent
+                (word, pos) for sent in input_pos_text for word, pos in sent
             ]
 
-        unfiltered_word_tokens = [
-            (token.lower(), pos) for token, pos in original_tokens
-        ]
+        unfiltered_word_tokens = [(token, pos) for token, pos in original_tokens]
 
-        plural_word_tokens = [
-            token.lower() for token, pos in original_tokens if pos == "NNS"
-        ]
+        plural_word_tokens = [token for token, pos in original_tokens if pos == "NNS"]
 
         marked_text_tokens = self._tag_text_for_keywords(
             original_token_list=unfiltered_word_tokens,
@@ -625,7 +627,6 @@ class GraphRank(object):
     def reset_graph(self):
         self.context = []
         self.graph.clear()
-        self.graph = nx.Graph(type="keyphrases")
 
     def populate_dgraph(self, graph_obj, meeting_id):
         update_graph(graph_obj=graph_obj, meetingid=meeting_id)
