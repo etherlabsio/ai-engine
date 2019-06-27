@@ -40,7 +40,7 @@ class KeyphraseExtractor(object):
             "FW",
         ]
 
-        self.meeting_kg_dir = "/meeting-graphs/"
+        self.meeting_kg_dir = "/context-instance-graphs/"
         self.word_graph_dir = "/keyphrase-graphs/"
 
     def formatTime(self, tz_time, datetime_object=False):
