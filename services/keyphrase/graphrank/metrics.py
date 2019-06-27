@@ -25,7 +25,8 @@ class GraphSolvers(object):
 
         # TODO Extend to other solvers
         if solver_fn == "pagerank":
-            node_weights = nx.pagerank(graph_obj, alpha=0.85, tol=0.0001, weight=None)
+            node_weights = nx.pagerank(
+                graph_obj, alpha=0.85, tol=0.0001, weight=None)
         else:
             node_weights = nx.pagerank_scipy(
                 graph_obj, alpha=0.85, tol=0.0001, weight=None
@@ -40,7 +41,8 @@ class GraphSolvers(object):
 
     def get_betweenness(self, graph_obj):
         if nx.is_connected(graph_obj):
-            node_betweenness = nx.current_flow_betweenness_centrality(graph_obj)
+            node_betweenness = nx.current_flow_betweenness_centrality(
+                graph_obj)
         else:
             node_betweenness = nx.betweenness_centrality(graph_obj)
 

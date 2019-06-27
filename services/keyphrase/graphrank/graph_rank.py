@@ -28,7 +28,8 @@ class GraphRank(object):
 
         # Load pkg word list
         root_dir = os.getcwd()
-        local_file = os.path.realpath(os.path.join(root_dir, os.path.dirname(__file__)))
+        local_file = os.path.realpath(os.path.join(
+            root_dir, os.path.dirname(__file__)))
 
         stop_word_file = os.path.join(local_file, "long_stopwords.txt")
         text_file = open(stop_word_file, "r")
@@ -124,7 +125,8 @@ class GraphRank(object):
                 [(word, node_attributes) for word, pos in filtered_pos_list]
             )
         else:
-            self.graph.add_nodes_from([word for word, pos in filtered_pos_list])
+            self.graph.add_nodes_from(
+                [word for word, pos in filtered_pos_list])
 
         # Add edges
         # TODO Consider unfiltered token list to build cooccurrence edges.
@@ -176,7 +178,8 @@ class GraphRank(object):
                 syntactic_filter=syntactic_filter,
             )
         elif graph_obj is None and input_pos_text is None:
-            raise SyntaxError("Both `graph_obj` and `input_pos_text` cannot be `None`")
+            raise SyntaxError(
+                "Both `graph_obj` and `input_pos_text` cannot be `None`")
 
         # Compute node scores using unweighted pagerank implementation
         # TODO Extend to other solvers
@@ -505,10 +508,12 @@ class GraphRank(object):
             sorted_keyphrases = self.post_process(sorted_keyphrases)
 
         if descriptive and post_process_descriptive:
-            sorted_keyphrases = self.post_process_desc(sorted_keyphrases, cleanup=False)
+            sorted_keyphrases = self.post_process_desc(
+                sorted_keyphrases, cleanup=False)
 
             # Re-run the algorithm to further join longer phrases
-            sorted_keyphrases = self.post_process_desc(sorted_keyphrases, cleanup=True)
+            sorted_keyphrases = self.post_process_desc(
+                sorted_keyphrases, cleanup=True)
 
         # Choose `top_n` number of keyphrases, if given
         if top_n is not None:
@@ -571,7 +576,8 @@ class GraphRank(object):
         )
 
         # Remove occurrences of Plurals if their singular form is existing
-        new_processed_keyphrases = self._lemmatize_sentence(processed_keyphrases)
+        new_processed_keyphrases = self._lemmatize_sentence(
+            processed_keyphrases)
 
         return new_processed_keyphrases
 
@@ -620,7 +626,8 @@ class GraphRank(object):
                         len(set(phrase.split()) & set(phrase2.split())) > 3
                         and phrase != phrase2
                     ):
-                        processed_descriptive_keyphrase.remove((phrase2, score2))
+                        processed_descriptive_keyphrase.remove(
+                            (phrase2, score2))
 
         return processed_descriptive_keyphrase
 
@@ -639,7 +646,8 @@ class GraphRank(object):
             phrase = tup[0]
             score = tup[1]
             tokenize_phrase = word_tokenize(phrase)
-            singular_tokens = [self.lemma.lemmatize(word) for word in tokenize_phrase]
+            singular_tokens = [self.lemma.lemmatize(
+                word) for word in tokenize_phrase]
             singular_sentence = " ".join(singular_tokens)
             if len(singular_sentence) > 0:
                 if singular_sentence in result:
@@ -706,7 +714,7 @@ class GraphRank(object):
                 else:
                     c_range = ind + c_window - 1
 
-                list_range = marked_text_tokens[ind : ind + c_range]
+                list_range = marked_text_tokens[ind: ind + c_range]
                 for counter, (n_token, n_pos, n_marker) in enumerate(list_range):
 
                     if n_marker == "e":
@@ -716,7 +724,8 @@ class GraphRank(object):
                                 ".",
                                 "?",
                             ]:
-                                multi_terms.append((current_term_units, scores_list))
+                                multi_terms.append(
+                                    (current_term_units, scores_list))
                                 # reset for next term candidate
                                 current_term_units = []
                                 scores_list = []
@@ -789,7 +798,8 @@ class GraphRank(object):
 
                     if len(current_term_units) >= c_window:
                         if marker_list[-1] == "k" or marker_list[-1] == "p":
-                            multi_terms.append((current_term_units, scores_list))
+                            multi_terms.append(
+                                (current_term_units, scores_list))
                             current_term_units = []
                             scores_list = []
                             marker_list = []
@@ -800,11 +810,13 @@ class GraphRank(object):
                                         current_term_units.remove(
                                             current_term_units[-(i + 1)]
                                         )
-                                        scores_list.remove(scores_list[-(i + 1)])
+                                        scores_list.remove(
+                                            scores_list[-(i + 1)])
                                 except:
                                     continue
 
-                            multi_terms.append((current_term_units, scores_list))
+                            multi_terms.append(
+                                (current_term_units, scores_list))
                             current_term_units = []
                             scores_list = []
                             marker_list = []
@@ -818,7 +830,8 @@ class GraphRank(object):
                     try:
                         for i in range(len(current_term_units) - 1):
                             if marker_list[-(i + 1)] == "e":
-                                current_term_units.remove(current_term_units[-(i + 1)])
+                                current_term_units.remove(
+                                    current_term_units[-(i + 1)])
                                 scores_list.remove(scores_list[-(i + 1)])
                     except:
                         continue
