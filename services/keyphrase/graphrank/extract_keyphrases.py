@@ -56,7 +56,8 @@ class KeyphraseExtractor(object):
 
         json_df_ts = pd.DataFrame(input_json["segments"], index=None)
         json_df_ts["id"] = json_df_ts["id"].astype(str)
-        json_df_ts["originalText"] = json_df_ts["originalText"].apply(lambda x: str(x))
+        json_df_ts["originalText"] = json_df_ts["originalText"].apply(
+            lambda x: str(x))
         json_df_ts["createdAt"] = json_df_ts["createdAt"].apply(
             lambda x: self.formatTime(x)
         )
@@ -242,7 +243,8 @@ class KeyphraseExtractor(object):
         return keyphrases
 
     def get_entities(self, input_segment):
-        spacy_list = ["PRODUCT", "EVENT", "LOC", "ORG", "PERSON", "WORK_OF_ART"]
+        spacy_list = ["PRODUCT", "EVENT", "LOC",
+                      "ORG", "PERSON", "WORK_OF_ART"]
         comprehend_list = [
             "COMMERCIAL_ITEM",
             "EVENT",
@@ -308,7 +310,8 @@ class KeyphraseExtractor(object):
                 if loc > -1 and ("*" not in word or "." not in word):
                     cleaned_keyphrase_list.append((word, score))
 
-        sorted_keyphrase_list = self.sort_by_value(cleaned_keyphrase_list, order="desc")
+        sorted_keyphrase_list = self.sort_by_value(
+            cleaned_keyphrase_list, order="desc")
         if top_n is not None:
             sorted_keyphrase_list = sorted_keyphrase_list[:top_n]
 
@@ -387,7 +390,8 @@ class KeyphraseExtractor(object):
         chapter_entities_list = list(dict.fromkeys(chapter_entities_list))
 
         # Post-process entities
-        chapter_entities_list = self.post_process_entities(chapter_entities_list)
+        chapter_entities_list = self.post_process_entities(
+            chapter_entities_list)
 
         # Remove the first occurrence of entity in the list of keyphrases
         for entities in chapter_entities_list:
@@ -467,7 +471,8 @@ class KeyphraseExtractor(object):
         processed_entities = []
 
         # Remove duplicates from the single phrases which are occurring in multi-keyphrases
-        multi_phrases = [phrases for phrases in entity_list if len(phrases.split()) > 1]
+        multi_phrases = [
+            phrases for phrases in entity_list if len(phrases.split()) > 1]
         single_phrase = [
             phrases for phrases in entity_list if len(phrases.split()) == 1
         ]
@@ -569,7 +574,8 @@ class KeyphraseExtractor(object):
             for i in range(len(text_list)):
                 text = text_list[i]
 
-                original_tokens, pos_tuple, filtered_pos_tuple = self.process_text(text)
+                original_tokens, pos_tuple, filtered_pos_tuple = self.process_text(
+                    text)
 
                 keyphrase_list.extend(
                     self.get_custom_keyphrases(
@@ -609,7 +615,8 @@ class KeyphraseExtractor(object):
         self, req_data, n_kw=10, default_form="original", limit_phrase=True
     ):
         start = timer()
-        keyphrase_list, descriptive_kp = self.compute_keyphrases(req_data=req_data)
+        keyphrase_list, descriptive_kp = self.compute_keyphrases(
+            req_data=req_data)
 
         segment_keyphrases = self.extract_keywords(
             input_json=req_data,
@@ -718,7 +725,8 @@ class KeyphraseExtractor(object):
         start = timer()
         keyphrase_list, descriptive_kp = self.compute_keyphrases(req_data)
 
-        relative_time = self.formatTime(req_data["relativeTime"], datetime_object=True)
+        relative_time = self.formatTime(
+            req_data["relativeTime"], datetime_object=True)
         chapter_keyphrases = []
         chapter_desc_keyphrases = []
 
@@ -768,6 +776,11 @@ class KeyphraseExtractor(object):
 
     def reset_keyphrase_graph(self, req_data):
         start = timer()
+        graph_id = self.get_graph_id(req_data=req_data)
+        self.get_graph_instance_object(graph_id=graph_id)
+
+        deleted_graph = self.graph_obj_dict.pop(graph_id)
+        deleted_graph_id = deleted_graph.graph.get("graphId")
 
         context_id = req_data["contextId"]
         instance_id = req_data["instanceId"]
