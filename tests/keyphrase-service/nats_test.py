@@ -313,9 +313,9 @@ if __name__ == "__main__":
 
     asyncio.set_event_loop_policy(uvloop.EventLoopPolicy())
     loop = asyncio.get_event_loop()
-    single_json_file = os.path.join(os.getcwd(), "pim_test.json")
+    single_json_file = os.path.join(os.getcwd(), "pim_test2.json")
     multi_json_file = os.path.join(os.getcwd(), "chapter_test.json")
-    meeting_json_file = os.path.join(os.getcwd(), "meeting_test.json")
+    meeting_json_file = os.path.join(os.getcwd(), "meeting_test2.json")
 
     if args.topics == "def":
         t1 = loop.run_until_complete(create_context())

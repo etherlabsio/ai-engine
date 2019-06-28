@@ -768,6 +768,11 @@ class KeyphraseExtractor(object):
 
     def reset_keyphrase_graph(self, req_data):
         start = timer()
+        graph_id = self.get_graph_id(req_data=req_data)
+        self.get_graph_instance_object(graph_id=graph_id)
+
+        deleted_graph = self.graph_obj_dict.pop(graph_id)
+        deleted_graph_id = deleted_graph.graph.get("graphId")
 
         context_id = req_data["contextId"]
         instance_id = req_data["instanceId"]
