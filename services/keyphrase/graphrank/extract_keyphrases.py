@@ -93,17 +93,12 @@ class KeyphraseExtractor(object):
 
         return sorted_list
 
-    def read_segments(self, req_data, context_graph):
+    def read_segments(self, req_data):
         segments = req_data["segments"]
         segment_list = []
 
         for i in range(len(segments)):
-            # If segments are already present then skip populating them
-            segment_id = segments[i].get("id")
-            if segment_id in context_graph.nodes():
-                continue
-            else:
-                segment_list.append(segments[i].get("originalText"))
+            segment_list.append(segments[i].get("originalText"))
 
         return segment_list
 
@@ -225,11 +220,11 @@ class KeyphraseExtractor(object):
         for i in range(len(segments)):
             input_segment = segments[i].get("originalText")
 
-            # Get chapter entities
+            # Get entities
             entities = self.get_entities(input_segment)
             segment_entities.extend(entities)
 
-            # Get cleaned chapter words
+            # Get cleaned words
             for word, score in keyphrase_list:
                 loc = input_segment.find(word)
                 if loc > -1 and ("*" not in word or "." not in word):
@@ -447,9 +442,7 @@ class KeyphraseExtractor(object):
 
         # Populate word graph for the current instance
         try:
-            text_list = self.read_segments(
-                req_data=req_data, context_graph=context_graph
-            )
+            text_list = self.read_segments(req_data=req_data)
             meeting_word_graph = self.build_custom_graph(
                 text_list=text_list, add_context=add_context, graph=meeting_word_graph
             )
@@ -502,7 +495,7 @@ class KeyphraseExtractor(object):
             req_data, add_context=False
         )
 
-        text_list = self.read_segments(req_data=req_data, context_graph=context_graph)
+        text_list = self.read_segments(req_data=req_data)
         keyphrase_list = []
         descriptive_keyphrase_list = []
         try:
