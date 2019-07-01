@@ -65,10 +65,10 @@ class community_detection():
             meeting_graph_pruned.add_edge(indexa, indexb)
         return meeting_graph_pruned
 
-    def compute_louvian_community(self, meeting_graph_pruned):
-        community_set = community.best_partition(meeting_graph_pruned)
-        modularity_score = community.modularity(community_set, meeting_graph_pruned)
-        logger.info("Community results", extra={"modularity score":modularity_score})
+    def compute_louvian_community(self, meeting_graph_pruned, community_set):
+        #community_set = community.best_partition(meeting_graph_pruned)
+        #modularity_score = community.modularity(community_set, meeting_graph_pruned)
+        #logger.info("Community results", extra={"modularity score":modularity_score})
         community_set_sorted = sorted(community_set.items(), key = lambda kv: kv[1], reverse=False)
 
         return community_set_sorted
@@ -168,18 +168,26 @@ class community_detection():
     def get_communities(self):
         segments_data = ' '.join([sentence for segment in self.segments_list for sentence in segment['originalText']])
         fv, graph_list = self.compute_feature_vector()
+        logger.info("No of sentences is", extra={"sentence": len(fv.keys())})
         meeting_graph, yetto_prune = self.construct_graph(fv, graph_list)
         for v in [0.15, 0.1, 0.05, 0.01]:
-            meeting_graph_pruned =  self.prune_edges(meeting_graph, graph_list, yetto_prune, v)
-            community_set = community.best_partition(meeting_graph_pruned)
-            mod = community.modularity(community_set, meeting_graph_pruned)
-            if mod>0.3:
+            flag = False
+            for count in range(5):
+                meeting_graph_pruned =  self.prune_edges(meeting_graph, graph_list, yetto_prune, v)
+                community_set = community.best_partition(meeting_graph_pruned)
+                mod = community.modularity(community_set, meeting_graph_pruned)
+                logger.info("Meeting Graph results", extra={"edges before prunning":meeting_graph.number_of_edges(), "edges after prunning": meeting_graph_pruned.number_of_edges()})
+                if mod>0.3:
+                    flag = True
+                    break
+                elif mod==0:
+                    meeting_graph_pruned = self.prune_edges(meeting_graph, graph_list, yetto_prune, 0.15)
+                    flag = True
+                    break
+            if flag:
                 break
-            elif mod==0:
-                meeting_graph_pruned = self.prune_edges(meeting_graph, graph_list, yetto_prune, 0.15)
-                break
-        logger.info("Meeting Graph results", extra={"edges before prunning":meeting_graph.number_of_edges(), "edges after prunning": meeting_graph_pruned.number_of_edges()})
-        community_set_sorted = self.compute_louvian_community(meeting_graph_pruned)
+        #logger.info("Meeting Graph results", extra={"edges before prunning":meeting_graph.number_of_edges(), "edges after prunning": meeting_graph_pruned.number_of_edges()})
+        community_set_sorted = self.compute_louvian_community(meeting_graph_pruned, community_set)
         community_timerange = self.refine_community(community_set_sorted, graph_list)
        #logger.info("commnity timerange", extra={"timerange": community_timerange})
         pims = self.group_community_by_time(community_timerange)

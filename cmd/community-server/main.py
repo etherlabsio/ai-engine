@@ -11,9 +11,9 @@ logger = logging.getLogger()
 
 bert_config = {}
 bert_config["tokenizer"] = 'bert-base-uncased'
-bert_config["config"] = 'services/community/bert_config.json'
+bert_config["config"] = 'mind_files/bert_config.json'
 bert_config["bert_model"] = 'bert-base-uncased'
-bert_config["load_file"] = "services/community/"
+bert_config["load_file"] = "mind_files/"
 
 
 if __name__ == '__main__':

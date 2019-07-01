@@ -28,7 +28,7 @@ COPY pkg pkg
 COPY vendor vendor
 COPY services services
 COPY pants.ini pants.ini
-
+COPY mind_files mind_files
 RUN ./pants binary cmd/${app}-server:server
 
 FROM python:3.7-slim
@@ -36,6 +36,7 @@ FROM python:3.7-slim
 WORKDIR /app
 COPY pkg pkg
 COPY vendor vendor
+COPY mind_files/ services/community/
 COPY --from=compile-image /build/dist/server.pex .
 
 ENTRYPOINT ["./server.pex"]
