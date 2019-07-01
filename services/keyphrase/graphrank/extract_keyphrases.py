@@ -737,7 +737,7 @@ class KeyphraseExtractor(object):
 
         if graph_id == context_id + ":" + instance_id:
             serialized_graph_string = self.gutils.write_to_pickle(graph_obj=graph_obj)
-            s3_key = context_id + s3_dir + graph_id
+            s3_key = context_id + s3_dir + graph_id + ".pickle"
 
             resp = self.s3_client.upload_object(
                 body=serialized_graph_string, s3_key=s3_key
@@ -762,7 +762,7 @@ class KeyphraseExtractor(object):
         instance_id = req_data["instanceId"]
 
         graph_id = context_id + ":" + instance_id
-        s3_path = context_id + s3_dir + graph_id
+        s3_path = context_id + s3_dir + graph_id + ".pickle"
 
         file_obj = self.s3_client.download_file(file_name=s3_path)
         file_obj_bytestring = file_obj["Body"].read()
