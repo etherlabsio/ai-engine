@@ -8,7 +8,6 @@ from nltk import WordNetLemmatizer, word_tokenize
 
 from keyphrase.graphrank.metrics import GraphSolvers, WeightMetrics
 from keyphrase.graphrank.utils import GraphUtils, TextPreprocess
-from keyphrase.graphrank.dgraph import update_graph
 
 logger = logging.getLogger(__name__)
 
@@ -627,9 +626,6 @@ class GraphRank(object):
     def reset_graph(self):
         self.context = []
         self.graph.clear()
-
-    def populate_dgraph(self, graph_obj, meeting_id):
-        update_graph(graph_obj=graph_obj, meetingid=meeting_id)
 
     def _lemmatize_sentence(self, keyphrase_list):
         tmp_check_list = keyphrase_list

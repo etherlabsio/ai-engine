@@ -284,8 +284,8 @@ def post_process_desc():
 def replace_ids(context_id=None, instance_id=None, topic=None, resp=dict()):
 
     if context_id is None and instance_id is None:
-        context_id = "6baa3490-69d6-48fc-b5d4-3994e3e8fae0"
-        instance_id = "b5d4-3994e3e8fae0"
+        context_id = "6baa3490"
+        instance_id = "b5d4"
 
     resp["instanceId"] = instance_id
     resp["contextId"] = context_id
@@ -313,9 +313,9 @@ if __name__ == "__main__":
 
     asyncio.set_event_loop_policy(uvloop.EventLoopPolicy())
     loop = asyncio.get_event_loop()
-    single_json_file = os.path.join(os.getcwd(), "pim_test2.json")
+    single_json_file = os.path.join(os.getcwd(), "pim_test.json")
     multi_json_file = os.path.join(os.getcwd(), "chapter_test.json")
-    meeting_json_file = os.path.join(os.getcwd(), "meeting_test2.json")
+    meeting_json_file = os.path.join(os.getcwd(), "meeting_test.json")
 
     if args.topics == "def":
         t1 = loop.run_until_complete(create_context())

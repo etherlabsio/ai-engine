@@ -1,5 +1,8 @@
 import networkx as nx
 import json as js
+import logging
+
+logger = logging.getLogger(__name__)
 
 
 class KnowledgeGraph(object):
@@ -38,7 +41,9 @@ class KnowledgeGraph(object):
         context_id = request["contextId"]
         instance_id = request["instanceId"]
 
-        g.add_nodes_from([(context_id, self.context_label), (instance_id, self.instance_label)])
+        g.add_nodes_from(
+            [(context_id, self.context_label), (instance_id, self.instance_label)]
+        )
         g.add_edges_from([(context_id, instance_id, self.context_instance_rel)])
 
         return g
@@ -60,35 +65,42 @@ class KnowledgeGraph(object):
 
         for segment in segment_list:
             # Add segment node and its attributes
-            segment_node = segment['id']
+            segment_node = segment["id"]
 
             segment_node_attrs = {
-                "label": 'segmentId',
-                'text': segment['originalText'],
-                'confidence': segment['confidence'],
-                'startTime': segment['startTime'],
-                'endTime': segment['endTime'],
-                'duration': segment['duration'],
-                'language': segment['languageCode']}
+                "label": "segmentId",
+                "text": segment["originalText"],
+                "confidence": segment["confidence"],
+                "startTime": segment["startTime"],
+                "endTime": segment["endTime"],
+                "duration": segment["duration"],
+                "language": segment["languageCode"],
+            }
 
             segment_attrs_list.append((segment_node, segment_node_attrs))
 
             # Add userId node and its attributes
-            user_node = segment['spokenBy']
+            user_node = segment["spokenBy"]
             user_list.append((user_node, self.user_label))
 
             # Add transcriber node and its attributes
-            transcriber_node = segment['transcriber']
+            transcriber_node = segment["transcriber"]
             transcriber_list.append((transcriber_node, self.transcriber_label))
 
             # Add recording node and its attributes
-            recording_node = segment['recordingId']
+            recording_node = segment["recordingId"]
             recording_list.append((recording_node, self.recording_label))
 
             # Create edge tuple list
-            segment_user_edge_list.append((segment_node, user_node, self.segment_user_rel))
-            segment_transcriber_edge_list.append((segment_node, transcriber_node, self.segment_transcriber_rel))
-            segment_recording_edge_list.append((segment_node, recording_node, self.segment_recording_rel))
+            segment_user_edge_list.append(
+                (segment_node, user_node, self.segment_user_rel)
+            )
+            segment_transcriber_edge_list.append(
+                (segment_node, transcriber_node, self.segment_transcriber_rel)
+            )
+            segment_recording_edge_list.append(
+                (segment_node, recording_node, self.segment_recording_rel)
+            )
 
         # Add instance -> segment nodes
         g.add_nodes_from([(instance_id, self.instance_label)])
@@ -105,8 +117,10 @@ class KnowledgeGraph(object):
         g.add_edges_from(segment_recording_edge_list)
 
         # Create edge between instanceId -> segmentId and add to graph
-        instance_segment_edges = [(instance_id, seg_id, self.instance_segment_rel) for seg_id, seg_attrs in
-                                  segment_attrs_list]
+        instance_segment_edges = [
+            (instance_id, seg_id, self.instance_segment_rel)
+            for seg_id, seg_attrs in segment_attrs_list
+        ]
         g.add_edges_from(instance_segment_edges)
 
         return g
@@ -121,15 +135,41 @@ class KnowledgeGraph(object):
 
         for segment in segment_list:
             segment_node = segment["id"]
-            segment_keyphrase_edge_list = [(segment_node, words, self.segment_keyphrase_rel) for words in keyphrase_list]
+            segment_keyphrase_edge_list = [
+                (segment_node, words, self.segment_keyphrase_rel)
+                for words in keyphrase_list
+            ]
 
             g.add_edges_from(segment_keyphrase_edge_list)
 
         # Unload list and add the words individually in the graph
-        keyphrase_node_list = [(words, self.keyphrase_label) for words in keyphrase_list]
+        keyphrase_node_list = [
+            (words, self.keyphrase_label) for words in keyphrase_list
+        ]
         g.add_nodes_from(keyphrase_node_list)
         g.add_nodes_from([(mind_id, self.mind_label)])
 
         g.add_edges_from([(context_id, mind_id, self.context_mind_rel)])
 
         return g
+
+    def populate_word_graph_info(self, request, context_graph, word_graph):
+        instance_id = request["instanceId"]
+
+        # Add word graph as a node in the context graph
+        context_graph.add_node(
+            word_graph,
+            label="wordGraph",
+            type="graphObject",
+            graphId=word_graph.graph.get("graphId"),
+        )
+
+        # Add edge between instanceId and word graph
+        context_graph.add_edge(instance_id, word_graph, relation="hasWordGraph")
+
+        return context_graph
+
+    def query_word_graph_object(self, context_graph):
+        for (n1, n2, e_attr) in context_graph.edges.data("relation"):
+            if e_attr == "hasWordGraph":
+                return n2

@@ -123,3 +123,5 @@ vendor/
 *.swp
 *.version
 *.json
+*.png
+*.gexf
