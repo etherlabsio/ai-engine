@@ -7,8 +7,8 @@ import logging
 from timeit import default_timer as timer
 import traceback
 
-from .graph_rank import GraphRank
-from .utils import TextPreprocess, GraphUtils
+from graphrank.core import GraphRank
+from graphrank.utils import TextPreprocess, GraphUtils
 
 from .knowledge_graph import KnowledgeGraph
 

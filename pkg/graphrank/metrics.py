@@ -12,7 +12,7 @@ class GraphSolvers(object):
     def __init__(self):
         pass
 
-    def get_graph_algorithm(self, graph_obj, solver_fn):
+    def get_graph_algorithm(self, graph_obj, solver_fn, **kwargs):
         """
         Graph algorithms to compute nodes/vertices' weights
         Args:
@@ -22,14 +22,28 @@ class GraphSolvers(object):
         Returns:
             node_weights (list[tuple]): List of tuple(Nodes, weighted scores)
         """
+        personalization_dict = kwargs.get("personalization", None)
+        dangling_dict = kwargs.get("dangling", None)
+        edge_weight = kwargs.get("weight", None)
 
         # TODO Extend to other solvers
         if solver_fn == "pagerank":
             node_weights = nx.pagerank(
-                graph_obj, alpha=0.85, tol=0.0001, weight=None)
+                graph_obj,
+                alpha=0.85,
+                tol=0.0001,
+                weight=edge_weight,
+                personalization=personalization_dict,
+                dangling=dangling_dict,
+            )
         else:
             node_weights = nx.pagerank_scipy(
-                graph_obj, alpha=0.85, tol=0.0001, weight=None
+                graph_obj,
+                alpha=0.85,
+                tol=0.0001,
+                weight=edge_weight,
+                personalization=personalization_dict,
+                dangling=dangling_dict,
             )
 
         return node_weights
@@ -41,8 +55,7 @@ class GraphSolvers(object):
 
     def get_betweenness(self, graph_obj):
         if nx.is_connected(graph_obj):
-            node_betweenness = nx.current_flow_betweenness_centrality(
-                graph_obj)
+            node_betweenness = nx.current_flow_betweenness_centrality(graph_obj)
         else:
             node_betweenness = nx.betweenness_centrality(graph_obj)
 

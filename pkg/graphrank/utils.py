@@ -1,5 +1,5 @@
 import networkx as nx
-import text_preprocessing.preprocess as process_text
+from text_preprocessing import preprocess as process_text
 
 try:
     import cPickle as pickle
