@@ -38,7 +38,7 @@ COPY pkg pkg
 COPY vendor vendor
 COPY mind_files/ services/community/
 COPY --from=compile-image /build/dist/server.pex .
-
+COPY mind_files/ mind_files/
 ENTRYPOINT ["./server.pex"]
 EXPOSE 8080
 CMD []
