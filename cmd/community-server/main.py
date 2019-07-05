@@ -21,6 +21,7 @@ if __name__ == '__main__':
         app = Sanic()
         @app.route('/calculate_pims', methods=["POST"])
         async def identifyPIMs(request):
+                logger.info("POST request recieved", extra={"request":request.json})
                 segments = decode_json_request(request.json)
                 mind = loadmodel.selectmodel((request.json)['mindId'])
                 model1 = loadmodel.loadmodel(bert_config, mind)

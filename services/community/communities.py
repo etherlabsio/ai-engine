@@ -39,9 +39,10 @@ class community_detection():
         index = 0
         for segment in self.segments_list:
             for sent in segment['originalText']:
-                graph_list[index] = (sent, segment['startTime'], segment['spokenBy'], segment['id'])
-                fv[index] = getBERTFeatures(self.model1, sent, attn_head_idx=-1)
-                index+=1
+                if sent!='':
+                    graph_list[index] = (sent, segment['startTime'], segment['spokenBy'], segment['id'])
+                    fv[index] = getBERTFeatures(self.model1, sent, attn_head_idx=-1)
+                    index+=1
         return fv, graph_list
 
     def construct_graph(self, fv, graph_list):
@@ -77,9 +78,11 @@ class community_detection():
         clusters = []
         temp = []
         prev_com = 0
-        for word,cluster in community_set_sorted:
+        for index, (word,cluster) in enumerate(community_set_sorted):
             if prev_com==cluster:
                 temp.append(word)
+                if index==len(community_set_sorted)-1:
+                    clusters.append(temp)
             else:
                 clusters.append(temp)
                 temp = []
@@ -113,7 +116,7 @@ class community_detection():
            #print ("-----community-----", index)
            for (index1,(sent1,time1,user1, id1)), (index2,(sent2,time2,user2, id2)) in zip(enumerate(com[0:]),enumerate(com[1:])):
                if id1!=id2:
-                   if ((formatTime( time2, True)-formatTime(time1, True)).seconds<=240):
+                   if ((formatTime( time2, True)-formatTime(time1, True)).seconds<=120):
                        if (not flag):
                            pims[index_pim] = {'segment'+str(index_segment):[sent1,time1,user1, id1]}
                            index_segment+=1
@@ -170,6 +173,9 @@ class community_detection():
         fv, graph_list = self.compute_feature_vector()
         logger.info("No of sentences is", extra={"sentence": len(fv.keys())})
         meeting_graph, yetto_prune = self.construct_graph(fv, graph_list)
+        max_meeting_grap_pruned = None
+        max_community_set = None
+        max_mod = 0
         for v in [0.15, 0.1, 0.05, 0.01]:
             flag = False
             for count in range(5):
@@ -177,16 +183,25 @@ class community_detection():
                 community_set = community.best_partition(meeting_graph_pruned)
                 mod = community.modularity(community_set, meeting_graph_pruned)
                 logger.info("Meeting Graph results", extra={"edges before prunning":meeting_graph.number_of_edges(), "edges after prunning": meeting_graph_pruned.number_of_edges()})
-                if mod>0.3:
+                #if mod>0.3:
+                #    flag = True
+                #    break
+                #if mod==0:
+                #    meeting_graph_pruned = self.prune_edges(meeting_graph, graph_list, yetto_prune, 0.15)
+                #    flag = True
+                #    break
+                if mod>max_mod and mod<5:
+                    max_meeting_grap_pruned = meeting_graph_pruned
+                    max_community_set = community_set
+                    max_mod = mod
                     flag = True
-                    break
-                elif mod==0:
-                    meeting_graph_pruned = self.prune_edges(meeting_graph, graph_list, yetto_prune, 0.15)
-                    flag = True
-                    break
-            if flag:
-                break
-        #logger.info("Meeting Graph results", extra={"edges before prunning":meeting_graph.number_of_edges(), "edges after prunning": meeting_graph_pruned.number_of_edges()})
+            #if flag:
+                #break
+        meeting_graph_pruned = max_meeting_grap_pruned
+        community_set = max_community_set
+        mod = max_mod
+
+        logger.info("Meeting Graph results", extra={"edges before prunning":meeting_graph.number_of_edges(), "edges after prunning": meeting_graph_pruned.number_of_edges(), "modularity":mod})
         community_set_sorted = self.compute_louvian_community(meeting_graph_pruned, community_set)
         community_timerange = self.refine_community(community_set_sorted, graph_list)
        #logger.info("commnity timerange", extra={"timerange": community_timerange})

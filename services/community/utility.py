@@ -7,6 +7,7 @@ from datetime import datetime
 import json
 from pytorch_pretrained_bert import BertTokenizer, BertConfig, BertModel
 from pytorch_pretrained_bert.modeling import BertPreTrainedModel, BertPreTrainingHeads
+import text_preprocessing.preprocess as tp
 import torch
 import numpy as np
 
@@ -130,3 +131,14 @@ def formatTime(tz_time, datetime_object=False):
     if datetime_object:
         ts = datetime.fromisoformat(ts)
     return ts
+
+
+def preprocess_text(text):
+    mod_texts_unfiltered = tp.preprocess(text, stop_words=False, remove_punct=False)
+    mod_texts = []
+
+    for index, sent in enumerate(mod_texts_unfiltered):
+        if len(sent.split(' '))<=6:
+            continue
+        mod_texts.append(sent)
+    return mod_texts
