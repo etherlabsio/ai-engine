@@ -42,7 +42,7 @@ python_library(
         name='text_preprocessing',
         version='0.2',
         description='Text pre-processing package for almost every NLP task',
-        author='Reagon Raywop',
+        author='Reagon Rewop',
         author_email='sri@etherlabs.io',
         python_requires='>=3.6.0',
         url='https://github.com/etherlabsio/ai-engine',
