@@ -1,3 +1,4 @@
+stop_words = """
 a
 able
 about
@@ -670,3 +671,4 @@ yourselves
 you've
 z
 zero
+"""

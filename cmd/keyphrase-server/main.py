@@ -5,7 +5,7 @@ import logging
 from dotenv import load_dotenv, find_dotenv
 from os import getenv
 
-from keyphrase.graphrank.extract_keyphrases import KeyphraseExtractor
+from keyphrase.extract_keyphrases import KeyphraseExtractor
 from keyphrase.transport.nats import NATSTransport
 from nats.manager import Manager
 from log.logger import setup_server_logger

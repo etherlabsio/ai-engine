@@ -1,25 +1,44 @@
+import logging
 import nltk
 import nltk.data
-from text_preprocessing.util import expand_contractions, unkown_punct, \
-    remove_number, remove_stopwords, lemmatization, get_pos, get_filtered_pos
+from .util import (
+    expand_contractions,
+    unkown_punct,
+    remove_number,
+    remove_stopwords,
+    lemmatization,
+    get_pos,
+    get_filtered_pos,
+)
 
-nltk.data.path.append('vendor/nltk_data/')
+logger = logging.getLogger(__name__)
 
 try:
-    nltk.data.find('tokenizers/punkt/PY3/english.pickle')
+    nltk.data.path.append("vendor/nltk_data/")
+except Exception as e:
+    logger.warning(e)
+
+try:
+    nltk.data.find("tokenizers/punkt/PY3/english.pickle")
 except LookupError:
-    nltk.download('punkt')
+    nltk.download("punkt")
 
-sent_detector = nltk.data.load('tokenizers/punkt/PY3/english.pickle')
+sent_detector = nltk.data.load("tokenizers/punkt/PY3/english.pickle")
 
 
-def preprocess(text, lemma=False, stop_words=True, word_tokenize=False,
-               remove_punct=True, pos=False):
-    '''
+def preprocess(
+    text,
+    lemma=False,
+    stop_words=True,
+    word_tokenize=False,
+    remove_punct=True,
+    pos=False,
+):
+    """
     Description: Does all the basic pre-processing.
     Input: Set of sentence(s) as a string.
     Output: List of pre-processed sentences.
-    '''
+    """
     pos_text = []
     if text:
         sentence = sent_detector.tokenize(text.strip())
