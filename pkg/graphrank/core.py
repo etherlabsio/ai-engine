@@ -44,6 +44,8 @@ class GraphRank(object):
         """
         Build co-occurrence of words graph based on the POS tags and the window of occurrence
         Args:
+            add_context:
+            graph_obj:
             edge_attributes:
             preserve_plurals:
             node_attributes:
@@ -366,6 +368,7 @@ class GraphRank(object):
         Compute aggregated scores for multi-keyword terms. The scores are computed based on the weight metrics.
         The final scores for a keyword term determines its relative importance in the list of phrases.
         Args:
+            descriptive:
             normalize_nodes:
             preserve_common_words:
             original_tokens:

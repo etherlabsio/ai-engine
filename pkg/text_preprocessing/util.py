@@ -10,17 +10,22 @@ from nltk.tokenize import word_tokenize
 logger = logging.getLogger(__name__)
 
 try:
-    nltk.data.path.append("vendor/nltk_data")
-except Exception as e:
-    print(e)
-
-try:
     nlp = spacy.load("vendor/en_core_web_sm/en_core_web_sm-2.1.0")
 except Exception as e:
     logger.warning(e)
     import en_core_web_sm
 
     nlp = en_core_web_sm.load()
+
+try:
+    nltk.data.path.append("vendor/nltk_data")
+except Exception as e:
+    logger.warning(e)
+
+try:
+    nltk.data.find("wordnet")
+except LookupError:
+    nltk.download("wordnet")
 
 try:
     stop_words_nltk = stopwords.words("english")
@@ -235,6 +240,11 @@ def expand_contractions(sentence):
         for word in words:
             if not not contraction_mapping.get(word):
                 sentence = sentence.replace(word, contraction_mapping[word])
+            if "'s" in word or "’s" in word:
+                new_word = word.replace("'s", " is")
+                if new_word == word:
+                    new_word = word.replace("’s", "s")
+                sentence = sentence.replace(word, new_word)
     return sentence
 
 
@@ -246,8 +256,17 @@ def unkown_punct(sentence, remove_punct):
     """
     for p in punct:
         if p in sentence:
-            if not remove_punct and p not in {",", ".", "?"}:
-                sentence = sentence.replace(p, "")
+            if remove_punct:
+                if p == "-":
+                    sentence = sentence.replace(p, "")
+                else:
+                    sentence = sentence.replace(p, "")
+            elif p not in {",", ".", "?"}:
+                if p == "-":
+                    sentence = sentence.replace(p, "")
+                else:
+                    sentence = sentence.replace(p, "")
+    sentence = sentence.replace("\n", " ")
     return sentence
 
 
@@ -257,8 +276,8 @@ def remove_number(sentence):
     input : A single sentence as a string.
     output : A string.
     """
-    sentence = re.sub("\ \d+\ ", " XnumberX ", " " + sentence + " ")
-    sentence = re.sub("\ \d+\ ", " XnumberX ", " " + sentence + " ")
+    sentence = re.sub("\d+\.+\d+", "XnumberX", " " + sentence + " ")
+    sentence = re.sub("\d+", "XnumberX", " " + sentence + " ")
     return sentence[2:-2]
 
 
