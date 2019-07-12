@@ -7,25 +7,25 @@ logger = logging.getLogger(__name__)
 
 class KnowledgeGraph(object):
     def __init__(self):
-        self.context_label = {"label": "contextId"}
-        self.instance_label = {"label": "instanceId"}
+        self.context_label = {"attribute": "contextId"}
+        self.instance_label = {"attribute": "instanceId"}
         self.context_instance_rel = {"relation": "hasMeeting"}
 
         self.instance_segment_rel = {"relation": "hasSegment"}
 
-        self.user_label = {"label": "authorId"}
-        self.transcriber_label = {"label": "segmentProvider"}
+        self.user_label = {"attribute": "authorId"}
+        self.transcriber_label = {"attribute": "segmentProvider"}
 
         self.segment_user_rel = {"relation": "authoredBy"}
         self.segment_transcriber_rel = {"relation": "providedBy"}
 
-        self.recording_label = {"label": "sourceId", "type": "recording"}
+        self.recording_label = {"attribute": "sourceId", "type": "recording"}
         self.segment_recording_rel = {"relation": "hasSource"}
 
-        self.keyphrase_label = {"label": "importantKeywords"}
+        self.keyphrase_label = {"attribute": "importantKeywords"}
         self.segment_keyphrase_rel = {"relation": "hasKeywords"}
 
-        self.mind_label = {"label": "mindId"}
+        self.mind_label = {"attribute": "mindId"}
         self.context_mind_rel = {"relation": "associatedMind"}
 
     def read_json(self, json_file):
@@ -68,7 +68,7 @@ class KnowledgeGraph(object):
             segment_node = segment["id"]
 
             segment_node_attrs = {
-                "label": "segmentId",
+                "attribute": "segmentId",
                 "text": segment["originalText"],
                 "confidence": segment["confidence"],
                 "startTime": segment["startTime"],
@@ -159,7 +159,7 @@ class KnowledgeGraph(object):
         # Add word graph as a node in the context graph
         context_graph.add_node(
             word_graph,
-            label="wordGraph",
+            attribute="wordGraph",
             type="graphObject",
             graphId=word_graph.graph.get("graphId"),
         )
