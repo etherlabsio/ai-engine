@@ -228,9 +228,23 @@ class KeyphraseExtractor(object):
             for word, score in keyphrase_list:
                 loc = input_segment.find(word)
                 if loc > -1 and ("*" not in word or "." not in word):
-                    cleaned_keyphrase_list.append((word, score))
 
-        sorted_keyphrase_list = self.sort_by_value(cleaned_keyphrase_list, order="desc")
+                    if top_n > 6:
+                        # Store location index to sort by time spoken in PIMs
+                        cleaned_keyphrase_list.append((word, loc))
+                    else:
+                        cleaned_keyphrase_list.append((word, score))
+
+        if top_n > 6:
+            # Order PIM keyphrases in the order they were spoken
+            sorted_keyphrase_list = self.sort_by_value(
+                cleaned_keyphrase_list, order="asc"
+            )
+        else:
+            sorted_keyphrase_list = self.sort_by_value(
+                cleaned_keyphrase_list, order="desc"
+            )
+
         if top_n is not None:
             sorted_keyphrase_list = sorted_keyphrase_list[:top_n]
 
