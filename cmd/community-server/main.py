@@ -22,13 +22,23 @@ if __name__ == '__main__':
         @app.route('/calculate_pims', methods=["POST"])
         async def identifyPIMs(request):
                 logger.info("POST request recieved", extra={"request":request.json})
-                segments = decode_json_request(request.json)
-                mind = loadmodel.selectmodel((request.json)['mindId'])
+                Request_obj = decode_json_request(request.json)
+                logger.info("extra:",extra={"Requestobj":Request_obj})
+                if not Request_obj.segments:
+                        return json({"msg": "No segments to process"})
+                mind = loadmodel.selectmodel(((request.json)['mindId']).lower())
                 model1 = loadmodel.loadmodel(bert_config, mind)
-                res = pims.computepims(segments, model1)
+                topics = {}
+                pim = {}
+                topics, pim = pims.computepims(Request_obj, model1)
+                topics['contextId']=(request.json)['contextId']
+                topics['instanceId']=(request.json)['instanceId']
+                topics['mindId']=(request.json)['mindId'].lower()
+                pims.uploadtos3(js.dumps(pim), js.dumps(topics), (request.json)['instanceId'])
                 #reqData = request.json
                 #res = getpims.computerpims(reqData)
-                return json(res)
+                pim['extracted_topics'] = topics
+                return json(pim)
         @app.route('/debug/healthcheck')
         async def healthcheck(request):
                 return json({"message": "healthy"})

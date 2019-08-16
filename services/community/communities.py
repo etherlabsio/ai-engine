@@ -15,9 +15,11 @@ from datetime import datetime
 logger = logging.getLogger()
 class community_detection():
     segments_list = []
+    segments_org = []
     model1 = None
     def __init__(self, Request, model1):
         self.segments_list = Request.segments
+        self.segments_org = Request.segments_org
         self.model1 = model1
     #def parse_meeting(self, segments):
     #    segments_data = list(map(lambda x: tp.preprocess(x['originalText'], stop_words=False, remove_punct=False), segments['segments']))
@@ -49,15 +51,15 @@ class community_detection():
         meeting_graph = nx.Graph()
         yetto_prune = []
         c_weight = 0
-        for indexa, nodea in enumerate(graph_list.values()):
-            for indexb, nodeb in enumerate(graph_list.values()):
-                if indexb>indexa:
-                    c_weight = cosine(fv[indexa], fv[indexb])
-                    meeting_graph.add_edge(indexa, indexb, weight=c_weight)
-                    yetto_prune.append((indexa, indexb, c_weight))
+        for nodea in graph_list.keys():
+            for nodeb in graph_list.keys():
+                if nodeb>nodea:
+                    c_weight = 1 - cosine(fv[nodea], fv[nodeb])
+                    meeting_graph.add_edge(nodea, nodeb, weight=c_weight)
+                    yetto_prune.append((nodea, nodeb, c_weight))
         return meeting_graph, yetto_prune
 
-    def prune_edges(self, meeting_graph, graph_list, yetto_prune,v=0.01):
+    def prune_edges(self, meeting_graph, graph_list, yetto_prune,v):
         yetto_prune = sorted(yetto_prune, key=lambda kv : kv[2], reverse=True)
         yetto_prune = yetto_prune[:math.ceil(len(yetto_prune)*v)+1]
         logger.info("pruning value", extra={"v is : ": v})
@@ -176,13 +178,15 @@ class community_detection():
         max_meeting_grap_pruned = None
         max_community_set = None
         max_mod = 0
-        for v in [0.15, 0.1, 0.05, 0.01]:
+        for nodea, nodeb, weight in yetto_prune[:50]:
+            logger.info("yetto prune", extra={"sentence 1":graph_list[nodea], "sentence 2": graph_list[nodeb], "weight:": weight})
+        for v in [0.15, 0.1, 0.05]:
             flag = False
             for count in range(5):
                 meeting_graph_pruned =  self.prune_edges(meeting_graph, graph_list, yetto_prune, v)
                 community_set = community.best_partition(meeting_graph_pruned)
                 mod = community.modularity(community_set, meeting_graph_pruned)
-                logger.info("Meeting Graph results", extra={"edges before prunning":meeting_graph.number_of_edges(), "edges after prunning": meeting_graph_pruned.number_of_edges()})
+                logger.info("Meeting Graph results", extra={"edges before prunning":meeting_graph.number_of_edges(), "edges after prunning": meeting_graph_pruned.number_of_edges(), "modularity ": mod})
                 #if mod>0.3:
                 #    flag = True
                 #    break
@@ -190,7 +194,7 @@ class community_detection():
                 #    meeting_graph_pruned = self.prune_edges(meeting_graph, graph_list, yetto_prune, 0.15)
                 #    flag = True
                 #    break
-                if mod>max_mod and mod<5:
+                if mod>max_mod and mod<3.5:
                     max_meeting_grap_pruned = meeting_graph_pruned
                     max_community_set = community_set
                     max_mod = mod

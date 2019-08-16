@@ -138,6 +138,13 @@ def preprocess_text(text):
     mod_texts = []
 
     for index, sent in enumerate(mod_texts_unfiltered):
+        if len(sent.split(' '))>250:
+            length = len(sent.split(' '))
+            split1 = ' '.join([i for i in sent.split(' ')[:round(length/2)]])
+            split2 = ' '.join([i for i in sent.split(' ')[round(length/2):]])
+            mod_texts.append(split1)
+            mod_texts.append(split2)
+            continue
         if len(sent.split(' '))<=6:
             continue
         mod_texts.append(sent)

@@ -11,6 +11,7 @@ logger = logging.getLogger()
 @dataclass
 class Request:
     segments: list
+    segments_org: list
 
 def decode_json_request(body) -> Request:
     req = body
@@ -25,6 +26,10 @@ def decode_json_request(body) -> Request:
         for index, segment in  enumerate(segments_data):
             segments_data[index]['originalText'] = segments_text[index]
         return segments_data
-
+    
+    if req['segments'] is None:
+        return False
+    logger.info("segments", extra={"segments data":type(req['segments'])})
+    segments_org = req
     segments = decode_segments(req)
-    return Request(segments)
+    return Request(segments, segments_org)
