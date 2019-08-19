@@ -172,4 +172,10 @@ class KnowledgeGraph(object):
     def query_word_graph_object(self, context_graph):
         for (n1, n2, e_attr) in context_graph.edges.data("relation"):
             if e_attr == "hasWordGraph":
+                if isinstance(n2, nx.Graph):
+                    logger.debug("retrieved graph object")
+                else:
+                    logger.error(
+                        "graphId does not exist or does not match context info"
+                    )
                 return n2
