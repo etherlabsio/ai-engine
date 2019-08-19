@@ -29,7 +29,9 @@ python_library(
 		'3rdparty/python:sklearn',
 		'3rdparty/python:nltk',
 		'3rdparty/python:networkx',
-		'3rdparty/python:boto3'
+		'3rdparty/python:boto3',
+		'3rdparty/python:tensorflow',
+		'3rdparty/python:tensorflow-hub'
 	],
 
 )
