@@ -3,15 +3,20 @@ import tensorflow_hub as hub
 import numpy as np
 from scipy.spatial.distance import cosine
 import logging
+import os
 
 logger = logging.getLogger(__name__)
+tf.logging.set_verbosity(tf.logging.ERROR)
 
 
 class SentenceEncoder(object):
     def __init__(self):
-        large_module_url = "https://tfhub.dev/google/universal-sentence-encoder-large/3"
-        module_url = "https://tfhub.dev/google/universal-sentence-encoder/2"
-        self.embed = hub.Module(module_url)
+        module_name = "USE_model_v1"
+        module_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), module_name)
+        logger.info("Loading model from path", extra={
+            "path": module_path
+        })
+        self.embed = hub.Module(module_path)
 
         self.input_placeholder = tf.placeholder(tf.string, shape=(None))
         self.encoder = self.embed(self.input_placeholder)

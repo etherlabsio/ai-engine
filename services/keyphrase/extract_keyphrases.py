@@ -69,7 +69,7 @@ class KeyphraseExtractor(object):
         )
 
     def retrieve_context_graph(
-        self, req_data: SegmentType
+            self, req_data: SegmentType
     ) -> Tuple[nx.DiGraph, nx.Graph]:
         # Get graph object from S3
         context_graph = self.io_util.download_s3(
@@ -84,10 +84,10 @@ class KeyphraseExtractor(object):
         return context_graph, meeting_word_graph
 
     def populate_push_context_graph(
-        self,
-        req_data: SegmentType,
-        context_graph: nx.DiGraph,
-        meeting_word_graph: nx.Graph,
+            self,
+            req_data: SegmentType,
+            context_graph: nx.DiGraph,
+            meeting_word_graph: nx.Graph,
     ) -> Tuple[nx.DiGraph, nx.Graph]:
         # Populate meeting-level knowledge graph
         context_graph = self.kg.populate_instance_info(
@@ -107,7 +107,7 @@ class KeyphraseExtractor(object):
         return context_graph, meeting_word_graph
 
     def update_context_with_word_graph(
-        self, req_data: SegmentType, segment_keyphrases: list
+            self, req_data: SegmentType, segment_keyphrases: list
     ):
         start = timer()
         # Download KG from s3
@@ -211,17 +211,20 @@ class KeyphraseExtractor(object):
 
         return context_graph, meeting_word_graph
 
-    # TODO test chapter offset logic
-    # TODO add keyphrase quality score to keyphrase object
+    def encode_word_graph(self, word_graph):
+        word_graph = self.ranker.compute_edge_weights(word_graph)
+
+        return word_graph
+
     def get_keyphrases(
-        self,
-        req_data,
-        n_kw=10,
-        rank=True,
-        default_form="descriptive",
-        rank_by="segment_relevance",
-        sort_by="loc",
-        validate: bool = False,
+            self,
+            req_data,
+            n_kw=10,
+            rank=True,
+            default_form="descriptive",
+            rank_by="segment_relevance",
+            sort_by="loc",
+            validate: bool = False,
     ):
         start = timer()
 
@@ -285,21 +288,120 @@ class KeyphraseExtractor(object):
 
         return result
 
-    def encode_word_graph(self, word_graph):
-        word_graph = self.ranker.compute_edge_weights(word_graph)
+    def get_keyphrases_with_offset(
+            self,
+            req_data,
+            n_kw=10,
+            rank=True,
+            default_form="descriptive",
+            rank_by="segment_relevance",
+            sort_by="loc",
+            validate: bool = False,
+    ):
+        start = timer()
+        keyphrase_offsets = []
+        try:
+            # Get graph objects
+            context_graph, meeting_word_graph = self.retrieve_context_graph(
+                req_data=req_data
+            )
 
-        return word_graph
+            # Check if the segments are already present in the context graph
+            status = self.check_for_segment_id(
+                req_data=req_data, context_graph=context_graph
+            )
+            if status is not True:
+                # Repopulate the graphs
+                context_graph, meeting_word_graph = self.populate_word_graph(
+                    req_data, add_context=False
+                )
+
+            relative_time = self.utils.formatTime(
+                req_data["relativeTime"], datetime_object=True
+            )
+            entities, keyphrase_object = self.extract_keywords(
+                req_data,
+                context_graph=context_graph,
+                meeting_word_graph=meeting_word_graph,
+                relative_time=relative_time
+            )
+
+            if rank:
+                keyphrase_object = self.ranker.compute_local_relevance(
+                    keyphrase_object=keyphrase_object
+                )
+
+            keyphrases, keyphrase_object = self.prepare_keyphrase_output(
+                processed_entities=entities,
+                keyphrase_object=keyphrase_object,
+                top_n=n_kw,
+                default_form=default_form,
+                limit_phrase=True,
+                rank_by=rank_by,
+                sort_by=sort_by,
+            )
+
+            keyphrase_offsets = self.parse_keyphrase_offset(keyphrase_list=keyphrases,
+                                                            keyphrase_object=keyphrase_object)
+            if validate:
+                self.utils.write_to_json(keyphrase_object)
+
+            end = timer()
+            logger.debug(
+                "Extracted keyphrases with offsets", extra={
+                    "output": keyphrase_object,
+                    "responseTime": end - start
+                }
+            )
+
+        except Exception as e:
+            end = timer()
+            logger.error(
+                "Error extracting keyphrases from segment",
+                extra={
+                    "responseTime": end - start,
+                    "instanceId": req_data["instanceId"],
+                    "segmentObj": req_data["segments"],
+                    "err": traceback.print_exc(),
+                },
+            )
+
+        result = {"keyphrases": keyphrase_offsets}
+
+        return result
+
+    def parse_keyphrase_offset(self, keyphrase_list, keyphrase_object):
+
+        keyphrase_offset_list = []
+        for i, segment_dict in enumerate(keyphrase_object):
+            segment = segment_dict["segments"]
+            offset_ts = segment_dict["offset"]
+            for word in keyphrase_list:
+                loc = segment.find(word)
+                if loc > -1:
+                    keyphrase_offset_list.append({word: offset_ts})
+
+        # Reformat as per api contract
+        keyphrase_offset_output = {
+            words: offset
+            for elements in keyphrase_offset_list
+            for words, offset in elements.items()
+        }
+
+        return keyphrase_offset_output
 
     def extract_keywords(
-        self,
-        req_data: SegmentType,
-        context_graph: nx.DiGraph,
-        meeting_word_graph: nx.Graph,
-        preserve_singlewords=False,
+            self,
+            req_data: SegmentType,
+            context_graph: nx.DiGraph,
+            meeting_word_graph: nx.Graph,
+            relative_time=None,
+            preserve_singlewords=False,
     ):
         """
         Search for keyphrases in an array of N segments and return them as one list of keyphrases
         Args:
+            relative_time:
             meeting_word_graph:
             context_graph:
             req_data:
@@ -311,7 +413,7 @@ class KeyphraseExtractor(object):
         start = timer()
         segment_entities = []
         cleaned_keyphrase_list = []
-        cleaned_keyphrase_dict = {"segments": str, "original": {}, "descriptive": {}}
+        cleaned_keyphrase_dict = {"segments": str, "offset": float, "original": {}, "descriptive": {}}
 
         segment_relevance_score = 0
         boosted_score = 0
@@ -322,12 +424,18 @@ class KeyphraseExtractor(object):
         for i in range(len(segment_object)):
             input_segment = segment_object[i].get("originalText")
 
+            segment_dict = deepcopy(cleaned_keyphrase_dict)
+            segment_dict["segments"] = input_segment
+            if relative_time is not None:
+                # Set offset time for every keywords
+                start_time = segment_object[i].get("startTime")
+                start_time = self.utils.formatTime(start_time, datetime_object=True)
+                offset_time = float((start_time - relative_time).seconds)
+                segment_dict["offset"] = offset_time
+
             # Get entities
             entities = self.wg.get_entities(input_segment)
             segment_entities.extend(entities)
-
-            segment_dict = deepcopy(cleaned_keyphrase_dict)
-            segment_dict["segments"] = input_segment
 
             # Get cleaned words
             for word, pagerank_score in keyphrase_list:
@@ -364,14 +472,14 @@ class KeyphraseExtractor(object):
         return processed_entities, cleaned_keyphrase_list
 
     def prepare_keyphrase_output(
-        self,
-        processed_entities: list,
-        keyphrase_object: List[dict],
-        limit_phrase: bool = True,
-        top_n: int = None,
-        default_form: str = "descriptive",
-        rank_by: str = "pagerank",
-        sort_by: str = "loc",
+            self,
+            processed_entities: list,
+            keyphrase_object: List[dict],
+            limit_phrase: bool = True,
+            top_n: int = None,
+            default_form: str = "descriptive",
+            rank_by: str = "pagerank",
+            sort_by: str = "loc",
     ) -> Tuple[list, List[dict]]:
 
         rank_key_dict = {
@@ -432,170 +540,20 @@ class KeyphraseExtractor(object):
 
         return keyphrase, keyphrase_object
 
-    def chapter_segment_offset_search(
-        self,
-        segments,
-        relative_time,
-        keyphrase_list,
-        top_n=None,
-        preserve_singlewords=False,
-        limit_phrase=True,
-    ):
-        """
-        Search for keyphrases in an array of N segments and return them as one list of keyphrases
-        Args:
-            limit_phrase:
-            segments:
-            top_n:
-            preserve_singlewords:
-            relative_time:
-            keyphrase_list:
-
-        Returns:
-
-        """
-        chapter_entities = []
-        chapter_keywords_list = []
-
-        for i in range(len(segments)):
-            input_segment = segments[i].get("originalText")
-
-            # Set offset time for every keywords
-            start_time = segments[i].get("startTime")
-            start_time = self.utils.formatTime(start_time, datetime_object=True)
-            offset_time = float((start_time - relative_time).seconds)
-
-            for kw, score in keyphrase_list:
-                loc = input_segment.find(kw)
-                if loc > -1 and ("*" not in kw or "." not in kw):
-                    chapter_keywords_list.append(({kw: offset_time}, score))
-
-            entities = self.wg.get_entities(input_segment)
-            chapter_entities.extend([{entity: offset_time} for entity in entities])
-
-        chapter_entities_list = [
-            entities for ent in chapter_entities for entities, off in ent.items()
-        ]
-
-        sort_list = self.utils.sort_by_value(chapter_keywords_list, order="desc")
-        if top_n is not None:
-            sort_list = sort_list[:top_n]
-
-        chapter_keyphrases = [phrases for phrases, score in sort_list]
-
-        # Get distinct entities and keyphrases
-        chapter_entities_list = list(dict.fromkeys(chapter_entities_list))
-
-        # Post-process entities
-        chapter_entities_list = self.utils.post_process_entities(chapter_entities_list)
-
-        # Remove the first occurrence of entity in the list of keyphrases
-        for entities in chapter_entities_list:
-            for i, keyphrase_dict in enumerate(chapter_keyphrases):
-                for keyphrase in keyphrase_dict.keys():
-                    if keyphrase in entities:
-                        del chapter_keyphrases[i]
-
-        # Place the single keywords in the end of the list.
-        chapter_multiphrase_list = [
-            {kw: offset}
-            for words in chapter_keyphrases
-            for kw, offset in words.items()
-            if len(kw.split()) > 1
-        ]
-        chapter_singleword_list = [
-            {kw: offset}
-            for words in chapter_keyphrases
-            for kw, offset in words.items()
-            if len(kw.split()) == 1
-        ]
-
-        if preserve_singlewords:
-            chapter_multiphrase_list.extend(chapter_singleword_list)
-
-        if limit_phrase:
-            chapter_entities, chapter_multiphrase_list = self.utils.limit_phrase_list(
-                entities_list=chapter_entities,
-                keyphrase_dict=chapter_multiphrase_list,
-                phrase_limit=top_n,
-            )
-
-        chapter_entities.extend(chapter_multiphrase_list)
-
-        # Reformat as per api contract
-        chapter_output = {
-            words: offset
-            for elements in chapter_entities
-            for words, offset in elements.items()
-        }
-
-        result = {"keyphrases": chapter_output}
-
-        return result
-
     def get_instance_keyphrases(self, req_data, n_kw=10):
-        keyphrase_list, descriptive_kp = self.compute_keyphrases(req_data)
+        # Get graph objects
+        context_graph, meeting_word_graph = self.retrieve_context_graph(
+            req_data=req_data
+        )
+
+        keyphrase_list, descriptive_kp = self.wg.get_segment_keyphrases(
+            req_data=req_data, word_graph=meeting_word_graph
+        )
         instance_keyphrases = [words for words, score in keyphrase_list]
 
         result = {"keyphrases": instance_keyphrases[:n_kw]}
 
         return result
-
-    def get_chapter_offset_keyphrases(
-        self, req_data, n_kw=10, default_form="descriptive"
-    ):
-        start = timer()
-        keyphrase_list, descriptive_kp = self.compute_keyphrases(req_data)
-
-        relative_time = self.utils.formatTime(
-            req_data["relativeTime"], datetime_object=True
-        )
-        chapter_keyphrases = []
-        chapter_desc_keyphrases = []
-
-        try:
-            chapter_keyphrases = self.chapter_segment_offset_search(
-                segments=req_data["segments"],
-                relative_time=relative_time,
-                keyphrase_list=keyphrase_list,
-                top_n=n_kw,
-            )
-
-            chapter_desc_keyphrases = self.chapter_segment_offset_search(
-                segments=req_data["segments"],
-                relative_time=relative_time,
-                keyphrase_list=descriptive_kp,
-                top_n=n_kw,
-            )
-
-        except Exception as e:
-            end = timer()
-            logger.error(
-                "Error processing chapter keyphrases with offset",
-                extra={
-                    "err": traceback.print_exc(),
-                    "responseTime": end - start,
-                    "instanceId": req_data["instanceId"],
-                },
-            )
-
-        if (
-            default_form == "descriptive"
-            and len(chapter_desc_keyphrases["keyphrases"]) > 0
-        ):
-            keyphrase = chapter_desc_keyphrases
-
-        elif (
-            default_form == "original"
-            and len(chapter_keyphrases["keyphrases"]) < 5
-            and len(chapter_desc_keyphrases["keyphrases"]) > 0
-        ):
-            keyphrase = chapter_desc_keyphrases
-
-        else:
-            keyphrase = chapter_keyphrases
-
-        return keyphrase
 
     def reset_keyphrase_graph(self, req_data):
         start = timer()

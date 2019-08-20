@@ -197,7 +197,7 @@ class NATSTransport(object):
         context_info = request["contextId"] + ":" + request["instanceId"]
 
         limit = request.get("limit", 10)
-        output = self.keyphrase_service.get_chapter_offset_keyphrases(
+        output = self.keyphrase_service.get_keyphrases_with_offset(
             request, n_kw=limit
         )
         end = timer()
