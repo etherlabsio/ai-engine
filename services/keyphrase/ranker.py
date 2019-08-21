@@ -3,18 +3,20 @@ from timeit import default_timer as timer
 import logging
 from scipy.spatial.distance import cosine
 import numpy as np
+import os
 
-from .encoder import SentenceEncoder
-from .knowledge_graph import KnowledgeGraph
+# from .encoder import SentenceEncoder
+# from .knowledge_graph import KnowledgeGraph
 
+os.environ["TF_CPP_MIN_LOG_LEVEL"] = "3"
 logger = logging.getLogger(__name__)
 tf.logging.set_verbosity(tf.logging.ERROR)
 
 
 class KeyphraseRanker(object):
-    def __init__(self, s3_io_util, context_dir):
-        self.sentence_encoder = SentenceEncoder()
-        self.kg = KnowledgeGraph()
+    def __init__(self, s3_io_util, context_dir, encoder_object, knowledge_graph_object):
+        self.sentence_encoder = encoder_object
+        self.kg = knowledge_graph_object
         self.context_dir = context_dir
         self.io_util = s3_io_util
 

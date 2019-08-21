@@ -1,16 +1,14 @@
 import logging
 from timeit import default_timer as timer
 
-from graphrank.utils import GraphUtils
-
 logger = logging.getLogger(__name__)
 
 
 class S3IO(object):
     # S3 storage utility functions
-    def __init__(self, s3_client):
+    def __init__(self, s3_client, graph_utils_obj):
         self.s3_client = s3_client
-        self.gutils = GraphUtils()
+        self.gutils = graph_utils_obj
 
     def upload_s3(self, graph_obj, req_data, s3_dir):
         context_id = req_data["contextId"]

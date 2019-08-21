@@ -10,6 +10,7 @@ from keyphrase.transport.nats import NATSTransport
 from nats.manager import Manager
 from log.logger import setup_server_logger
 from s3client.s3 import S3Manager
+from keyphrase.encoder import SentenceEncoder
 
 logger = logging.getLogger()
 
@@ -20,14 +21,15 @@ if __name__ == "__main__":
     load_dotenv(find_dotenv())
 
     active_env = getenv("ACTIVE_ENV", "development")
-    nats_url = getenv("NATS_URL", "nats://localhost:4222")
+    nats_url = getenv("NATS_URL", "nats://docker.for.mac.localhost:4222")
     bucket_store = getenv("STORAGE_BUCKET", "io.etherlabs.staging2.contexts")
 
     asyncio.set_event_loop_policy(uvloop.EventLoopPolicy())
     loop = asyncio.get_event_loop()
 
     s3_client = S3Manager(bucket_name=bucket_store)
-    keyphrase_extractor = KeyphraseExtractor(s3_client=s3_client)
+    encoder_client = SentenceEncoder()
+    keyphrase_extractor = KeyphraseExtractor(s3_client=s3_client, encoder_client=encoder_client)
 
     nats_manager = Manager(
         loop=loop, url=nats_url, queue_name="io.etherlabs.keyphrase_service"

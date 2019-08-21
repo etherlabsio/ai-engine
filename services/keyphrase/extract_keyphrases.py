@@ -6,6 +6,9 @@ from typing import List, Dict, Tuple
 from collections import OrderedDict
 from copy import deepcopy
 
+from graphrank.core import GraphRank
+from graphrank.utils import TextPreprocess, GraphUtils
+
 from .utils import KeyphraseUtils
 from .knowledge_graph import KnowledgeGraph
 from .ranker import KeyphraseRanker
@@ -18,8 +21,19 @@ SegmentType = Dict
 
 
 class KeyphraseExtractor(object):
-    def __init__(self, s3_client=None):
+    def __init__(self, s3_client=None, encoder_client=None):
+        self.context_dir = "/context-instance-graphs/"
         self.kg = KnowledgeGraph()
+        self.utils = KeyphraseUtils()
+        self.io_util = S3IO(s3_client=s3_client, graph_utils_obj=GraphUtils())
+        self.ranker = KeyphraseRanker(
+            s3_io_util=self.io_util, context_dir=self.context_dir, encoder_object=encoder_client, knowledge_graph_object=self.kg
+        )
+        self.wg = WordGraphBuilder(graphrank_obj=GraphRank(),
+                                   textpreprocess_obj=TextPreprocess(),
+                                   graphutils_obj=GraphUtils(),
+                                   keyphrase_utils_obj=self.utils)
+
         self.syntactic_filter = [
             "JJ",
             "JJR",
@@ -32,14 +46,6 @@ class KeyphraseExtractor(object):
             "NNPS",
             "FW",
         ]
-
-        self.context_dir = "/context-instance-graphs/"
-        self.io_util = S3IO(s3_client=s3_client)
-        self.ranker = KeyphraseRanker(
-            s3_io_util=self.io_util, context_dir=self.context_dir
-        )
-        self.utils = KeyphraseUtils()
-        self.wg = WordGraphBuilder()
 
     def get_graph_id(self, req_data):
         context_id = req_data["contextId"]

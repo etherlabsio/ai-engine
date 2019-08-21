@@ -5,21 +5,17 @@ import logging
 import traceback
 from typing import Tuple
 
-from graphrank.core import GraphRank
-from graphrank.utils import TextPreprocess, GraphUtils
-from .utils import KeyphraseUtils
-
 logger = logging.getLogger(__name__)
 
 
 class WordGraphBuilder(object):
-    def __init__(self):
+    def __init__(self, graphrank_obj, textpreprocess_obj, graphutils_obj, keyphrase_utils_obj):
         self.nlp = spacy.load("vendor/en_core_web_sm/en_core_web_sm-2.1.0")
         self.stop_words = list(STOP_WORDS)
-        self.gr = GraphRank()
-        self.tp = TextPreprocess()
-        self.gutils = GraphUtils()
-        self.utils = KeyphraseUtils()
+        self.gr = graphrank_obj
+        self.tp = textpreprocess_obj
+        self.gutils = graphutils_obj
+        self.utils = keyphrase_utils_obj
 
     def process_text(
         self, text, filter_by_pos=True, stop_words=False, syntactic_filter=None

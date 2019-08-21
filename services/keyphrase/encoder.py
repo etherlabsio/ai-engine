@@ -1,10 +1,11 @@
-import tensorflow as tf
+import tensorflow.compat.v1 as tf
 import tensorflow_hub as hub
 import numpy as np
 from scipy.spatial.distance import cosine
 import logging
 import os
 
+os.environ["TF_CPP_MIN_LOG_LEVEL"] = "3"
 logger = logging.getLogger(__name__)
 tf.logging.set_verbosity(tf.logging.ERROR)
 
