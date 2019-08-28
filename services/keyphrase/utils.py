@@ -73,12 +73,12 @@ class KeyphraseUtils(object):
         with open(file_name, "w", encoding="utf-8") as f_:
             json.dump(data, f_, ensure_ascii=False, indent=4)
 
-    def read_segments(self, req_data):
-        segments = req_data["segments"]
+    def read_segments(self, segment_object):
+
         segment_list = []
 
-        for i in range(len(segments)):
-            segment_list.append(segments[i].get("originalText"))
+        for i in range(len(segment_object)):
+            segment_list.append(segment_object[i].get("originalText"))
 
         return segment_list
 

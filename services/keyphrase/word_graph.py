@@ -9,7 +9,9 @@ logger = logging.getLogger(__name__)
 
 
 class WordGraphBuilder(object):
-    def __init__(self, graphrank_obj, textpreprocess_obj, graphutils_obj, keyphrase_utils_obj):
+    def __init__(
+        self, graphrank_obj, textpreprocess_obj, graphutils_obj, keyphrase_utils_obj
+    ):
         self.nlp = spacy.load("vendor/en_core_web_sm/en_core_web_sm-2.1.0")
         self.stop_words = list(STOP_WORDS)
         self.gr = graphrank_obj
@@ -110,11 +112,12 @@ class WordGraphBuilder(object):
         return filtered_entities
 
     def get_segment_keyphrases(
-        self, req_data: dict, word_graph: nx.Graph
+        self, segment_object: dict, word_graph: nx.Graph
     ) -> Tuple[list, list]:
+
         keyphrase_list = []
         descriptive_keyphrase_list = []
-        segment_list = self.utils.read_segments(req_data=req_data)
+        segment_list = self.utils.read_segments(segment_object=segment_object)
         try:
             for text in segment_list:
                 original_tokens, pos_tuple, filtered_pos_tuple = self.process_text(text)

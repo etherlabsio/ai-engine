@@ -1,6 +1,8 @@
 import networkx as nx
 import json as js
 import logging
+from copy import deepcopy
+import numpy as np
 
 logger = logging.getLogger(__name__)
 
@@ -22,7 +24,8 @@ class KnowledgeGraph(object):
         self.recording_label = {"attribute": "sourceId", "type": "recording"}
         self.segment_recording_rel = {"relation": "hasSource"}
 
-        self.keyphrase_label = {"attribute": "importantKeywords"}
+        self.pim_keyphrase_label = {"attribute": "importantKeywords"}
+        self.keyphrase_label = {"attribute": "segmentKeywords"}
         self.segment_keyphrase_rel = {"relation": "hasKeywords"}
 
         self.mind_label = {"attribute": "mindId"}
@@ -48,7 +51,7 @@ class KnowledgeGraph(object):
 
         return g
 
-    def populate_instance_info(self, request, g=None):
+    def populate_instance_info(self, request, g=None, attribute_dict=None):
         if g is None:
             g = nx.DiGraph()
 
@@ -76,6 +79,9 @@ class KnowledgeGraph(object):
                 "duration": segment["duration"],
                 "language": segment["languageCode"],
             }
+
+            if attribute_dict is not None:
+                segment_node_attrs.update(attribute_dict)
 
             segment_attrs_list.append((segment_node, segment_node_attrs))
 
@@ -125,12 +131,14 @@ class KnowledgeGraph(object):
 
         return g
 
-    def populate_keyphrase_info(self, request, keyphrase_list, g=None):
+    def populate_keyphrase_info(
+        self, request, keyphrase_list, g=None, is_pim=True, keyphrase_attr_dict=None
+    ):
         if g is None:
             g = nx.DiGraph()
 
         segment_list = request["segments"]
-        mind_id = request["mindId"]
+        mind_id = request.get("mindId", "undefinedMind")
         context_id = request["contextId"]
 
         for segment in segment_list:
@@ -143,12 +151,36 @@ class KnowledgeGraph(object):
             g.add_edges_from(segment_keyphrase_edge_list)
 
         # Unload list and add the words individually in the graph
-        keyphrase_node_list = [
-            (words, self.keyphrase_label) for words in keyphrase_list
-        ]
-        g.add_nodes_from(keyphrase_node_list)
-        g.add_nodes_from([(mind_id, self.mind_label)])
+        # Check if keyphrase_attr_dict contains keyword embedding attribute. If yes, unpack it
+        keyphrase_node_list = []
+        if is_pim:
+            keyphrase_attr_dict.update(self.pim_keyphrase_label)
+        else:
+            keyphrase_attr_dict.update(self.keyphrase_label)
 
+        if (
+            keyphrase_attr_dict is not None
+            and keyphrase_attr_dict.get("embedding_vector") is not None
+        ):
+            embedding_array = keyphrase_attr_dict.get("embedding_vector")
+            embedding_array = np.asarray(embedding_array)
+
+            if len(keyphrase_list) == embedding_array.shape[0]:
+                keyphrase_vector_zip = zip(keyphrase_list, embedding_array)
+                for i, (word, word_vector) in enumerate(keyphrase_vector_zip):
+                    attr_dict = deepcopy(keyphrase_attr_dict)
+                    attr_dict["embedding_vector"] = word_vector
+                    attr_dict["word"] = word
+                    keyphrase_node_list.append((word, attr_dict))
+
+                g.add_nodes_from(keyphrase_node_list)
+        else:
+            keyphrase_node_list = [
+                (word, keyphrase_attr_dict) for word in keyphrase_list
+            ]
+            g.add_nodes_from(keyphrase_node_list)
+
+        g.add_nodes_from([(mind_id, self.mind_label)])
         g.add_edges_from([(context_id, mind_id, self.context_mind_rel)])
 
         return g
@@ -173,7 +205,7 @@ class KnowledgeGraph(object):
         for (n1, n2, e_attr) in context_graph.edges.data("relation"):
             if e_attr == "hasWordGraph":
                 if isinstance(n2, nx.Graph):
-                    logger.debug("retrieved graph object")
+                    logger.debug("retrieved word graph object")
                 else:
                     logger.error(
                         "graphId does not exist or does not match context info"
