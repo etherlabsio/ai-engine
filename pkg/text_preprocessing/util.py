@@ -2,36 +2,40 @@ from __future__ import unicode_literals
 import logging
 import re
 from nltk.corpus import stopwords
-import spacy
 import nltk
 from nltk.stem import WordNetLemmatizer
 from nltk.tokenize import word_tokenize
 
 logger = logging.getLogger(__name__)
 
-try:
-    nlp = spacy.load("vendor/en_core_web_sm/en_core_web_sm-2.1.0")
-except Exception as e:
-    logger.warning(e)
-    import en_core_web_sm
+#try:
+    #nlp = spacy.load("vendor/en_core_web_sm/en_core_web_sm-2.1.0")
+#except Exception as e:
+#    logger.warning(e)
+#    import en_core_web_sm
 
-    nlp = en_core_web_sm.load()
+    #nlp = en_core_web_sm.load()
 
-try:
-    nltk.data.path.append("vendor/nltk_data")
-except Exception as e:
-    logger.warning(e)
+#try:
+#    nltk.data.path.append("vendor/nltk_data")
+#except Exception as e:
+#    logger.warning(e)
 
-try:
-    nltk.data.find("wordnet")
-except LookupError:
-    nltk.download("wordnet")
+#try:
+#    nltk.data.find("wordnet")
+#except LookupError:
+#    nltk.download("wordnet")
+nltk.data.path.append("/tmp/nltk_data")
+nltk.download("wordnet",download_dir='/tmp/nltk_data')
 
-try:
-    stop_words_nltk = stopwords.words("english")
-except Exception:
-    nltk.download("stopwords")
-    stop_words_nltk = stopwords.words("english")
+#try:
+#    stop_words_nltk = stopwords.words("english")
+#except Exception:
+#    nltk.download("stopwords")
+#    stop_words_nltk = stopwords.words("english")
+nltk.download("stopwords", download_dir='/tmp/nltk_data')
+stop_words_nltk = stopwords.words("english")
+
 
 stop_words_spacy = list(
     """
