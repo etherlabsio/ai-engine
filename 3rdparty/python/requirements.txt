@@ -18,3 +18,4 @@ boto3
 python-louvain
 tensorflow>=1.7
 tensorflow-hub
+numpy<1.17,>=1.14.5
