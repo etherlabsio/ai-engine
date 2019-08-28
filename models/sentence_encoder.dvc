@@ -1,7 +1,7 @@
-md5: 337ffc6ff4eba43ea437e9f9c210d1f4
+md5: 04383dcffa19bf0bcf0868060267a8e4
 wdir: ..
 outs:
-- md5: f8c790f27fca49e02612d53f7b23f072.dir
+- md5: 5952c308eb5664fe7ee9a2caa7c5156e.dir
   path: models/sentence_encoder
   cache: true
   metric: false
