@@ -1,8 +1,0 @@
-md5: 1703dbe1473be48ee9d206fef56827ba
-wdir: ../..
-outs:
-- md5: 5a651cfc467d53e1fab38245aec8366c
-  path: models/SentENL/SentENL.tar.gz
-  cache: true
-  metric: false
-  persist: false

@@ -1,0 +1,8 @@
+md5: 19b925eece62b56540d2755ecabbf3c7
+wdir: ..
+outs:
+- md5: c7fa85dfcd66bdfcabcfaea4151f4415.dir
+  path: models/SentEnL
+  cache: true
+  metric: false
+  persist: false
