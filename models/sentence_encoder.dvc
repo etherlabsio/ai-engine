@@ -1,8 +1,0 @@
-md5: 160b4e044cdcfbbf7025f3a13df4484a
-wdir: ..
-outs:
-- md5: ac65aa7e5a91e687407b3f4502958720.dir
-  path: models/sentence_encoder
-  cache: true
-  metric: false
-  persist: false
