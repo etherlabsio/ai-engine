@@ -16,7 +16,6 @@ def cosine(vec1, vec2):
 
 def getFeatureVector(mind_input, lambda_function):
     print ("Getting feature vectors from Mind service.")
-    print (lambda_function, mind_input)
     invoke_response = lambda_client.invoke(FunctionName=lambda_function, InvocationType='RequestResponse', Payload=mind_input)
     print("Request sent")
     out_json = invoke_response['Payload'].read().decode('utf8').replace("'", '"')
@@ -39,7 +38,6 @@ def getScore(mind_input, lambda_function):
                                            Payload=mind_input)
     out_json = invoke_response['Payload'].read().decode(
         'utf8').replace("'", '"')
-    print("out_json: ", out_json)
     data = json.loads(json.loads(out_json)['body'])
     response = json.loads(out_json)['statusCode']
 

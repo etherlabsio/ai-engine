@@ -3,6 +3,7 @@
 import json 
 from group_segments.transport import decode_json_request 
 from group_segments import grouper
+from group_segments.extra_preprocess import formatPimsOutput
 import sys
 
 
@@ -22,14 +23,14 @@ def handler(event, context):
     
     topics = {}
     pim = {}
-
     topics, pim = grouper.getgroups(Request_obj, lambda_function)
     topics['contextId']=(json_request)['contextId']
     topics['instanceId']=(json_request)['instanceId']
     topics['mindId']=mindId
-    pim['extracted_topics'] = topics
-    print (pim, topics)
-    return pim
+    output_pims = formatPimsOutput(pim, json_request, Request_obj.segments_map, mindId)
+    #pim['extracted_topics'] = topics
+    #print (pim, topics)
+    return output_pims
 
 
 #def lambda_handler(event, context):

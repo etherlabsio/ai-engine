@@ -30,3 +30,17 @@ def formatTime(tz_time, datetime_object=False):
     if datetime_object:
         ts = datetime.fromisoformat(ts)
     return ts
+
+def formatPimsOutput(pim, req, segmentsmap, mindId):
+    pims = {}
+    pims["group"] = {}
+    for no in pim.keys():
+        tmp_seg = []
+        for seg in pim[no].keys():
+            tmp_seg.append(segmentsmap[pim[no][seg][-1]])
+            print(segmentsmap[pim[no][seg][-1]])
+        pims["group"][no] = tmp_seg
+    pims['contextId']=(req)['contextId']
+    pims['instanceId']=(req)['instanceId']
+    pims['mindId']=mindId
+    return pims
