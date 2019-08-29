@@ -16,3 +16,7 @@ uvloop
 python-json-logger
 boto3
 python-louvain
+botocore
+structlog
+scipy
+numpy
