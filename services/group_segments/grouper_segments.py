@@ -3,7 +3,6 @@ import text_preprocessing.preprocess as tp
 from group_segments.extra_preprocess import formatTime
 import networkx as nx
 import math
-#from scipy.spatial.distance import cosine
 from group_segments.scorer import cosine
 import community
 from datetime import datetime
@@ -126,7 +125,6 @@ class community_detection():
        for index,com in enumerate(timerange):
            temp = []
            flag = False
-           #print ("-----community-----", index)
            for (index1,(sent1,time1,user1, id1)), (index2,(sent2,time2,user2, id2)) in zip(enumerate(com[0:]),enumerate(com[1:])):
                if id1!=id2:
                    if ((formatTime( time2, True)-formatTime(time1, True)).seconds<=120):

@@ -1,6 +1,7 @@
 import logging
 import nltk
 import nltk.data
+import os
 from .util import (
     expand_contractions,
     unkown_punct,
@@ -13,17 +14,22 @@ from .util import (
 
 logger = logging.getLogger(__name__)
 
-#try:
-#    nltk.data.path.append("vendor/nltk_data/")
-#except Exception as e:
-#    logger.warning(e)
+if os.path.isdir("vendor/nltk_data"):
+    nltk.data.path.append("vendor/nltk_data/") 
+    try:
+        nltk.data.find("tokenizers/punkt/PY3/english.pickle")
+    except LookupError:
+        nltk.download("punkt")
+else:
+    if os.path.isdir("/tmp/nltk_data"):
+        nltk.data.path.append("/tmp/nltk_data") 
+        try:
+            nltk.data.find("tokenizers/punkt/PY3/english.pickle")
+        except LookupError:
+            nltk.download("punkt", download_dir='/tmp/nltk_data')
+    else:
+        nltk.download("punkt", download_dir='/tmp/nltk_data')
 
-#try:
-#    nltk.data.find("tokenizers/punkt/PY3/english.pickle")
-#except LookupError:
-#    nltk.download("punkt")
-nltk.data.path.append("/tmp/nltk_data")
-nltk.download("punkt", download_dir='/tmp/nltk_data')
 sent_detector = nltk.data.load("tokenizers/punkt/PY3/english.pickle")
 
 

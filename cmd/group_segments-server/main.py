@@ -1,5 +1,3 @@
-#from sanic import Sanic
-#from sanic.response import json
 import json 
 from group_segments.transport import decode_json_request 
 from group_segments import grouper
@@ -29,14 +27,6 @@ def handler(event, context):
     topics['mindId']=mindId
     output_pims = formatPimsOutput(pim, json_request, Request_obj.segments_map, mindId)
     #pim['extracted_topics'] = topics
-    #print (pim, topics)
     return output_pims
 
 
-#def lambda_handler(event, context):
-#if __name__ == "__main__":
-
-   # print("event['body']: ", event['body'])
-    #event = sys.argv[1]
-    #context = sys.argv[2]
-    #start_function(event, context)

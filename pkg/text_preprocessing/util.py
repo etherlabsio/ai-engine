@@ -5,35 +5,35 @@ from nltk.corpus import stopwords
 import nltk
 from nltk.stem import WordNetLemmatizer
 from nltk.tokenize import word_tokenize
+import os
 
 logger = logging.getLogger(__name__)
 
-#try:
-    #nlp = spacy.load("vendor/en_core_web_sm/en_core_web_sm-2.1.0")
-#except Exception as e:
-#    logger.warning(e)
-#    import en_core_web_sm
 
-    #nlp = en_core_web_sm.load()
+#nltk.data.path.append("/tmp/nltk_data")
+#nltk.download("wordnet",download_dir='/tmp/nltk_data')
 
-#try:
-#    nltk.data.path.append("vendor/nltk_data")
-#except Exception as e:
-#    logger.warning(e)
+#nltk.download("stopwords", download_dir='/tmp/nltk_data')
 
-#try:
-#    nltk.data.find("wordnet")
-#except LookupError:
-#    nltk.download("wordnet")
-nltk.data.path.append("/tmp/nltk_data")
-nltk.download("wordnet",download_dir='/tmp/nltk_data')
+if os.path.isdir("vendor/nltk_data"):
+    nltk.data.path.append("vendor/nltk_data/") 
+    try:
+        nltk.data.find("wordnet")
+    except LookupError:
+        nltk.download("wordnet")
+        nltk.download("stopwords")
 
-#try:
-#    stop_words_nltk = stopwords.words("english")
-#except Exception:
-#    nltk.download("stopwords")
-#    stop_words_nltk = stopwords.words("english")
-nltk.download("stopwords", download_dir='/tmp/nltk_data')
+else:
+    if os.path.isdir("/tmp/nltk_data"):
+        nltk.data.path.append("/tmp/nltk_data") 
+        try:
+            nltk.data.find("wordnet")
+        except LookupError:
+            nltk.download("wordnet", download_dir='/tmp/nltk_data')
+            nltk.download("stopwords", download_dir='/tmp/nltk_data')
+    else:
+        nltk.download("wordnet", download_dir='/tmp/nltk_data')
+        nltk.download("stopwords", download_dir='/tmp/nltk_data')
 stop_words_nltk = stopwords.words("english")
 
 
