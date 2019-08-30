@@ -20,3 +20,5 @@ botocore
 structlog
 scipy
 numpy
+torch
+requests
