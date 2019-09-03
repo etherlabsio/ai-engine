@@ -16,3 +16,5 @@ uvloop
 python-json-logger
 boto3
 python-louvain
+tensorflow>1.4
+tensorflow-hub
