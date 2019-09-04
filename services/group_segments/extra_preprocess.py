@@ -2,6 +2,7 @@ import text_preprocessing.preprocess as tp
 import nltk
 import iso8601
 from datetime import datetime
+import json
 
 def preprocess_text(text):
     mod_texts_unfiltered = tp.preprocess(text, stop_words=False, remove_punct=False)
@@ -43,4 +44,9 @@ def formatPimsOutput(pim, req, segmentsmap, mindId):
     pims['contextId']=(req)['contextId']
     pims['instanceId']=(req)['instanceId']
     pims['mindId']=mindId
-    return pims
+    response_output = {}
+    response_output['statusCode'] = 200
+    response_output['headers'] = {"Content-Type": "application/json"}
+    response_output['body'] = json.dumps(pims)
+    print (response_output)
+    return response_output
