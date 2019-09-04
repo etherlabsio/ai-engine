@@ -1,7 +1,8 @@
-# try:
-#     import unzip_requirements
-# except ImportError:
-#     pass
+try:
+    import unzip_requirements
+except ImportError:
+    print("unable to import unzip_requirements")
+    pass
 
 import json
 import logging
