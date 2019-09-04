@@ -1,6 +1,6 @@
 import tensorflow.compat.v1 as tf
 import tensorflow_hub as hub
-from tensorflow.saved_model import simple_save, load, load_v2, tag_constants
+from tensorflow.saved_model import simple_save
 import logging
 import os
 import json
@@ -49,6 +49,7 @@ class NumpyEncoder(json.JSONEncoder):
         return json.JSONEncoder.default(self, obj)
 
 
+# Helper class to convert TFHub modules to Generic models
 class SaveTFModel(object):
     def save_model(self):
 

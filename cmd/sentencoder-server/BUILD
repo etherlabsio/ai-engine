@@ -4,6 +4,7 @@ python_binary(
 		'pkg:common-libs',
 		':sentencoder-dep',
 		'services/sentence_encoder:sentencoder-libs',
+		'services:global-services'
 	],
 	source="main.py",
 
@@ -14,11 +15,9 @@ python_library(
 	name="sentencoder-dep",
 	dependencies=[
         '3rdparty/python:python-json-logger',
-		'3rdparty/python:python-dotenv',
 		'3rdparty/python:boto3',
-		'3rdparty/python:tensorflow',
-		'3rdparty/python:tensorflow-hub'
-
+		'3rdparty/python:tensorflow-hub',
+		'3rdparty/python:numpy'
 	],
 
 )
