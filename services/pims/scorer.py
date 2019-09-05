@@ -44,8 +44,8 @@ def getScore(mind_input, lambda_function):
                 sent_score_list = []
                 for mind_vec in mind_vector:
                     sent_score_list.append(cosine(sent_vec, mind_vec))
-                    transcript_score_list.append(np.max(sent_score_list))
-                    transcript_score = np.mean(transcript_score_list)
+                transcript_score_list.append(np.max(sent_score_list))
+            transcript_score = np.mean(transcript_score_list)
             return transcript_score
 
         # Get distance metric
