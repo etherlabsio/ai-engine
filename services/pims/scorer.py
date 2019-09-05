@@ -39,6 +39,15 @@ def getScore(mind_input, lambda_function):
         feature_vector, mind_vector, nsp_list = np.array(data['sent_feats'][0]), np.array(
             data['mind_feats'][0]), data['sent_nsp_scores'][0]
 
+        if lambda_function.lower() =="mind-01daaqyn9gbebc92aywnxedp0c" and len(feature_vector) > 0:
+            for sent_vec in feature_vector:
+                sent_score_list = []
+                for mind_vec in mind_vector:
+                    sent_score_list.append(cosine(sent_vec, mind_vec))
+                transcript_score_list.append(np.max(sent_score_list))
+            transcript_score = np.mean(transcript_score_list)
+            return transcript_score
+
         # Get distance metric
         if len(feature_vector) > 0:
             for sent_vec, sent_nsp_list in zip(feature_vector, nsp_list):
