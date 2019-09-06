@@ -1,0 +1,5 @@
+['remote "s2models"']
+url = s3://io.etherlabs.staging2.contexts/models/
+profile = staging2
+[core]
+remote = s2models

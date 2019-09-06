@@ -33,11 +33,17 @@ if __name__ == "__main__":
 
     s3_client = S3Manager(bucket_name=bucket_store)
     keyphrase_extractor = KeyphraseExtractor(
-        s3_client=s3_client, encoder_lambda_client=lambda_client, lambda_function=encoder_lambda_function
+        s3_client=s3_client,
+        encoder_lambda_client=lambda_client,
+        lambda_function=encoder_lambda_function,
     )
 
-    nats_manager = Manager(loop=loop, url=nats_url, queue_name="io.etherlabs.keyphrase_service")
-    nats_transport = NATSTransport(nats_manager=nats_manager, keyphrase_service=keyphrase_extractor)
+    nats_manager = Manager(
+        loop=loop, url=nats_url, queue_name="io.etherlabs.keyphrase_service"
+    )
+    nats_transport = NATSTransport(
+        nats_manager=nats_manager, keyphrase_service=keyphrase_extractor
+    )
 
     def shutdown():
         logger.info("received interrupt; shutting down")

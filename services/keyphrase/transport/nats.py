@@ -13,29 +13,47 @@ class NATSTransport(object):
 
     async def subscribe_context(self):
         context_created_topic = "context.instance.created"
-        logger.info("Subscribing to context instance event", extra={"topic": context_created_topic})
-        await self.nats_manager.subscribe(context_created_topic, handler=self.context_created_handler, queued=True)
+        logger.info(
+            "Subscribing to context instance event",
+            extra={"topic": context_created_topic},
+        )
+        await self.nats_manager.subscribe(
+            context_created_topic, handler=self.context_created_handler, queued=True
+        )
 
     async def context_created_handler(self, msg):
         msg_data = json.loads(msg.data)
         context_id = msg_data["contextId"]
         context_instance_id = msg_data["instanceId"]
-        logger.info("instance created", extra={"contextId": context_id, "instanceId": context_instance_id})
+        logger.info(
+            "instance created",
+            extra={"contextId": context_id, "instanceId": context_instance_id},
+        )
         await self.subscribe_context_events()
-        logger.info("topics subscribed", extra={"topics": self.nats_manager.subscriptions})
+        logger.info(
+            "topics subscribed", extra={"topics": self.nats_manager.subscriptions}
+        )
 
     async def subscribe_context_events(self):
         await self.nats_manager.subscribe(
-            topic="context.instance." + "started", handler=self.context_start_handler, queued=True
+            topic="context.instance." + "started",
+            handler=self.context_start_handler,
+            queued=True,
         )
         await self.nats_manager.subscribe(
-            topic="context.instance." + "context_changed", handler=self.context_change_handler, queued=True
+            topic="context.instance." + "context_changed",
+            handler=self.context_change_handler,
+            queued=True,
         )
         await self.nats_manager.subscribe(
-            topic="context.instance." + "ended", handler=self.context_end_handler, queued=True
+            topic="context.instance." + "ended",
+            handler=self.context_end_handler,
+            queued=True,
         )
         await self.nats_manager.subscribe(
-            topic="keyphrase_service." + "extract_keyphrases", handler=self.extract_segment_keyphrases, queued=True
+            topic="keyphrase_service." + "extract_keyphrases",
+            handler=self.extract_segment_keyphrases,
+            queued=True,
         )
         await self.nats_manager.subscribe(
             topic="keyphrase_service." + "keyphrases_for_context_instance",
@@ -43,7 +61,9 @@ class NATSTransport(object):
             queued=True,
         )
         await self.nats_manager.subscribe(
-            topic="context.instance." + "add_segments", handler=self.populate_graph, queued=True
+            topic="context.instance." + "add_segments",
+            handler=self.populate_graph,
+            queued=True,
         )
         await self.nats_manager.subscribe(
             topic="keyphrase_service." + "extract_keyphrases_with_offset",
@@ -53,12 +73,20 @@ class NATSTransport(object):
 
     async def unsubscribe_lifecycle_events(self):
         await self.nats_manager.unsubscribe(topic="context.instance." + "started")
-        await self.nats_manager.unsubscribe(topic="context.instance." + "context_changed")
+        await self.nats_manager.unsubscribe(
+            topic="context.instance." + "context_changed"
+        )
         await self.nats_manager.unsubscribe(topic="context.instance." + "ended")
-        await self.nats_manager.unsubscribe(topic="keyphrase_service." + "extract_keyphrases")
-        await self.nats_manager.unsubscribe(topic="keyphrase_service." + "keyphrases_for_context_instance")
+        await self.nats_manager.unsubscribe(
+            topic="keyphrase_service." + "extract_keyphrases"
+        )
+        await self.nats_manager.unsubscribe(
+            topic="keyphrase_service." + "keyphrases_for_context_instance"
+        )
         await self.nats_manager.unsubscribe(topic="context.instance." + "add_segments")
-        await self.nats_manager.unsubscribe(topic="keyphrase_service." + "extract_keyphrases_with_offset")
+        await self.nats_manager.unsubscribe(
+            topic="keyphrase_service." + "extract_keyphrases_with_offset"
+        )
 
     # NATS context handlers
 
@@ -89,7 +117,9 @@ class NATSTransport(object):
         segment_object = request["segments"]
 
         try:
-            context_graph, meeting_word_graph = self.keyphrase_service.populate_word_graph(request)
+            context_graph, meeting_word_graph = self.keyphrase_service.populate_word_graph(
+                request
+            )
 
             # Compute embeddings for segments and keyphrases
             context_graph, meeting_word_graph = self.keyphrase_service.populate_context_embeddings(
@@ -116,7 +146,11 @@ class NATSTransport(object):
             end = timer()
             logger.error(
                 "Error populating graph",
-                extra={"err": traceback.print_exc(), "responseTime": end - start, "instanceId": request["instanceId"]},
+                extra={
+                    "err": traceback.print_exc(),
+                    "responseTime": end - start,
+                    "instanceId": request["instanceId"],
+                },
             )
 
     async def extract_segment_keyphrases(self, msg):
@@ -133,7 +167,9 @@ class NATSTransport(object):
 
         deadline_time = end - start
         if deadline_time > 5:
-            timeout_msg = "-Context deadline is exceeding: {}; {}".format(deadline_time, 5)
+            timeout_msg = "-Context deadline is exceeding: {}; {}".format(
+                deadline_time, 5
+            )
         else:
             timeout_msg = ""
 
@@ -176,7 +212,9 @@ class NATSTransport(object):
 
         deadline_time = end - start
         if deadline_time > 5:
-            timeout_msg = "-Context deadline is exceeding: {}; {}".format(deadline_time, 5)
+            timeout_msg = "-Context deadline is exceeding: {}; {}".format(
+                deadline_time, 5
+            )
         else:
             timeout_msg = ""
 
@@ -205,7 +243,9 @@ class NATSTransport(object):
 
         deadline_time = end - start
         if deadline_time > 5:
-            timeout_msg = "-Context deadline is exceeding: {}; {}".format(deadline_time, 5)
+            timeout_msg = "-Context deadline is exceeding: {}; {}".format(
+                deadline_time, 5
+            )
         else:
             timeout_msg = ""
 

@@ -9,7 +9,14 @@ logger = logging.getLogger(__name__)
 
 
 class KeyphraseRanker(object):
-    def __init__(self, s3_io_util, context_dir, knowledge_graph_object, encoder_lambda_client, lambda_function):
+    def __init__(
+        self,
+        s3_io_util,
+        context_dir,
+        knowledge_graph_object,
+        encoder_lambda_client,
+        lambda_function,
+    ):
         self.encoder_lambda_client = encoder_lambda_client
         self.lambda_function = lambda_function
         self.kg = knowledge_graph_object
@@ -32,10 +39,14 @@ class KeyphraseRanker(object):
 
         logger.info("Invoking lambda function")
         invoke_response = self.encoder_lambda_client.invoke(
-            FunctionName=self.lambda_function, InvocationType="RequestResponse", Payload=json.dumps(lambda_payload)
+            FunctionName=self.lambda_function,
+            InvocationType="RequestResponse",
+            Payload=json.dumps(lambda_payload),
         )
 
-        lambda_output = invoke_response["Payload"].read().decode("utf8").replace("'", '"')
+        lambda_output = (
+            invoke_response["Payload"].read().decode("utf8").replace("'", '"')
+        )
         response = json.loads(lambda_output)
         status_code = response["statusCode"]
         response_body = response["body"]
@@ -45,14 +56,21 @@ class KeyphraseRanker(object):
             embedding_vector = np.asarray(json.loads(response_body)["embeddings"])
             logger.info(
                 "Received response from encoder lambda function",
-                extra={"featureShape": embedding_vector.shape, "lambdaResponseTime": end - start},
+                extra={
+                    "featureShape": embedding_vector.shape,
+                    "lambdaResponseTime": end - start,
+                },
             )
 
         else:
-            embedding_vector = np.array([])
+            embedding_vector = np.asarray(json.loads(response_body)["embeddings"])
             logger.debug(
                 "Invalid response from encoder lambda function",
-                extra={"err": response_body, "featureShape": embedding_vector.shape, "lambdaResponseTime": end - start},
+                extra={
+                    "err": response_body,
+                    "featureShape": embedding_vector.shape,
+                    "lambdaResponseTime": end - start,
+                },
             )
 
         return embedding_vector
@@ -65,7 +83,9 @@ class KeyphraseRanker(object):
             if attr is None:
                 node_list = [node1, node2]
                 node_embedding_array = self.get_embeddings(input_list=node_list)
-                emb_sim_edge_weight = 1 - self._get_pairwise_embedding_distance(embedding_array=node_embedding_array)
+                emb_sim_edge_weight = 1 - self._get_pairwise_embedding_distance(
+                    embedding_array=node_embedding_array
+                )
 
                 word_graph.add_edge(node1, node2, edge_emb_wt=emb_sim_edge_weight)
                 counter += 1
@@ -74,20 +94,32 @@ class KeyphraseRanker(object):
 
         end = timer()
 
-        logger.debug("Computed word embeddings", extra={"totalComputed": counter, "responseTime": end - start})
+        logger.debug(
+            "Computed word embeddings",
+            extra={"totalComputed": counter, "responseTime": end - start},
+        )
 
         return word_graph
 
     def compute_local_relevance(
-        self, keyphrase_object, context_graph, dict_key="descriptive", normalize: bool = False, norm_limit: int = 4
+        self,
+        keyphrase_object,
+        context_graph,
+        dict_key="descriptive",
+        normalize: bool = False,
+        norm_limit: int = 4,
     ):
 
         segment_embedding_list = self._query_segment_phrase_embeddings(
-            context_graph=context_graph, keyphrase_object=keyphrase_object, dict_key=dict_key
+            context_graph=context_graph,
+            keyphrase_object=keyphrase_object,
+            dict_key=dict_key,
         )
         for i, kp_dict in enumerate(keyphrase_object):
             segment_embedding = segment_embedding_list[i].get("segment_embedding")
-            segment_keyphrase_embedding_dict = segment_embedding_list[i].get("keyphrase_embedding")
+            segment_keyphrase_embedding_dict = segment_embedding_list[i].get(
+                "keyphrase_embedding"
+            )
 
             keyphrase_dict = kp_dict[dict_key]
 
@@ -125,7 +157,13 @@ class KeyphraseRanker(object):
             loc = items[3]
 
             boosted_score = pagerank_score + segment_score
-            boosted_rank_list[i] = (keyphrase, pagerank_score, segment_score, boosted_score, loc)
+            boosted_rank_list[i] = (
+                keyphrase,
+                pagerank_score,
+                segment_score,
+                boosted_score,
+                loc,
+            )
 
         assert len(ranked_keyphrase_list) == len(boosted_rank_list)
 
@@ -133,7 +171,9 @@ class KeyphraseRanker(object):
 
         return boosted_rank_list
 
-    def _query_segment_phrase_embeddings(self, context_graph, keyphrase_object, dict_key="descriptive"):
+    def _query_segment_phrase_embeddings(
+        self, context_graph, keyphrase_object, dict_key="descriptive"
+    ):
         """
 
         Args:
@@ -145,7 +185,12 @@ class KeyphraseRanker(object):
             segment_embedding_list (list[Dict]): Returns list[Dict{"segmentId": str, "original": {}, "descriptive": {}, "keyphrase_embedding": {phrase: phrase_vector}}]
         """
 
-        embedding_dict = {"segmentId": str, "original": {}, "descriptive": {}, "keyphrase_embedding": {}}
+        embedding_dict = {
+            "segmentId": str,
+            "original": {},
+            "descriptive": {},
+            "keyphrase_embedding": {},
+        }
         segment_embedding_list = []
         for i, kp_dict in enumerate(keyphrase_object):
             embedding_dict_copy = deepcopy(embedding_dict)
@@ -160,9 +205,11 @@ class KeyphraseRanker(object):
 
                     for neighbour_nodes, values in dict(context_graph[node]).items():
                         if values.get("relation") == "hasKeywords":
-                            embedding_dict_copy["keyphrase_embedding"][neighbour_nodes] = context_graph.nodes[
+                            embedding_dict_copy["keyphrase_embedding"][
                                 neighbour_nodes
-                            ].get("embedding_vector")
+                            ] = context_graph.nodes[neighbour_nodes].get(
+                                "embedding_vector"
+                            )
 
                     segment_embedding_list.append(embedding_dict_copy)
 

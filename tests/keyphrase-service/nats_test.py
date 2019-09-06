@@ -23,7 +23,9 @@ async def publish_keyphrase():
     topic = "keyphrase_service.extract_keyphrases"
     await nc.connect(servers=[nats_url])
     test_json = read_json(single_json_file)
-    topic, resp = replace_ids(test_json["contextId"], test_json["instanceId"], topic, resp={})
+    topic, resp = replace_ids(
+        test_json["contextId"], test_json["instanceId"], topic, resp={}
+    )
     await nc.request(topic, json.dumps(test_json).encode())
     # await nc.flush()
     # await nc.close()
@@ -34,7 +36,9 @@ async def publish_chapter_keyphrase():
     topic = "keyphrase_service.extract_keyphrases"
     await nc.connect(servers=[nats_url])
     test_json = read_json(multi_json_file)
-    topic, resp = replace_ids(test_json["contextId"], test_json["instanceId"], topic, resp={})
+    topic, resp = replace_ids(
+        test_json["contextId"], test_json["instanceId"], topic, resp={}
+    )
     await nc.request(topic, json.dumps(test_json).encode())
     # await nc.flush()
     await nc.close()
@@ -45,7 +49,9 @@ async def publish_chapter_offset_keyphrase():
     topic = "keyphrase_service.extract_keyphrases_with_offset"
     await nc.connect(servers=[nats_url])
     test_json = read_json(multi_json_file)
-    topic, resp = replace_ids(test_json["contextId"], test_json["instanceId"], topic, resp={})
+    topic, resp = replace_ids(
+        test_json["contextId"], test_json["instanceId"], topic, resp={}
+    )
     await nc.request(topic, json.dumps(test_json).encode())
     # await nc.flush()
     await nc.close()
@@ -56,7 +62,9 @@ async def publish_instance_keyphrase():
     topic = "keyphrase_service.keyphrases_for_context_instance"
     await nc.connect(servers=[nats_url])
     test_json = read_json(meeting_json_file)
-    topic, resp = replace_ids(test_json["contextId"], test_json["instanceId"], topic, resp={})
+    topic, resp = replace_ids(
+        test_json["contextId"], test_json["instanceId"], topic, resp={}
+    )
     await nc.request(topic, json.dumps(test_json).encode())
     # await nc.flush()
     await nc.close()
@@ -67,7 +75,9 @@ async def reset_keyphrase():
     topic = "io.etherlabs.ether.keyphrase_service.reset_keyphrases"
     await nc.connect(servers=[nats_url])
     test_json = read_json(meeting_json_file)
-    topic, resp = replace_ids(test_json["contextId"], test_json["instanceId"], topic, resp={})
+    topic, resp = replace_ids(
+        test_json["contextId"], test_json["instanceId"], topic, resp={}
+    )
     await nc.request(topic, json.dumps(test_json).encode())
     # await nc.flush()
     await nc.close()
@@ -79,7 +89,9 @@ async def populate_graph():
     await nc.connect(servers=[nats_url])
     # test_json = read_json(multi_json_file)
     test_json = read_json(meeting_json_file)
-    topic, resp = replace_ids(test_json["contextId"], test_json["instanceId"], topic, resp={})
+    topic, resp = replace_ids(
+        test_json["contextId"], test_json["instanceId"], topic, resp={}
+    )
 
     json_dict = deepcopy(test_json)
     segment_object = test_json["segments"]
@@ -196,8 +208,12 @@ def post_process():
         multi_keyphrase = " ".join(unique_kp_list)
         processed_keyphrases.append((multi_keyphrase, multi_score))
 
-    single_phrase = [phrases for phrases in processed_keyphrases if len(phrases[0].split()) == 1]
-    multi_proc_phrases = [phrases for phrases in processed_keyphrases if len(phrases[0].split()) > 1]
+    single_phrase = [
+        phrases for phrases in processed_keyphrases if len(phrases[0].split()) == 1
+    ]
+    multi_proc_phrases = [
+        phrases for phrases in processed_keyphrases if len(phrases[0].split()) > 1
+    ]
     # Remove duplicates from the single phrases which are occurring in multi-keyphrases
     for tup in single_phrase:
         kw = tup[0]
@@ -293,9 +309,15 @@ def replace_ids(context_id=None, instance_id=None, topic=None, resp=dict()):
 
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description="topic arguments for keyphrase_service")
-    parser.add_argument("--topics", type=str, default="def", help="publish keyphrase graph")
-    parser.add_argument("--nats_url", type=str, default=NATS_URL, help="nats server url")
+    parser = argparse.ArgumentParser(
+        description="topic arguments for keyphrase_service"
+    )
+    parser.add_argument(
+        "--topics", type=str, default="def", help="publish keyphrase graph"
+    )
+    parser.add_argument(
+        "--nats_url", type=str, default=NATS_URL, help="nats server url"
+    )
     args = parser.parse_args()
     nats_url = args.nats_url
 

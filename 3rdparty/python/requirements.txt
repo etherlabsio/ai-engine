@@ -17,6 +17,10 @@ python-json-logger
 boto3
 botocore
 python-louvain
-tensorflow>=1.7
+tensorflow>1.4
 tensorflow-hub
 numpy<1.17,>=1.14.5
+structlog
+scipy
+torch
+requests

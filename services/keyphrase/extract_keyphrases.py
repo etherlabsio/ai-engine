@@ -506,7 +506,7 @@ class KeyphraseExtractor(object):
                 req_data["relativeTime"], datetime_object=True
             )
             entities, keyphrase_object = self.extract_keywords(
-                req_data,
+                segment_object=segment_object,
                 context_graph=context_graph,
                 meeting_word_graph=meeting_word_graph,
                 relative_time=relative_time,
@@ -593,10 +593,15 @@ class KeyphraseExtractor(object):
             req_data:
             preserve_singlewords:
 
-        Returns:
-            processed_entities (list)
-            cleaned_keyphrase_list (list[Dict]): Returns list of dictionary - {"segmentId": str, "segments": str, "offset": 0.0, "original": {word: score}, "descriptive": {word: score}} \
-                                                where, score = list(pagerank_score, segment_relevance_score, boosted_score, location)
+        Returns: processed_entities (list) cleaned_keyphrase_list (list[Dict]): Returns list of dictionary -
+        {
+            "segmentId": str,
+            "segments": str,
+            "offset": 0.0,
+            "original": {word: score},
+            "descriptive": {word: score}
+        }
+        where, score = list(pagerank_score, segment_relevance_score, boosted_score, location)
         """
         segment_entities = []
         cleaned_keyphrase_list = []
@@ -759,7 +764,7 @@ class KeyphraseExtractor(object):
         # Download context graph from s3 and remove the word graph object upon reset
 
         context_graph, word_graph = self._retrieve_context_graph(req_data=req_data)
-        context_graph.remove_node(word_graph)
+        # context_graph.remove_node(word_graph)
 
         word_graph_id = word_graph.graph.get("graphId")
 
@@ -772,11 +777,11 @@ class KeyphraseExtractor(object):
         )
 
         # self.gr.reset_graph()
-        word_graph.clear()
+        # word_graph.clear()
 
         end = timer()
         logger.info(
-            "Post-reset: Graph info",
+            "Post-reset: Graph info - Temporarily not resetting graph",
             extra={
                 "deletedGraphId": word_graph_id,
                 "nodes": word_graph.number_of_nodes(),
