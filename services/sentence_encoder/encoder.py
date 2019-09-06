@@ -1,12 +1,14 @@
 import tensorflow.compat.v1 as tf
 import tensorflow_hub as hub
 from tensorflow.saved_model import simple_save
+from tensorflow.python.lib.io import file_io
 import logging
 import os
 import json
 import numpy as np
 
-os.environ["TF_CPP_MIN_LOG_LEVEL"] = "3"
+tf_log_level = os.getenv("TF_CPP_MIN_LOG_LEVEL", "3")
+os.environ["TF_CPP_MIN_LOG_LEVEL"] = tf_log_level
 logger = logging.getLogger(__name__)
 tf.logging.set_verbosity(tf.logging.ERROR)
 
@@ -19,6 +21,8 @@ class SentenceEncoder(object):
             model_path = os.path.join(
                 os.path.dirname(os.path.abspath(__file__)), model_name
             )
+
+        logger.debug("Checking filesystem status: {}".format(file_io.stat(model_path)))
 
         g = tf.Graph()
         with g.as_default():
@@ -83,8 +87,3 @@ class SaveTFModel(object):
                 outputs={"embeddings": embeddings},
                 legacy_init_op=tf.tables_initializer(),
             )
-
-
-if __name__ == "__main__":
-    saveTF = SaveTFModel()
-    saveTF.save_model()

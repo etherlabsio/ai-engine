@@ -1,3 +1,9 @@
+try:
+    import unzip_requirements
+except ImportError:
+    print("unable to import unzip_requirements")
+    pass
+
 import json
 import logging
 import os
@@ -9,15 +15,14 @@ from sentence_encoder.encoder import SentenceEncoder, NumpyEncoder
 logger = logging.getLogger(__name__)
 setup_server_logger(debug=True)  # default False for disabling debug mode
 
-try:
-    import unzip_requirements
-except ImportError:
-    logger.warning("unable to import unzip_requirements")
-    pass
-
-bucket_store = os.getenv("STORAGE_BUCKET", "io.etherlabs.staging2.contexts")
+bucket_store = os.getenv("BUCKET_NAME", "io.etherlabs.staging2.contexts")
 model_loc = os.getenv("MODEL", "MODELS/sentence_enc")
-model_path = "s3://" + bucket_store + "/" + model_loc
+MODEL_PATH = os.getenv("MODEL_PATH", None)
+
+if MODEL_PATH is None:
+    model_path = "s3://" + bucket_store + "/" + model_loc
+else:
+    model_path = MODEL_PATH
 
 start = timer()
 
@@ -39,7 +44,7 @@ def process_input(json_request):
     return text_request
 
 
-def lambda_handler(event, context):
+def handler(event, context):
     logger.info(event)
     if isinstance(event["body"], str):
         json_request = json.loads(event["body"])
@@ -51,12 +56,17 @@ def lambda_handler(event, context):
         input_list = process_input(json_request=json_request)
         embeddings = encoder_object.get_embedding_vector(input_list=input_list)
 
+        response = json.dumps({"embeddings": embeddings}, cls=NumpyEncoder)
+
         end = timer()
         logger.info(
-            "embedding shape",
-            extra={"shape": embeddings.shape, "responseTime": end - start},
+            "Features extracted successfully",
+            extra={
+                "embeddingShape": embeddings.shape,
+                "request": json_request,
+                "responseTime": end - start,
+            },
         )
-        response = json.dumps({"embeddings": embeddings}, cls=NumpyEncoder)
 
         return {
             "statusCode": 200,
