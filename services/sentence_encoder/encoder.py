@@ -7,8 +7,6 @@ import os
 import json
 import numpy as np
 
-tf_log_level = os.getenv("TF_CPP_MIN_LOG_LEVEL", "3")
-os.environ["TF_CPP_MIN_LOG_LEVEL"] = tf_log_level
 logger = logging.getLogger(__name__)
 tf.logging.set_verbosity(tf.logging.ERROR)
 

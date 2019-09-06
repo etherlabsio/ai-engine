@@ -15,6 +15,9 @@ from sentence_encoder.encoder import SentenceEncoder, NumpyEncoder
 logger = logging.getLogger(__name__)
 setup_server_logger(debug=True)  # default False for disabling debug mode
 
+tf_log_level = os.getenv("TF_CPP_MIN_LOG_LEVEL", "3")
+os.environ["TF_CPP_MIN_LOG_LEVEL"] = tf_log_level
+
 bucket_store = os.getenv("BUCKET_NAME", "io.etherlabs.staging2.contexts")
 model_loc = os.getenv("MODEL", "MODELS/sentence_enc")
 MODEL_PATH = os.getenv("MODEL_PATH", None)
@@ -45,7 +48,6 @@ def process_input(json_request):
 
 
 def handler(event, context):
-    logger.info(event)
     if isinstance(event["body"], str):
         json_request = json.loads(event["body"])
     else:
