@@ -1,0 +1,8 @@
+md5: 41f4ca6d758a649671ce263117b12942
+wdir: ../..
+outs:
+- md5: f718d789497e7933a0420c301a6053c0.dir
+  path: models/sentence_encoder/tensorflow_lambda_pkg
+  cache: true
+  metric: false
+  persist: false
