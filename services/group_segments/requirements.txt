@@ -1,0 +1,12 @@
+python-dotenv
+six
+spacy
+pandas
+iso8601
+sklearn
+nltk
+networkx
+python-louvain
+boto3
+botocore
+pex

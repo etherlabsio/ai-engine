@@ -19,3 +19,8 @@ python-louvain
 tensorflow>1.4
 tensorflow-hub
 numpy<1.17,>=1.14.5
+botocore
+structlog
+scipy
+torch
+requests
