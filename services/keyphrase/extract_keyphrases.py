@@ -717,7 +717,7 @@ class KeyphraseExtractor(object):
         # Download context graph from s3 and remove the word graph object upon reset
         context_graph = self.download_s3(req_data=req_data, s3_dir=self.context_dir)
         word_graph = self.kg.query_word_graph_object(context_graph=context_graph)
-        context_graph.remove_node(word_graph)
+        # context_graph.remove_node(word_graph)
 
         word_graph_id = word_graph.graph.get("graphId")
 
@@ -726,12 +726,12 @@ class KeyphraseExtractor(object):
             graph_obj=context_graph, s3_dir=self.context_dir, req_data=req_data
         )
 
-        self.gr.reset_graph()
-        word_graph.clear()
+        # self.gr.reset_graph()
+        # word_graph.clear()
 
         end = timer()
         logger.info(
-            "Post-reset: Graph info",
+            "Post-reset: Graph info - Disabling word graph reset temporarily",
             extra={
                 "deletedGraphId": word_graph_id,
                 "nodes": word_graph.number_of_nodes(),
