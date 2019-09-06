@@ -59,7 +59,7 @@ def getNSPScore(sample_text, model,tokenizer):
     pred_score, seq_rel, seq_out, pool_out = model(tokens_tensor, segments_tensors)
     return m(seq_rel).detach().numpy()[0][0]
 
-def predict(model, mind_dict, input_text, get_nsp='True'):
+def predict(model, mind_dict, input_text, get_nsp):
   #split text into sentences and return sentence feature vector list
     sent_feat_list = []
     sent_list = []
@@ -71,7 +71,7 @@ def predict(model, mind_dict, input_text, get_nsp='True'):
 
     #calculate cluster NSP score for each of the filtered sentence
     segment_nsp_list = []
-    if get_nsp=='True':
+    if get_nsp=="True":
         for sent in sent_list:
             curr_sent_nsp = []
             for clust_sent in list(mind_dict['sentence'].values()):

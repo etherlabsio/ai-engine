@@ -45,9 +45,9 @@ def process_input(json_request):
     if isinstance(json_request, str):
         json_request = json.loads(json_request)
     text_request = json_request['text']
-    nsp_request = True
+    nsp_request = "True"
     if 'nsp' in json_request.keys():
-        nsp_request = False
+        nsp_request = json_request['nsp']
     return text_request, nsp_request
 
 # load the model when lambda execution context is created
@@ -62,7 +62,7 @@ logger.info(f'Model loaded for evaluation')
 def handler(event, context):
     logger.info(event)
     input_text, input_nsp = process_input(event['body'])
-    model_feats = predict(model, mind_dict, input_text, input_nsp)
+    model_feats = predict(model, mind_dict, input_text, get_nsp=input_nsp)
     response = json.dumps(model_feats,cls=NumpyEncoder)
 
     return {
