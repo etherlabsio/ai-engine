@@ -2,6 +2,7 @@ import asyncio
 import signal
 import uvloop
 import logging
+from dotenv import load_dotenv, find_dotenv
 from os import getenv
 from boto3 import client
 from botocore.client import Config
@@ -14,29 +15,36 @@ from log.logger import setup_server_logger
 from s3client.s3 import S3Manager
 
 logger = logging.getLogger()
+load_dotenv(find_dotenv())
 
 
 if __name__ == "__main__":
+
     # Setup logger
     setup_server_logger(debug=True)  # default False for disabling debug mode
 
-    config = Config(connect_timeout=60, read_timeout=240, retries={"max_attempts": 0})
-    lambda_client = client("lambda", config=config)
-    encoder_lambda_function = getenv("FUNCTION_NAME", "keyphrase_ranker")
-
-    active_env = getenv("ACTIVE_ENV", "development")
+    # Load ENV variables
     nats_url = getenv("NATS_URL", "nats://localhost:4222")
     bucket_store = getenv("STORAGE_BUCKET", "io.etherlabs.staging2.contexts")
+    encoder_lambda_function = getenv("FUNCTION_NAME", "keyphrase_ranker")
 
-    asyncio.set_event_loop_policy(uvloop.EventLoopPolicy())
-    loop = asyncio.get_event_loop()
-
+    # Initialize Boto session for aws services
+    aws_config = Config(
+        connect_timeout=60, read_timeout=240, retries={"max_attempts": 0}
+    )
     s3_client = S3Manager(bucket_name=bucket_store)
+    lambda_client = client("lambda", config=aws_config)
+
+    # Initialize keyphrase-service client
     keyphrase_extractor = KeyphraseExtractor(
         s3_client=s3_client,
         encoder_lambda_client=lambda_client,
         lambda_function=encoder_lambda_function,
     )
+
+    # Initialize event loop and transport layers
+    asyncio.set_event_loop_policy(uvloop.EventLoopPolicy())
+    loop = asyncio.get_event_loop()
 
     nats_manager = Manager(
         loop=loop, url=nats_url, queue_name="io.etherlabs.keyphrase_service"
