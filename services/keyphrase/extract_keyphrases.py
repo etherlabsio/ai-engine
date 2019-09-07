@@ -414,7 +414,9 @@ class KeyphraseExtractor(object):
 
             if rank:
                 keyphrase_object = self.ranker.compute_local_relevance(
-                    keyphrase_object=keyphrase_object, context_graph=context_graph
+                    keyphrase_object=keyphrase_object,
+                    context_graph=context_graph,
+                    normalize=False,
                 )
 
             keyphrases, keyphrase_object = self.prepare_keyphrase_output(
