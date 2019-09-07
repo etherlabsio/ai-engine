@@ -27,10 +27,14 @@ if __name__ == "__main__":
     nats_url = getenv("NATS_URL", "nats://localhost:4222")
     bucket_store = getenv("STORAGE_BUCKET", "io.etherlabs.staging2.contexts")
     encoder_lambda_function = getenv("FUNCTION_NAME", "keyphrase_ranker")
+    aws_region = getenv("AWS_DEFAULT_REGION", "us-east-1")
 
     # Initialize Boto session for aws services
     aws_config = Config(
-        connect_timeout=60, read_timeout=240, retries={"max_attempts": 0}
+        connect_timeout=60,
+        read_timeout=240,
+        retries={"max_attempts": 0},
+        region_name=aws_region,
     )
     s3_client = S3Manager(bucket_name=bucket_store)
     lambda_client = client("lambda", config=aws_config)
