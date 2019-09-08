@@ -32,7 +32,7 @@ if __name__ == "__main__":
     # Initialize Boto session for aws services
     aws_config = Config(
         connect_timeout=60,
-        read_timeout=240,
+        read_timeout=300,
         retries={"max_attempts": 0},
         region_name=aws_region,
     )
