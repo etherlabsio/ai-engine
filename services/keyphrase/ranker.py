@@ -64,10 +64,10 @@ class KeyphraseRanker(object):
 
         else:
             embedding_vector = np.asarray(json.loads(response_body)["embeddings"])
-            logger.debug(
+            logger.warning(
                 "Invalid response from encoder lambda function",
                 extra={
-                    "err": response_body,
+                    "response": response_body,
                     "featureShape": embedding_vector.shape,
                     "lambdaResponseTime": end - start,
                 },
@@ -127,8 +127,16 @@ class KeyphraseRanker(object):
             for j, (phrase, values) in enumerate(keyphrase_dict.items()):
                 phrase_len = len(phrase.split())
 
-                keyphrase_embedding = segment_keyphrase_embedding_dict[phrase]
-                seg_score = 1 - cosine(segment_embedding, keyphrase_embedding)
+                try:
+                    keyphrase_embedding = segment_keyphrase_embedding_dict[phrase]
+                    seg_score = 1 - cosine(segment_embedding, keyphrase_embedding)
+                except KeyError:
+                    logger.warning(
+                        "Keyphrase does not exist in the graph... Setting score to 0",
+                        extra={"phrase": phrase},
+                    )
+                    seg_score = 0
+
                 if normalize:
                     if phrase_len > norm_limit:
                         norm_seg_score = seg_score / (phrase_len - (norm_limit - 1))
@@ -140,7 +148,10 @@ class KeyphraseRanker(object):
                 keyphrase_dict[phrase][1] = norm_seg_score
                 segment_relevance_score_list.append(norm_seg_score)
 
-            segment_confidence_score = np.mean(segment_relevance_score_list)
+            if len(segment_relevance_score_list) > 0:
+                segment_confidence_score = np.mean(segment_relevance_score_list)
+            else:
+                segment_confidence_score = 0
             kp_dict["quality"] = segment_confidence_score
 
         logger.info("Computed segment relevance score")

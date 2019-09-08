@@ -432,7 +432,8 @@ class KeyphraseExtractor(object):
                 self.utils.write_to_json(keyphrase_object)
 
             logger.debug(
-                "keyphrases extracted successfully", extra={"output": keyphrase_object}
+                "keyphrases extracted successfully",
+                extra={"keyphrases": keyphrases, "output": keyphrase_object},
             )
 
             # TODO need to separate it and move to context-graph-constructor service
@@ -461,6 +462,7 @@ class KeyphraseExtractor(object):
                     "instanceId": req_data["instanceId"],
                     "segmentObj": req_data["segments"],
                     "err": traceback.print_exc(),
+                    "errMsg": e,
                 },
             )
 
@@ -736,8 +738,8 @@ class KeyphraseExtractor(object):
         keyphrase = processed_entities
 
         # Log final keyphrase list to validation set
-        for i, kp_dict in enumerate(keyphrase_object):
-            kp_dict["keyphrases"] = keyphrase
+        # for i, kp_dict in enumerate(keyphrase_object):
+        #     kp_dict["keyphrases"] = keyphrase
 
         return keyphrase, keyphrase_object
 
