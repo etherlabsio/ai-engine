@@ -10,13 +10,13 @@ import os
 logger = logging.getLogger(__name__)
 
 
-#nltk.data.path.append("/tmp/nltk_data")
-#nltk.download("wordnet",download_dir='/tmp/nltk_data')
+# nltk.data.path.append("/tmp/nltk_data")
+# nltk.download("wordnet",download_dir='/tmp/nltk_data')
 
-#nltk.download("stopwords", download_dir='/tmp/nltk_data')
+# nltk.download("stopwords", download_dir='/tmp/nltk_data')
 
-if os.path.isdir("vendor/nltk_data"):
-    nltk.data.path.append("vendor/nltk_data/") 
+if os.path.isdir(os.path.join(os.getcwd(), "vendor/nltk_data")):
+    nltk.data.path.append(os.path.join(os.getcwd(), "vendor/nltk_data"))
     try:
         nltk.data.find("wordnet")
     except LookupError:
@@ -25,15 +25,15 @@ if os.path.isdir("vendor/nltk_data"):
 
 else:
     if os.path.isdir("/tmp/nltk_data"):
-        nltk.data.path.append("/tmp/nltk_data") 
+        nltk.data.path.append("/tmp/nltk_data")
         try:
             nltk.data.find("wordnet")
         except LookupError:
-            nltk.download("wordnet", download_dir='/tmp/nltk_data')
-            nltk.download("stopwords", download_dir='/tmp/nltk_data')
+            nltk.download("wordnet", download_dir="/tmp/nltk_data")
+            nltk.download("stopwords", download_dir="/tmp/nltk_data")
     else:
-        nltk.download("wordnet", download_dir='/tmp/nltk_data')
-        nltk.download("stopwords", download_dir='/tmp/nltk_data')
+        nltk.download("wordnet", download_dir="/tmp/nltk_data")
+        nltk.download("stopwords", download_dir="/tmp/nltk_data")
 stop_words_nltk = stopwords.words("english")
 
 

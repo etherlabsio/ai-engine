@@ -25,7 +25,6 @@ class KeyphraseExtractor(object):
     def __init__(
         self, s3_client=None, encoder_lambda_client=None, lambda_function=None
     ):
-
         self.context_dir = "/context-instance-graphs/"
         self.kg = KnowledgeGraph()
         self.utils = KeyphraseUtils()
@@ -231,7 +230,6 @@ class KeyphraseExtractor(object):
 
     def check_for_segment_id(self, segment_object, context_graph):
         # Check if segment_id already exists in context graph before populating
-        # segment_object = req_data["segments"]
 
         check_status = 0
         context_segment_id_list = []

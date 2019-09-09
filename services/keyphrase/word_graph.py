@@ -12,7 +12,7 @@ class WordGraphBuilder(object):
     def __init__(
         self, graphrank_obj, textpreprocess_obj, graphutils_obj, keyphrase_utils_obj
     ):
-        self.nlp = spacy.load("vendor/en_core_web_md/en_core_web_md-2.1.0")
+        self.nlp = spacy.load("vendor/en_core_web_sm/en_core_web_sm-2.1.0")
         self.stop_words = list(STOP_WORDS)
         self.gr = graphrank_obj
         self.tp = textpreprocess_obj
