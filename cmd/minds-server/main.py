@@ -24,8 +24,8 @@ s3 = boto3.resource('s3')
 logger = logging.getLogger()
 logger.setLevel(logging.INFO)
 
-def load_model_files():
 
+def load_model_files():
     bucket = os.getenv('BUCKET_NAME', 'io.etherlabs.artifacts')
     model_path = os.getenv('MODEL')
     mind_path = os.getenv('MIND')
@@ -41,6 +41,7 @@ def load_model_files():
     mind_dict = pickle.load(open(mind_dl_path,'rb'))
     return state_dict,mind_dict
 
+
 def process_input(json_request):
     if isinstance(json_request, str):
         json_request = json.loads(json_request)
@@ -52,12 +53,14 @@ def process_input(json_request):
 
 # load the model when lambda execution context is created
 
+
 state_dict,mind_dict = load_model_files()
 config = BertConfig.from_json_file('bert_config.json')
 model = CustomBertPreTrainedModel(config)
 model.load_state_dict(state_dict)
 model.eval()
 logger.info(f'Model loaded for evaluation')
+
 
 def handler(event, context):
     logger.info(event)

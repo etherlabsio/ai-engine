@@ -35,6 +35,8 @@ else:
 class _LRSchedule(ABC):
     """ Parent of all LRSchedules here. """
     warn_t_total = False        # is set to True for schedules where progressing beyond t_total steps doesn't make sense
+
+
     def __init__(self, warmup=0.002, t_total=-1, **kw):
         """
         :param warmup:  what fraction of t_total steps will be used for linear warmup
@@ -49,6 +51,7 @@ class _LRSchedule(ABC):
         warmup = max(warmup, 0.)
         self.warmup, self.t_total = float(warmup), float(t_total)
         self.warned_for_t_total_at_progress = -1
+
 
     def get_lr(self, step, nowarn=False):
         """
@@ -68,6 +71,7 @@ class _LRSchedule(ABC):
             self.warned_for_t_total_at_progress = progress
         # end warning
         return ret
+
 
     @abc.abstractmethod
     def get_lr_(self, progress):
@@ -90,6 +94,8 @@ class WarmupCosineSchedule(_LRSchedule):
     If `cycles` (default=0.5) is different from default, learning rate follows cosine function after warmup.
     """
     warn_t_total = True
+
+
     def __init__(self, warmup=0.002, t_total=-1, cycles=.5, **kw):
         """
         :param warmup:      see LRSchedule
@@ -234,6 +240,7 @@ class BertAdam(Optimizer):
                 lr.append(lr_scheduled)
         return lr
 
+
     def step(self, closure=None):
         """Performs a single optimization step.
 
@@ -275,6 +282,7 @@ class BertAdam(Optimizer):
                 next_m.mul_(beta1).add_(1 - beta1, grad)
                 next_v.mul_(beta2).addcmul_(1 - beta2, grad, grad)
                 update = next_m / (next_v.sqrt() + group['e'])
+
 
                 # Just adding the square of the weights to the loss function is *not*
                 # the correct way of using L2 regularization/weight decay with Adam,

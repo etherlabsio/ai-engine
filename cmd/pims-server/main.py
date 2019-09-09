@@ -6,10 +6,11 @@ except ImportError:
 import os
 import logging
 import json
-from pims.scorer import getScore
-from pims.pre_processors import preprocessSegments
+from pims.scorer import get_score
+from pims.pre_processors import preprocess_segments
 
 logger = logging.getLogger()
+
 
 def handler(event, context):
     print("event['body']: ", event['body'])
@@ -22,13 +23,13 @@ def handler(event, context):
     lambda_function = "mind-"+mindId
 
     transcript_text = json_request['segments'][0]['originalText']
-    pre_processed_input = preprocessSegments(transcript_text)
+    pre_processed_input = preprocess_segments(transcript_text)
 
     if len(pre_processed_input) != 0:
         mind_input = json.dumps({"text": pre_processed_input})
         mind_input = json.dumps({"body": mind_input})
         logger.info('sending request to mind service')
-        transcript_score = getScore(mind_input, lambda_function)
+        transcript_score = get_score(mind_input, lambda_function)
     else:
         transcript_score = 0.00001
         logger.warn('processing transcript: {}'.format(transcript_text))

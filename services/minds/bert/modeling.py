@@ -48,6 +48,7 @@ PRETRAINED_MODEL_ARCHIVE_MAP = {
 BERT_CONFIG_NAME = 'bert_config.json'
 TF_WEIGHTS_NAME = 'model.ckpt'
 
+
 def load_tf_weights_in_bert(model, tf_checkpoint_path):
     """ Load tf checkpoints in a pytorch model
     """
