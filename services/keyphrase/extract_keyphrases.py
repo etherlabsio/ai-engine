@@ -431,7 +431,7 @@ class KeyphraseExtractor(object):
 
             logger.debug(
                 "keyphrases extracted successfully",
-                extra={"keyphrases": keyphrases, "output": keyphrase_object},
+                extra={"result": keyphrases, "output": keyphrase_object},
             )
 
             # TODO need to separate it and move to context-graph-constructor service
@@ -447,8 +447,7 @@ class KeyphraseExtractor(object):
                     attr_dict={"keyphraseType": "original"},
                 )
                 logger.info(
-                    "Updated context graph with PIM keyphrases",
-                    extra={"keyphraseList": original_pim_keyphrases},
+                    "Updated context graph with PIM keyphrases"
                 )
 
         except Exception as e:

@@ -11,8 +11,6 @@ class S3IO(object):
         self.gutils = graph_utils_obj
 
     def upload_s3(self, graph_obj, context_id, instance_id, s3_dir):
-        # context_id = req_data["contextId"]
-        # instance_id = req_data["instanceId"]
         graph_id = graph_obj.graph.get("graphId")
 
         if graph_id == context_id + ":" + instance_id:
@@ -38,8 +36,6 @@ class S3IO(object):
 
     def download_s3(self, context_id, instance_id, s3_dir):
         start = timer()
-        # context_id = req_data["contextId"]
-        # instance_id = req_data["instanceId"]
 
         graph_id = context_id + ":" + instance_id
         s3_path = context_id + s3_dir + graph_id + ".pickle"
