@@ -67,7 +67,7 @@ class KeyphraseRanker(object):
             logger.warning(
                 "Invalid response from encoder lambda function",
                 extra={
-                    "response": response_body,
+                    "warn": "null embeddings",
                     "featureShape": embedding_vector.shape,
                     "lambdaResponseTime": end - start,
                 },
