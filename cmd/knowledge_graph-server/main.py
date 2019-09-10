@@ -2,8 +2,10 @@ import logging
 import os
 import json
 from timeit import default_timer as timer
+
 from knowledge_graph.graphio import GraphTransforms, GraphIO
-from knowledge_graph.neptune_etl import GraphETL
+from knowledge_graph.etl import GraphETL
+from knowledge_graph.graphml2csv import GraphML2CSV
 
 from log.logger import setup_server_logger
 from s3client.s3 import S3Manager
@@ -16,11 +18,13 @@ bucket_store = os.getenv("STORAGE_BUCKET", "io.etherlabs.staging2.contexts")
 s3_client = S3Manager(bucket_name=bucket_store)
 gio = GraphIO(s3_client=s3_client)
 gtransform = GraphTransforms()
+neptune_obj = GraphML2CSV()
+
 etl_obj = GraphETL(
     s3_client=s3_client,
     graph_io_obj=gio,
     graph_transform_obj=gtransform,
-    s3_bucket=bucket_store,
+    neptune_util_obj=neptune_obj,
 )
 
 
@@ -68,13 +72,3 @@ def handler(event, context):
             "headers": {"Content-Type": "application/json"},
             "body": e,
         }
-
-
-# if __name__ == "__main__":
-#     input_req = json.dumps({
-#         "body": {
-#             "contextId": "6baa3490"
-#         }
-#     })
-#
-#     handler(event=input_req, context="")

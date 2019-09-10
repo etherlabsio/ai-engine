@@ -1,6 +1,4 @@
 import networkx as nx
-import subprocess
-import os
 import sys
 import logging
 
@@ -15,7 +13,6 @@ logger = logging.getLogger(__name__)
 class GraphIO(object):
     def __init__(self, s3_client=None):
         self.s3_client = s3_client
-        self.context_dir = "/context-instance-graphs/"
 
     def write_to_pickle(
         self, graph_obj, filename=None, protocol=pickle.HIGHEST_PROTOCOL
@@ -38,12 +35,12 @@ class GraphIO(object):
 
         return s
 
-    def load_graph_from_pickle(self, byte_string, filename=None):
+    def load_graph_from_pickle(self, byte_string: bytes, filename=None):
         """
 
         Args:
             filename (str): Filename ending in `.pkl`, `.gpickle` or `.gz, .bz2`. Defaults to None
-            byte_string (str): Pickled bytes stream object
+            byte_string (bytearray): Pickled bytes stream object
 
         Returns:
             graph_obj: Returns a NetworkX graph
@@ -55,25 +52,15 @@ class GraphIO(object):
 
         return graph_obj
 
-    def convert_pickle_to_graphml(self, graph_pickle):
+    def convert_pickle_to_graphml(self, graph_pickle: bytes, output_filename: str):
         graph_obj = self.load_graph_from_pickle(byte_string=graph_pickle)
-        output_filename_prefix = os.path.splitext(graph_pickle)[0]
-        output_filename = output_filename_prefix + ".graphml"
-
         nx.write_graphml_lxml(graph_obj, output_filename)
 
         return output_filename
 
-    def convert_graphml_to_csv(self, graphml_file):
-        subprocess.call(["./graphml2csv.py", "-i", graphml_file])
-        return
-
     # S3 storage utility functions
 
-    def upload_s3(self, file_name, s3_path, file_format=".graphml"):
-
-        # s3_key_id = context_id + ":" + instance_id
-        # serialized_graph_string = self.write_to_pickle(graph_obj=graph_obj)
+    def upload_s3(self, file_name, s3_path):
 
         resp = self.s3_client.upload_object(body=file_name, s3_key=s3_path)
         if resp:
@@ -82,12 +69,9 @@ class GraphIO(object):
             return False
 
     def download_s3(self, s3_path):
-        # s3_path = context_id + s3_dir
 
         file_obj = self.s3_client.download_file(file_name=s3_path)
         file_obj_bytestring = file_obj["Body"].read()
-
-        # graph_obj = self.load_graph_from_pickle(byte_string=file_obj_bytestring)
 
         logger.info("Downloaded graph object from s3")
 
@@ -135,19 +119,18 @@ class GraphTransforms(object):
 
                 new_id = elem.attrib["attr.name"]
                 key_dict[elem.attrib["id"]] = new_id
+                elem.set("id", new_id)
 
         return key_dict
 
-    def get_key_elements(self, event, elem, tag="key"):
-        if event == "end" and elem.tag == GraphTransforms.graphml_tag(tag):
+    def get_key_elements(self, elem, tag="key"):
+        if GraphTransforms.graphml_tag(elem.tag) == GraphTransforms.graphml_tag(tag):
             # Replace elem's id with its name
             new_id = elem.attrib["attr.name"]
             elem.set("id", new_id)
 
-    def modify_graph_attribute_keys(self, event, elem, key_dict, tag="graph"):
-        if event == "end" and GraphTransforms.graphml_tag(
-            elem.tag
-        ) == GraphTransforms.graphml_tag(tag):
+    def modify_graph_attribute_keys(self, elem, key_dict, tag="graph"):
+        if GraphTransforms.graphml_tag(elem.tag) == GraphTransforms.graphml_tag(tag):
             for data in elem:
                 if GraphTransforms.graphml_tag(data.tag) == GraphTransforms.graphml_tag(
                     "data"
@@ -156,18 +139,14 @@ class GraphTransforms(object):
                     new_graph_key = key_dict[original_attr_val]
                     data.set("key", new_graph_key)
 
-    def modify_node_attribute_keys(self, event, elem, key_dict, tag="node"):
-        if event == "end" and GraphTransforms.graphml_tag(
-            elem.tag
-        ) == GraphTransforms.graphml_tag(tag):
+    def modify_node_attribute_keys(self, elem, key_dict, tag="node"):
+        if GraphTransforms.graphml_tag(elem.tag) == GraphTransforms.graphml_tag(tag):
             for data in elem:
                 original_attr_val = data.attrib.get("key")
                 data.set("key", key_dict[original_attr_val])
 
-    def modify_edge_attribute_keys(self, event, elem, key_dict, tag="edge"):
-        if event == "end" and GraphTransforms.graphml_tag(
-            elem.tag
-        ) == GraphTransforms.graphml_tag(tag):
+    def modify_edge_attribute_keys(self, elem, key_dict, tag="edge"):
+        if GraphTransforms.graphml_tag(elem.tag) == GraphTransforms.graphml_tag(tag):
             for data in elem:
                 original_attr_val = data.attrib.get("key")
                 data.set("key", key_dict[original_attr_val])
@@ -175,8 +154,8 @@ class GraphTransforms(object):
     def graphml_transformer(self, graphml_file, out_graphml_file=None):
 
         if out_graphml_file is None:
-            out_graphml_file = os.path.splitext(graphml_file)[0]
-            out_graphml_file = out_graphml_file + "_mod.graphml"
+            # out_graphml_file = os.path.splitext(graphml_file)[0]
+            out_graphml_file = out_graphml_file + ".graphml"
 
         # Get key maps
         key_dict = self.get_key_dict(graphml_file)
@@ -186,16 +165,23 @@ class GraphTransforms(object):
             # get root element
             _, root = next(context)
             for event, elem in context:
-                self.get_key_elements(f, event, elem)
+                if event == "end":
+                    # Set new key-ids
+                    self.get_key_elements(elem)
 
-                self.modify_graph_attribute_keys(event, elem, key_dict)
-                self.modify_node_attribute_keys(event, elem, key_dict)
-                self.modify_edge_attribute_keys(event, elem, key_dict)
+                    # Set new graph id
+                    self.modify_graph_attribute_keys(elem, key_dict)
+
+                    # Set new keys for node attributes
+                    self.modify_node_attribute_keys(elem, key_dict)
+
+                    # Set new keys for edge attributes
+                    self.modify_edge_attribute_keys(elem, key_dict)
 
                 with open(out_graphml_file, "wb") as f_:
                     f_.write(self.et.tostring(elem, encoding="utf-8"))
 
             # Free up memory for large graphs
-            root.clear()
+            # root.clear()
 
         return out_graphml_file
