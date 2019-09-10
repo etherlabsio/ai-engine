@@ -1,0 +1,201 @@
+import networkx as nx
+import subprocess
+import os
+import sys
+import logging
+
+try:
+    import cPickle as pickle
+except ImportError:
+    import pickle
+
+logger = logging.getLogger(__name__)
+
+
+class GraphIO(object):
+    def __init__(self, s3_client=None):
+        self.s3_client = s3_client
+        self.context_dir = "/context-instance-graphs/"
+
+    def write_to_pickle(
+        self, graph_obj, filename=None, protocol=pickle.HIGHEST_PROTOCOL
+    ) -> str:
+        """
+
+        Args:
+            graph_obj: A NetworkX graph object
+            filename (str): Filename in .pickle or .gz, .bz2 format if needed to be stored locally. Defaults to None
+            protocol: pickle's data stream format.
+
+        Returns:
+            If `filename` is None: pickled representation of the object as a string, instead of writing it to a file.
+            Else writes to a file.
+        """
+        if filename is not None:
+            pickle.dump(obj=graph_obj, file=filename, protocol=protocol)
+
+        s = pickle.dumps(obj=graph_obj, protocol=protocol)
+
+        return s
+
+    def load_graph_from_pickle(self, byte_string, filename=None):
+        """
+
+        Args:
+            filename (str): Filename ending in `.pkl`, `.gpickle` or `.gz, .bz2`. Defaults to None
+            byte_string (str): Pickled bytes stream object
+
+        Returns:
+            graph_obj: Returns a NetworkX graph
+        """
+        if filename is not None:
+            graph_obj = nx.read_gpickle(path=filename)
+        else:
+            graph_obj = pickle.loads(byte_string)
+
+        return graph_obj
+
+    def convert_pickle_to_graphml(self, graph_pickle):
+        graph_obj = self.load_graph_from_pickle(byte_string=graph_pickle)
+        output_filename_prefix = os.path.splitext(graph_pickle)[0]
+        output_filename = output_filename_prefix + ".graphml"
+
+        nx.write_graphml_lxml(graph_obj, output_filename)
+
+        return output_filename
+
+    def convert_graphml_to_csv(self, graphml_file):
+        subprocess.call(["./graphml2csv.py", "-i", graphml_file])
+        return
+
+    # S3 storage utility functions
+
+    def upload_s3(self, file_name, s3_path, file_format=".graphml"):
+
+        # s3_key_id = context_id + ":" + instance_id
+        # serialized_graph_string = self.write_to_pickle(graph_obj=graph_obj)
+
+        resp = self.s3_client.upload_object(body=file_name, s3_key=s3_path)
+        if resp:
+            return True
+        else:
+            return False
+
+    def download_s3(self, s3_path):
+        # s3_path = context_id + s3_dir
+
+        file_obj = self.s3_client.download_file(file_name=s3_path)
+        file_obj_bytestring = file_obj["Body"].read()
+
+        # graph_obj = self.load_graph_from_pickle(byte_string=file_obj_bytestring)
+
+        logger.info("Downloaded graph object from s3")
+
+        return file_obj_bytestring
+
+
+class GraphTransforms(object):
+    def __init__(self):
+        try:
+            import xml.etree.ElementTree as et
+        except ImportError:
+            msg = "GraphML transformer requires xml.elementtree.ElementTree"
+            raise ImportError(msg)
+
+        self.et = et
+
+    @staticmethod
+    def fixtag(ns, tag):
+        return "{" + ns + "}" + tag
+
+    @staticmethod
+    def graphml_tag(tag):
+        graphml_ns = "http://graphml.graphdrawing.org/xmlns"
+        if tag.startswith("{" + graphml_ns + "}"):
+            return tag
+        else:
+            return GraphTransforms.fixtag(graphml_ns, tag)
+
+    @staticmethod
+    def py_compat_str(encoding, data):
+        if sys.hexversion >= 0x3000000:
+            return data.encode(encoding).decode("utf-8")
+        else:
+            return data.encode(encoding)
+
+    def get_key_dict(self, f, tag="key"):
+        key_dict = {}
+        context = iter(self.et.iterparse(f, events=("start", "end")))
+        _, root = next(context)  # get root element
+        for event, elem in context:
+            if event == "end" and GraphTransforms.graphml_tag(
+                elem.tag
+            ) == GraphTransforms.graphml_tag(tag):
+                # Get a map of original id's to transformed ids
+
+                new_id = elem.attrib["attr.name"]
+                key_dict[elem.attrib["id"]] = new_id
+
+        return key_dict
+
+    def get_key_elements(self, event, elem, tag="key"):
+        if event == "end" and elem.tag == GraphTransforms.graphml_tag(tag):
+            # Replace elem's id with its name
+            new_id = elem.attrib["attr.name"]
+            elem.set("id", new_id)
+
+    def modify_graph_attribute_keys(self, event, elem, key_dict, tag="graph"):
+        if event == "end" and GraphTransforms.graphml_tag(
+            elem.tag
+        ) == GraphTransforms.graphml_tag(tag):
+            for data in elem:
+                if GraphTransforms.graphml_tag(data.tag) == GraphTransforms.graphml_tag(
+                    "data"
+                ):
+                    original_attr_val = data.attrib.get("key")
+                    new_graph_key = key_dict[original_attr_val]
+                    data.set("key", new_graph_key)
+
+    def modify_node_attribute_keys(self, event, elem, key_dict, tag="node"):
+        if event == "end" and GraphTransforms.graphml_tag(
+            elem.tag
+        ) == GraphTransforms.graphml_tag(tag):
+            for data in elem:
+                original_attr_val = data.attrib.get("key")
+                data.set("key", key_dict[original_attr_val])
+
+    def modify_edge_attribute_keys(self, event, elem, key_dict, tag="edge"):
+        if event == "end" and GraphTransforms.graphml_tag(
+            elem.tag
+        ) == GraphTransforms.graphml_tag(tag):
+            for data in elem:
+                original_attr_val = data.attrib.get("key")
+                data.set("key", key_dict[original_attr_val])
+
+    def graphml_transformer(self, graphml_file, out_graphml_file=None):
+
+        if out_graphml_file is None:
+            out_graphml_file = os.path.splitext(graphml_file)[0]
+            out_graphml_file = out_graphml_file + "_mod.graphml"
+
+        # Get key maps
+        key_dict = self.get_key_dict(graphml_file)
+        with open(graphml_file, "r") as f:
+            context = iter(self.et.iterparse(f, events=("start", "end")))
+
+            # get root element
+            _, root = next(context)
+            for event, elem in context:
+                self.get_key_elements(f, event, elem)
+
+                self.modify_graph_attribute_keys(event, elem, key_dict)
+                self.modify_node_attribute_keys(event, elem, key_dict)
+                self.modify_edge_attribute_keys(event, elem, key_dict)
+
+                with open(out_graphml_file, "wb") as f_:
+                    f_.write(self.et.tostring(elem, encoding="utf-8"))
+
+            # Free up memory for large graphs
+            root.clear()
+
+        return out_graphml_file
