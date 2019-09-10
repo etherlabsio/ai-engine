@@ -1,20 +1,19 @@
 from __future__ import absolute_import, division, print_function
 
 import math
-import os
 import networkx as nx
 import logging
 from nltk import WordNetLemmatizer, word_tokenize
 
-from keyphrase.graphrank.metrics import GraphSolvers, WeightMetrics
-from keyphrase.graphrank.utils import GraphUtils, TextPreprocess
+from graphrank.metrics import GraphSolvers, WeightMetrics
+from graphrank.utils import GraphUtils, TextPreprocess
+from graphrank.long_stopwords import stop_words
 
 logger = logging.getLogger(__name__)
 
 
 class GraphRank(object):
     def __init__(self):
-        # self.graph = nx.Graph(type="keyphrases")
         self.graph_utils = GraphUtils()
         self.graph_solver = GraphSolvers()
         self.metric_object = WeightMetrics()
@@ -22,16 +21,11 @@ class GraphRank(object):
 
         self.lemma = WordNetLemmatizer()
 
+        self.graph = nx.Graph()
+
         # Store the original text and maintain the context flow to extend the graph.
         self.context = []
-
-        # Load pkg word list
-        root_dir = os.getcwd()
-        local_file = os.path.realpath(os.path.join(root_dir, os.path.dirname(__file__)))
-
-        stop_word_file = os.path.join(local_file, "long_stopwords.txt")
-        text_file = open(stop_word_file, "r")
-        self.common_words = text_file.read().split()
+        self.common_words = stop_words.split()
 
     def build_word_graph(
         self,
@@ -45,10 +39,13 @@ class GraphRank(object):
         edge_attributes=None,
         preserve_plurals=False,
         add_context=True,
+        **kwargs,
     ):
         """
         Build co-occurrence of words graph based on the POS tags and the window of occurrence
         Args:
+            add_context:
+            graph_obj:
             edge_attributes:
             preserve_plurals:
             node_attributes:
@@ -61,9 +58,7 @@ class GraphRank(object):
         Returns:
             cooccurrence_graph (Networkx graph obj): Graph of co-occurring keywords
         """
-        if graph_obj is None:
-            self.graph = nx.Graph()
-        else:
+        if graph_obj is not None:
             self.graph = graph_obj
 
         if syntactic_filter is None:
@@ -144,12 +139,13 @@ class GraphRank(object):
     def node_weighting(
         self,
         graph_obj,
-        input_pos_text=None,
+        input_pos_text,
         window=2,
         top_t_percent=None,
         solver="pagerank_scipy",
         syntactic_filter=None,
         normalize_nodes=None,
+        **kwargs,
     ):
         """
         Computes the weights of the vertices/nodes of the graph based on the `solver` algorithm.
@@ -180,7 +176,7 @@ class GraphRank(object):
         # Compute node scores using unweighted pagerank implementation
         # TODO Extend to other solvers
         node_weights = self.graph_solver.get_graph_algorithm(
-            graph_obj=graph_obj, solver_fn=solver
+            graph_obj=graph_obj, solver_fn=solver, **kwargs
         )
 
         # Normalize node weights using graph properties
@@ -229,12 +225,13 @@ class GraphRank(object):
     def _mark_tokens_grammar(
         self,
         graph_obj,
-        input_pos_text=None,
+        input_pos_text,
         original_tokens=None,
         window=2,
         syntactic_filter=None,
         top_t_percent=None,
         normalize_nodes=None,
+        **kwargs,
     ):
 
         node_weights, top_weighted_words = self.node_weighting(
@@ -244,6 +241,7 @@ class GraphRank(object):
             top_t_percent=top_t_percent,
             syntactic_filter=syntactic_filter,
             normalize_nodes=normalize_nodes,
+            **kwargs,
         )
 
         tmp_keywords = [word for word, we in node_weights.items()]
@@ -271,13 +269,14 @@ class GraphRank(object):
     def retrieve_multi_keyterms(
         self,
         graph_obj,
-        input_pos_text=None,
+        input_pos_text,
         original_tokens=None,
         window=2,
         syntactic_filter=None,
         top_t_percent=None,
         preserve_common_words=False,
         normalize_nodes=None,
+        **kwargs,
     ):
         """
         Search for co-occurring keyword terms and place them together as multi-keyword terms.
@@ -302,6 +301,7 @@ class GraphRank(object):
             top_t_percent=top_t_percent,
             syntactic_filter=syntactic_filter,
             normalize_nodes=normalize_nodes,
+            **kwargs,
         )
 
         marked_text_tokens = self._mark_tokens_grammar(
@@ -312,6 +312,7 @@ class GraphRank(object):
             top_t_percent=top_t_percent,
             syntactic_filter=syntactic_filter,
             normalize_nodes=normalize_nodes,
+            **kwargs,
         )
 
         multi_terms = []
@@ -351,8 +352,8 @@ class GraphRank(object):
     def compute_multiterm_score(
         self,
         graph_obj,
+        input_pos_text,
         original_tokens=None,
-        input_pos_text=None,
         window=2,
         top_t_percent=None,
         weight_metrics="sum",
@@ -361,11 +362,13 @@ class GraphRank(object):
         preserve_common_words=True,
         normalize_nodes=None,
         descriptive=False,
+        **kwargs,
     ):
         """
         Compute aggregated scores for multi-keyword terms. The scores are computed based on the weight metrics.
         The final scores for a keyword term determines its relative importance in the list of phrases.
         Args:
+            descriptive:
             normalize_nodes:
             preserve_common_words:
             original_tokens:
@@ -392,6 +395,7 @@ class GraphRank(object):
             syntactic_filter=syntactic_filter,
             preserve_common_words=preserve_common_words,
             normalize_nodes=normalize_nodes,
+            **kwargs,
         )
 
         if descriptive:
@@ -425,8 +429,8 @@ class GraphRank(object):
     def get_keyphrases(
         self,
         graph_obj,
+        input_pos_text,
         original_tokens=None,
-        input_pos_text=None,
         window=2,
         top_t_percent=None,
         weight_metrics="sum",
@@ -438,6 +442,7 @@ class GraphRank(object):
         post_process=True,
         descriptive=False,
         post_process_descriptive=False,
+        **kwargs,
     ):
         """
         Get `top_n` keyphrases from the word graph.
@@ -472,6 +477,7 @@ class GraphRank(object):
             syntactic_filter=syntactic_filter,
             preserve_common_words=preserve_common_words,
             normalize_nodes=normalize_nodes,
+            **kwargs,
         )
 
         if descriptive:
@@ -487,6 +493,7 @@ class GraphRank(object):
                 preserve_common_words=preserve_common_words,
                 normalize_nodes=normalize_nodes,
                 descriptive=descriptive,
+                **kwargs,
             )
 
         # Convert list of keywords to form keyphrase/multi-phrases
@@ -648,13 +655,14 @@ class GraphRank(object):
     def get_descriptive_terms(
         self,
         graph_obj,
-        input_pos_text=None,
+        input_pos_text,
         original_tokens=None,
         window=2,
         syntactic_filter=None,
         top_t_percent=None,
         normalize_nodes=None,
         preserve_common_words=False,
+        **kwargs,
     ):
 
         node_weights, top_weighted_words = self.node_weighting(
@@ -664,6 +672,7 @@ class GraphRank(object):
             top_t_percent=top_t_percent,
             syntactic_filter=syntactic_filter,
             normalize_nodes=normalize_nodes,
+            **kwargs,
         )
 
         marked_text_tokens = self._mark_tokens_grammar(
@@ -674,6 +683,7 @@ class GraphRank(object):
             top_t_percent=top_t_percent,
             syntactic_filter=syntactic_filter,
             normalize_nodes=normalize_nodes,
+            **kwargs,
         )
 
         multi_terms = []

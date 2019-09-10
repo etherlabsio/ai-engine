@@ -1,0 +1,8 @@
+md5: 8bf452ab842f502619b351ee6d969bdf
+wdir: ../..
+outs:
+- md5: 8ed0ac2ba9ea43d09d5be256e7c5e83f.dir
+  path: models/sentence_encoder/SentEnL
+  cache: true
+  metric: false
+  persist: false
