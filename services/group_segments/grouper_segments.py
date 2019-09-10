@@ -127,7 +127,7 @@ class community_detection():
 
             for (index1, (sent1, time1, user1, id1)), (index2, (sent2, time2, user2, id2)) in zip(enumerate(com[0:]), enumerate(com[1:])):
                 if id1 != id2:
-                    if ((format_time( time2, True) - format_time(time1, True)).seconds <= 120):
+                    if ((format_time(time2, True) - format_time(time1, True)).seconds <= 120):
                         if (not flag):
                             pims[index_pim] = {'segment' + str(index_segment): [sent1, time1, user1, id1]}
                             index_segment += 1

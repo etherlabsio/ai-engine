@@ -36,7 +36,6 @@ class _LRSchedule(ABC):
     """ Parent of all LRSchedules here. """
     warn_t_total = False        # is set to True for schedules where progressing beyond t_total steps doesn't make sense
 
-
     def __init__(self, warmup=0.002, t_total=-1, **kw):
         """
         :param warmup:  what fraction of t_total steps will be used for linear warmup
@@ -52,7 +51,6 @@ class _LRSchedule(ABC):
         self.warmup, self.t_total = float(warmup), float(t_total)
         self.warned_for_t_total_at_progress = -1
 
-
     def get_lr(self, step, nowarn=False):
         """
         :param step:    which of t_total steps we're on
@@ -67,11 +65,10 @@ class _LRSchedule(ABC):
         if not nowarn and self.warn_t_total and progress > 1. and progress > self.warned_for_t_total_at_progress:
             logger.warning(
                 "Training beyond specified 't_total'. Learning rate multiplier set to {}. Please set 't_total' of {} correctly."
-                    .format(ret, self.__class__.__name__))
+                1.format(ret, self.__class__.__name__))
             self.warned_for_t_total_at_progress = progress
         # end warning
         return ret
-
 
     @abc.abstractmethod
     def get_lr_(self, progress):
@@ -94,7 +91,6 @@ class WarmupCosineSchedule(_LRSchedule):
     If `cycles` (default=0.5) is different from default, learning rate follows cosine function after warmup.
     """
     warn_t_total = True
-
 
     def __init__(self, warmup=0.002, t_total=-1, cycles=.5, **kw):
         """
@@ -171,6 +167,7 @@ class WarmupLinearSchedule(_LRSchedule):
     Linearly decreases learning rate from 1. to 0. over remaining `1 - warmup` steps.
     """
     warn_t_total = True
+
     def get_lr_(self, progress):
         if progress < self.warmup:
             return progress / self.warmup
@@ -178,8 +175,8 @@ class WarmupLinearSchedule(_LRSchedule):
 
 
 SCHEDULES = {
-    None:       ConstantLR,
-    "none":     ConstantLR,
+    None: ConstantLR,
+    "none": ConstantLR,
     "warmup_cosine": WarmupCosineSchedule,
     "warmup_constant": WarmupConstantSchedule,
     "warmup_linear": WarmupLinearSchedule
@@ -240,7 +237,6 @@ class BertAdam(Optimizer):
                 lr.append(lr_scheduled)
         return lr
 
-
     def step(self, closure=None):
         """Performs a single optimization step.
 
@@ -282,8 +278,6 @@ class BertAdam(Optimizer):
                 next_m.mul_(beta1).add_(1 - beta1, grad)
                 next_v.mul_(beta2).addcmul_(1 - beta2, grad, grad)
                 update = next_m / (next_v.sqrt() + group['e'])
-
-
                 # Just adding the square of the weights to the loss function is *not*
                 # the correct way of using L2 regularization/weight decay with Adam,
                 # since that will interact with the m and v parameters in strange ways.
