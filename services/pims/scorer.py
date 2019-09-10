@@ -11,17 +11,14 @@ logger = logging.getLogger()
 config = Config(connect_timeout=60, read_timeout=240, retries={'max_attempts': 0}, )
 lambda_client = boto3_client('lambda', config=config)
 
-
 def get_cluster_score(sent_vec, mind_vec, mind_nsp, nsp_dampening_factor=0.7):
     cosine_sim = cosine(sent_vec, mind_vec)
     nsp_score = mind_nsp * nsp_dampening_factor
     score = np.mean([cosine_sim, nsp_score])
     return score
 
-
 def cosine(vec1, vec2):
     return dot(vec1, vec2) / (norm(vec1) * norm(vec2))
-
 
 def get_score(mind_input, lambda_function):
     invoke_response = lambda_client.invoke(FunctionName=lambda_function,
