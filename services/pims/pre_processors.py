@@ -3,7 +3,7 @@ from typing import List
 Vector = List[str]
 
 
-def preprocessSegments(transcript: str) -> Vector:
+def preprocess_segments(transcript: str) -> Vector:
     processed_transcript_list = []
     if len(transcript.split('.')) > 1:
         for sentence in transcript.split('.'):

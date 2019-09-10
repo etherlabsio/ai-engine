@@ -14,7 +14,6 @@ import tempfile
 import fnmatch
 from functools import wraps
 from hashlib import sha256
-import sys
 from io import open
 
 import boto3
@@ -161,12 +160,10 @@ def s3_get(url, temp_file):
     s3_resource = boto3.resource("s3")
     bucket_name, s3_path = split_s3_path(url)
     s3_resource.Bucket(bucket_name).download_fileobj(s3_path, temp_file)
-
-
-def http_get(url, temp_file):
-    req = requests.get(url, stream=True)
-    content_length = req.headers.get('Content-Length')
-    total = int(content_length) if content_length is not None else None
+# def http_get(url, temp_file):
+    # req = requests.get(url, stream=True)
+    # content_length = req.headers.get('Content-Length')
+    # total = int(content_length) if content_length is not None else None
     # progress = tqdm(unit="B", total=total)
     # for chunk in req.iter_content(chunk_size=1024):
     #     if chunk: # filter out keep-alive new chunks
@@ -225,8 +222,8 @@ def get_from_cache(url, cache_dir=None):
             # GET file object
             if url.startswith("s3://"):
                 s3_get(url, temp_file)
-            else:
-                http_get(url, temp_file)
+            # else:
+                # http_get(url, temp_file)
 
             # we are copying the file before closing it, so flush to avoid truncation
             temp_file.flush()

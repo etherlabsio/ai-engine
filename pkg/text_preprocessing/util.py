@@ -10,11 +10,6 @@ import os
 logger = logging.getLogger(__name__)
 
 
-# nltk.data.path.append("/tmp/nltk_data")
-# nltk.download("wordnet",download_dir='/tmp/nltk_data')
-
-# nltk.download("stopwords", download_dir='/tmp/nltk_data')
-
 if os.path.isdir(os.path.join(os.getcwd(), "vendor/nltk_data")):
     nltk.data.path.append(os.path.join(os.getcwd(), "vendor/nltk_data"))
     try:

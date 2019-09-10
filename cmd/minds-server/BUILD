@@ -3,7 +3,8 @@ python_binary(
 	dependencies = [
 		'services/minds:minds-libs',
 		':minds-dep',
-		'services:global-services'
+		'services:global-services',
+        'pkg:common-libs',
 	],
 	source="main.py",
     compatibility=['CPython==3.7.*'],
