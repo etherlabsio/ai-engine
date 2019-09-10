@@ -9,7 +9,6 @@ import os
 
 logger = logging.getLogger(__name__)
 
-
 if os.path.isdir(os.path.join(os.getcwd(), "vendor/nltk_data")):
     nltk.data.path.append(os.path.join(os.getcwd(), "vendor/nltk_data"))
     try:
@@ -30,7 +29,6 @@ else:
         nltk.download("wordnet", download_dir="/tmp/nltk_data")
         nltk.download("stopwords", download_dir="/tmp/nltk_data")
 stop_words_nltk = stopwords.words("english")
-
 
 stop_words_spacy = list(
     """
@@ -101,7 +99,6 @@ yet you your yours yourself yourselves
 )
 
 stop_words = list(set(stop_words_nltk + stop_words_spacy))
-
 
 contraction_mapping = {
     "ain't": "is not",
@@ -225,7 +222,7 @@ contraction_mapping = {
     "you're": "you are",
     "you've": "you have",
 }
-punct = "/-'?!,#$%'()*+-/:;<=>@[\\]^_`{|}~" + '""“”’' + "∞θ÷α•à−β∅³π‘₹´°£€\×™√²—–&"
+punct = r"/-'?!,#$%'()*+-/:;<=>@[\\]^_`{|}~" + r'""“”’' + r"∞θ÷α•à−β∅³π‘₹´°£€\×™√²—–&"
 
 
 def expand_contractions(sentence):
@@ -275,8 +272,8 @@ def remove_number(sentence):
     input : A single sentence as a string.
     output : A string.
     """
-    sentence = re.sub("\d+\.+\d+", "XnumberX", " " + sentence + " ")
-    sentence = re.sub("\d+", "XnumberX", " " + sentence + " ")
+    sentence = re.sub(r"\d+\.+\d+", "XnumberX", " " + sentence + " ")
+    sentence = re.sub(r"\d+", "XnumberX", " " + sentence + " ")
     return sentence[2:-2]
 
 
