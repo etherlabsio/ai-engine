@@ -34,12 +34,11 @@ __updated__ = "2018-01-31"
 
 import sys
 import os
-import logging
 
+from optparse import OptionParser
 import csv
-import xml.etree.ElementTree as ET
 
-logger = logging.getLogger(__name__)
+import xml.etree.ElementTree as etree
 
 
 class GraphML2CSV:
@@ -62,9 +61,9 @@ class GraphML2CSV:
         else:
             return data.encode(encoding)
 
-    def graphml_to_csv(self, fname, outfname, delimiter, encoding):
+    def graphml_to_csv(self, fname, delimiter, encoding):
 
-        outfname_prefix = os.path.splitext(outfname)[0]
+        outfname_prefix = os.path.splitext(fname)[0]
 
         with open(fname, "r") as f:
 
@@ -100,7 +99,7 @@ class GraphML2CSV:
                 node_cnt = 0
                 node_attr_cnt = 0
 
-                for event, elem in ET.iterparse(f, events=("start", "end")):
+                for event, elem in etree.iterparse(f, events=("start", "end")):
 
                     if event == "start":
 
@@ -132,8 +131,8 @@ class GraphML2CSV:
 
                             # Assume the labelV is the vertex label, if specified
                             if (
-                                elem.attrib["id"] != "attribute"
-                                and elem.attrib["id"] != "relation"
+                                elem.attrib["id"] != "labelV"
+                                and elem.attrib["id"] != "labelE"
                             ):
                                 if (
                                     not "for" in elem.attrib
@@ -187,7 +186,7 @@ class GraphML2CSV:
                                     encoding, data.attrib.get("key")
                                 )
 
-                                if att_val == "attribute":
+                                if att_val == "labelV":
                                     node_d["~label"] = GraphML2CSV.py_compat_str(
                                         encoding, data.text
                                     )
@@ -232,7 +231,7 @@ class GraphML2CSV:
                                     encoding, data.attrib.get("key")
                                 )
 
-                                if att_val == "relation":
+                                if att_val == "labelE":
                                     edge_d["~label"] = GraphML2CSV.py_compat_str(
                                         encoding, data.text
                                     )
@@ -250,22 +249,93 @@ class GraphML2CSV:
                             edge_writer.writerow(edge_d)
                             elem.clear()
 
-        logger.info(
-            "Wrote nodes and node attributes",
-            extra={
-                "nodes": node_cnt,
-                "nodeAttr": node_attr_cnt,
-                "nodeFile": outfname_prefix + "-nodes.csv",
-            },
+        sys.stderr.write(
+            "Wrote %d nodes and %d attributes to %s.\n"
+            % (node_cnt, node_attr_cnt, outfname_prefix + "-nodes.csv")
+        )
+        sys.stderr.write(
+            "Wrote %d edges and %d attributes to %s.\n"
+            % (edge_cnt, edge_attr_cnt, outfname_prefix + "-edges.csv")
         )
 
-        logger.info(
-            "Wrote edges and edge attributes",
-            extra={
-                "edges": edge_cnt,
-                "edgeAttr": edge_attr_cnt,
-                "edgeFile": outfname_prefix + "-edges.csv",
-            },
+        return
+
+
+def main(argv=None):
+    """Command line options."""
+
+    program_name = os.path.basename(sys.argv[0])
+    program_version = "v0.1"
+    program_build_date = "%s" % __updated__
+
+    program_version_string = "%%prog %s (%s)" % (program_version, program_build_date)
+    program_longdesc = (
+        "A utility python script to convert GraphML files into the Amazon Neptune CSV format "
+        "for bulk ingestion. See "
+        "https://docs.aws.amazon.com/neptune/latest/userguide/bulk-load-tutorial-format-gremlin.html."
+    )
+    program_license = "Copyright 2018 Amazon.com, Inc. or its affiliates.	\
+                Licensed under the Apache License 2.0\nhttp://aws.amazon.com/apache2.0/"
+
+    if argv is None:
+        argv = sys.argv[1:]
+    try:
+        # setup option parser
+        parser = OptionParser(
+            version=program_version_string,
+            epilog=program_longdesc,
+            description=program_license,
+        )
+        parser.add_option(
+            "-i",
+            "--in",
+            dest="infile",
+            help="set input path [default: %default]",
+            metavar="FILE",
         )
 
-        return outfname_prefix + "-nodes.csv", outfname_prefix + "-edges.csv"
+        parser.add_option(
+            "-d",
+            "--delimiter",
+            dest="delimiter",
+            default=",",
+            help="Set the output file delimiter [default: %default]",
+        )
+
+        parser.add_option(
+            "-e",
+            "--encoding",
+            dest="encoding",
+            default="utf-8",
+            help="Set the input file encoding [default: %default]",
+        )
+
+        # process options
+        (opts, args) = parser.parse_args(argv)
+
+        if opts.infile:
+            sys.stderr.write("infile = %s\n" % opts.infile)
+            infile = opts.infile
+        else:
+            sys.stderr.write("graphml input file is required.\n")
+            parser.print_help()
+            return int(2)
+
+        # MAIN BODY #
+
+        sys.stderr.write("Processing %s\n" % opts.infile)
+        xformer = GraphML2CSV()
+        xformer.graphml_to_csv(opts.infile, opts.delimiter, opts.encoding)
+        return 0
+
+    except Exception as e:
+        sys.stderr.write(repr(e))
+        indent = len(program_name) * " "
+        sys.stderr.write(program_name + ": " + repr(e) + "\n")
+        sys.stderr.write(indent + "  for help use --help")
+        return 2
+
+
+if __name__ == "__main__":
+    sys.exit(main())
+cls
