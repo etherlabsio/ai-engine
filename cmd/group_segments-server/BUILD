@@ -1,7 +1,7 @@
 python_binary(
 	name="server",
 	dependencies = [
-		'pkg:text_preprocessing-pkg',
+		'pkg:common-libs',
 		'services/group_segments:group_segments-libs',
 		':group_segments-dep',
 		'services:grouping-services'

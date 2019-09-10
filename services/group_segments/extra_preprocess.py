@@ -42,7 +42,6 @@ def format_pims_output(pim, req, segmentsmap, mindId):
         tmp_seg = []
         for seg in pim[no].keys():
             tmp_seg.append(segmentsmap[pim[no][seg][-1]])
-            print(segmentsmap[pim[no][seg][-1]])
         pims["group"][no] = tmp_seg
     pims['contextId'] = (req)['contextId']
     pims['instanceId'] = (req)['instanceId']
@@ -51,5 +50,4 @@ def format_pims_output(pim, req, segmentsmap, mindId):
     response_output['statusCode'] = 200
     response_output['headers'] = {"Content-Type": "application/json"}
     response_output['body'] = json.dumps(pims)
-    print(response_output)
     return response_output

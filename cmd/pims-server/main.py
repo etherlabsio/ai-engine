@@ -8,12 +8,13 @@ import logging
 import json
 from pims.scorer import get_score
 from pims.pre_processors import preprocess_segments
+from log.logger import setup_server_logger
 
 logger = logging.getLogger()
-
+setup_server_logger(debug=True)
 
 def handler(event, context):
-    print("event['body']: ", event['body'])
+    logger.info("POST request recieved", extra={"event['body']:": event['body']})
     if isinstance(event['body'], str):
         json_request = json.loads(event['body'])
     else:
@@ -46,7 +47,7 @@ def handler(event, context):
         'conversationLength': 1000,
         'speaker': json_request['segments'][0]['spokenBy'],
     })
-    print("out_response", out_response)
+    logger.info("response", extra={"out_response": out_response})
     return {
         "statusCode": 200,
         "headers": {"Content-Type": "application/json"},

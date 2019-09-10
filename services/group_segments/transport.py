@@ -29,7 +29,6 @@ def decode_json_request(req) -> Request:
     if req['segments'] is None:
         return False
 
-    # logger.info("segments", extra={"segments data":type(req['segments'])})
     segments_map = {}
     for segm in req['segments']:
         segments_map[segm['id']] = deepcopy(segm)

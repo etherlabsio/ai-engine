@@ -3,6 +3,11 @@ from group_segments.transport import decode_json_request
 from group_segments import grouper
 from group_segments.extra_preprocess import format_pims_output
 import sys
+import logging
+from log.logger import setup_server_logger
+
+logger = logging.getLogger()
+setup_server_logger(debug=True)
 
 
 def handler(event, context):
@@ -11,7 +16,7 @@ def handler(event, context):
             json_request = json.loads(event['body'])
         else:
             json_request = event['body']
-
+        logger.info("POST request recieved", extra={"request": json_request})
         Request_obj = decode_json_request(json_request)
         mindId = str(json_request['mindId']).lower()
         lambda_function = "mind-" + mindId
@@ -25,7 +30,7 @@ def handler(event, context):
         topics['mindId'] = mindId
         output_pims = format_pims_output(pim, json_request, Request_obj.segments_map, mindId)
     except Exception as e:
-        print("Unable to extract topics:", e)
+        logger.warning("Unable to extract topic", extra={"exception": e})
         output_pims = {"statusCode": 500,
                        "headers": {"Content-Type": "application/json"},
                        "body": json.dumps({"error": "Unable to extract topics"})}

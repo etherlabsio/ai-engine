@@ -29,7 +29,6 @@ def get_score(mind_input, lambda_function):
                                            Payload=mind_input)
     out_json = invoke_response['Payload'].read().decode(
         'utf8').replace("'", '"')
-    print("out_json: ", out_json)
     data = json.loads(json.loads(out_json)['body'])
     response = json.loads(out_json)['statusCode']
 

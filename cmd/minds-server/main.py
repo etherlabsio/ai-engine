@@ -1,7 +1,6 @@
 try:
     import unzip_requirements
 except ImportError:
-    print("not able to import unzip_requirements")
     pass
 
 import os
