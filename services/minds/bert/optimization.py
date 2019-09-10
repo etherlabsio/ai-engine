@@ -65,7 +65,7 @@ class _LRSchedule(ABC):
         if not nowarn and self.warn_t_total and progress > 1. and progress > self.warned_for_t_total_at_progress:
             logger.warning(
                 "Training beyond specified 't_total'. Learning rate multiplier set to {}. Please set 't_total' of {} correctly."
-                1.format(ret, self.__class__.__name__))
+                .format(ret, self.__class__.__name__))
             self.warned_for_t_total_at_progress = progress
         # end warning
         return ret
