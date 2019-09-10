@@ -202,7 +202,7 @@ class KeyphraseExtractor(object):
                 keyphrase_attr_dict=attr_dict,
                 is_pim=is_pim,
             )
-        except Exception as e:
+        except Exception:
             logger.debug(traceback.print_exc())
 
         if upload:
@@ -298,6 +298,7 @@ class KeyphraseExtractor(object):
         Compute embedding vectors for segments and segment-keyphrases and store them as node attributes in the knowledge
         graph.
         Args:
+            default_form:
             segment_object:
             meeting_word_graph:
             context_graph:
@@ -446,9 +447,7 @@ class KeyphraseExtractor(object):
                     upload=True,
                     attr_dict={"keyphraseType": "original"},
                 )
-                logger.info(
-                    "Updated context graph with PIM keyphrases"
-                )
+                logger.info("Updated context graph with PIM keyphrases")
 
         except Exception as e:
             end = timer()
@@ -539,7 +538,7 @@ class KeyphraseExtractor(object):
                 extra={"output": keyphrase_object, "responseTime": end - start},
             )
 
-        except Exception as e:
+        except Exception:
             end = timer()
             logger.error(
                 "Error extracting keyphrases from segment",
