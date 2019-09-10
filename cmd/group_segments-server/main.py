@@ -14,7 +14,7 @@ def handler(event, context):
 
         Request_obj = decode_json_request(json_request)
         mindId = str(json_request['mindId']).lower()
-        lambda_function = "mind-"+mindId
+        lambda_function = "mind-" + mindId
         if not Request_obj.segments:
             return json({"msg": "No segments to process"})
         topics = {}
@@ -26,9 +26,9 @@ def handler(event, context):
         output_pims = format_pims_output(pim, json_request, Request_obj.segments_map, mindId)
     except Exception as e:
         print("Unable to extract topics:", e)
-        output_pims = { "statusCode": 500, 
-                        "headers": {"Content-Type": "application/json"},
-                        "body": json.dumps({"error": "Unable to extract topics"} )
+        output_pims = {"statusCode": 500,
+                       "headers": {"Content-Type": "application/json"},
+                       "body": json.dumps({"error": "Unable to extract topics"})
         }
-    #pim['extracted_topics'] = topics
+    # pim['extracted_topics'] = topics
     return output_pims

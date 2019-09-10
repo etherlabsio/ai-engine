@@ -10,15 +10,15 @@ def preprocess_text(text):
     mod_texts = []
 
     for index, sent in enumerate(mod_texts_unfiltered):
-        if len(sent.split(' '))>250:
+        if len(sent.split(' ')) > 250:
             length = len(sent.split(' '))
-            split1 = ' '.join([i for i in sent.split(' ')[:round(length/2)]])
-            split2 = ' '.join([i for i in sent.split(' ')[round(length/2):]])
+            split1 = ' '.join([i for i in sent.split(' ')[:round(length / 2)]])
+            split2 = ' '.join([i for i in sent.split(' ')[round(length / 2):]])
             mod_texts.append(split1)
             mod_texts.append(split2)
             continue
 
-        if len(sent.split(' '))<=6:
+        if len(sent.split(' ')) <= 6:
             continue
 
         mod_texts.append(sent)
@@ -44,9 +44,9 @@ def format_pims_output(pim, req, segmentsmap, mindId):
             tmp_seg.append(segmentsmap[pim[no][seg][-1]])
             print(segmentsmap[pim[no][seg][-1]])
         pims["group"][no] = tmp_seg
-    pims['contextId']=(req)['contextId']
-    pims['instanceId']=(req)['instanceId']
-    pims['mindId']=mindId
+    pims['contextId'] = (req)['contextId']
+    pims['instanceId'] = (req)['instanceId']
+    pims['mindId'] = mindId
     response_output = {}
     response_output['statusCode'] = 200
     response_output['headers'] = {"Content-Type": "application/json"}

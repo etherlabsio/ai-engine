@@ -20,7 +20,7 @@ def handler(event, context):
         json_request = event['body']
 
     mindId = str(json_request['mindId']).lower()
-    lambda_function = "mind-"+mindId
+    lambda_function = "mind-" + mindId
 
     transcript_text = json_request['segments'][0]['originalText']
     pre_processed_input = preprocess_segments(transcript_text)
@@ -37,11 +37,11 @@ def handler(event, context):
 
     # hack to penalize out of domain small transcripts coming as PIMs - word level
     if len(pre_processed_input.split(' ')) < 40:
-        transcript_score = 0.1*transcript_score
+        transcript_score = 0.1 * transcript_score
 
     out_response = json.dumps({
         'text': transcript_text,
-        'distance': 1/transcript_score,
+        'distance': 1 / transcript_score,
         'id': json_request['segments'][0]['id'],
         'conversationLength': 1000,
         'speaker': json_request['segments'][0]['spokenBy'],
@@ -50,11 +50,12 @@ def handler(event, context):
     return {
         "statusCode": 200,
         "headers": {"Content-Type": "application/json"},
-        "body": json.dumps({'d2vResult': [{
-        'text': transcript_text,
-        'distance': 1/transcript_score,
-        'id': json_request['segments'][0]['id'],
-        'conversationLength': 1000,
-        'speaker': json_request['segments'][0]['spokenBy'],
-    }]})
+        "body": json.dumps({
+            'd2vResult': [{
+                'text': transcript_text,
+                'distance': 1 / transcript_score,
+                'id': json_request['segments'][0]['id'],
+                'conversationLength': 1000,
+                'speaker': json_request['segments'][0]['spokenBy'],
+            }]})
     }

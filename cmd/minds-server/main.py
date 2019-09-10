@@ -35,11 +35,11 @@ def load_model_files():
         key=model_path
     )
     mind_dl_path = os.path.join(os.sep, 'tmp', 'mind.pkl')
-    s3.Bucket(bucket).download_file(mind_path,mind_dl_path)
+    s3.Bucket(bucket).download_file(mind_path, mind_dl_path)
 
-    state_dict = torch.load(io.BytesIO(modelObj.get()["Body"].read()),map_location='cpu')
-    mind_dict = pickle.load(open(mind_dl_path,'rb'))
-    return state_dict,mind_dict
+    state_dict = torch.load(io.BytesIO(modelObj.get()["Body"].read()), map_location='cpu')
+    mind_dict = pickle.load(open(mind_dl_path, 'rb'))
+    return state_dict, mind_dict
 
 
 def process_input(json_request):
@@ -54,7 +54,7 @@ def process_input(json_request):
 # load the model when lambda execution context is created
 
 
-state_dict,mind_dict = load_model_files()
+state_dict, mind_dict = load_model_files()
 config = BertConfig.from_json_file('bert_config.json')
 model = CustomBertPreTrainedModel(config)
 model.load_state_dict(state_dict)
@@ -66,7 +66,7 @@ def handler(event, context):
     logger.info(event)
     input_text, input_nsp = process_input(event['body'])
     model_feats = predict(model, mind_dict, input_text, get_nsp=input_nsp)
-    response = json.dumps(model_feats,cls=NumpyEncoder)
+    response = json.dumps(model_feats, cls=NumpyEncoder)
 
     return {
         "statusCode": 200,
