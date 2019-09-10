@@ -66,11 +66,11 @@ tokenizer = OpenAIGPTTokenizer(vocab_filepath,merges_filepath)
 tokenizer.add_tokens(special_tokens)
 special_tokens_ids = list(tokenizer.convert_tokens_to_ids(token) for token in special_tokens)
 
-def getReshapedFeatures(lm_tensor):
+def get_reshaped_features(lm_tensor):
     lm_array = lm_tensor.reshape(lm_tensor.shape[-1]).detach().numpy()
     return lm_array
     
-def getGPTFeatures(model,text):
+def get_gpt_features(model,text):
     max_length = model.config.n_positions-2
         
     encoded_data = tokenizer.convert_tokens_to_ids(tokenizer.tokenize(text))
@@ -81,10 +81,10 @@ def getGPTFeatures(model,text):
 
     with torch.no_grad():
         lm_text_feature = model(input_tensor)
-    lm_text_feature = getReshapedFeatures(lm_text_feature)
+    lm_text_feature = get_reshaped_features(lm_text_feature)
     return lm_text_feature
 
-def getSentenceFeatures(model, split_text):
+def get_sentence_features(model, split_text):
   # accepts list of texts, return sentence feature vector list
     sent_feat_list = []
     sent_list = []
@@ -92,7 +92,7 @@ def getSentenceFeatures(model, split_text):
     for sent in split_text:
         if len(sent)>0:
             try:
-                sent_feats = getGPTFeatures(model, sent)
+                sent_feats = get_gpt_features(model, sent)
             except:
                 logger.error(
                     "failed to get features for the sentence",

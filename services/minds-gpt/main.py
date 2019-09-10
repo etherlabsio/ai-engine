@@ -15,7 +15,7 @@ import requests
 
 import torch
 from gpt import OpenAIGPTPreTrainedModel,OpenAIGPTConfig,OpenAIGPTModel,SequenceSummary
-from mind_utils import getSentenceFeatures, CustomOpenAIGPTDoubleHeadsModel, NumpyEncoder
+from mind_utils import get_sentence_features, CustomOpenAIGPTDoubleHeadsModel, NumpyEncoder
 import numpy as np
 import pickle
 
