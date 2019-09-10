@@ -28,7 +28,7 @@ def handler(event, context):
         print("Unable to extract topics:", e)
         output_pims = {"statusCode": 500,
                        "headers": {"Content-Type": "application/json"},
-                       "body": json.dumps({"error": "Unable to extract topics"})
-        }
+                       "body": json.dumps({"error": "Unable to extract topics"}),
+                      }
     # pim['extracted_topics'] = topics
     return output_pims

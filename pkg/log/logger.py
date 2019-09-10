@@ -22,7 +22,7 @@ class CustomJsonFormatter(jsonlogger.JsonFormatter):
     def process_log_record(self, log_record):
         log_record['ts'] = log_record.pop('timestamp', None)
 
-        msg  = log_record.pop('message', None)
+        msg = log_record.pop('message', None)
         if msg is not None:
             log_record['msg'] = msg
 
@@ -30,14 +30,14 @@ class CustomJsonFormatter(jsonlogger.JsonFormatter):
 
 
 def setup_server_logger(debug=False, dest=sys.stdout):
-    l = logging.getLogger()
+    logger_obj = logging.getLogger()
 
     logHandler = logging.StreamHandler(dest)
     formatter = CustomJsonFormatter('(timestamp) (level) (filename) (lineno) (module) (message)')
     logHandler.setFormatter(formatter)
-    l.addHandler(logHandler)
+    logger_obj.addHandler(logHandler)
 
     if debug:
-        l.setLevel("DEBUG")
+        logger_obj.setLevel("DEBUG")
     else:
-        l.setLevel("INFO")
+        logger_obj.setLevel("INFO")

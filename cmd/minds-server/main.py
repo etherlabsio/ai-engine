@@ -1,7 +1,7 @@
 try:
     import unzip_requirements
 except ImportError:
-    print ("not able to import unzip_requirements")
+    print("not able to import unzip_requirements")
     pass
 
 import os
@@ -16,7 +16,7 @@ import requests
 
 import torch
 from minds.bert import BertConfig
-from minds.bert.mind_utils import predict, CustomBertPreTrainedModel,NumpyEncoder
+from minds.bert.mind_utils import predict, CustomBertPreTrainedModel, NumpyEncoder
 import numpy as np
 import pickle
 

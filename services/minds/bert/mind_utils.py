@@ -34,7 +34,7 @@ class CustomBertPreTrainedModel(BertPreTrainedModel):
 tokenizer = BertTokenizer.from_pretrained('bert-base-uncased-vocab.txt')
 
 
-def getBERTFeatures(model, text,attn_head_idx=-1):  # attn_head_idx - index o[]
+def getBERTFeatures(model, text, attn_head_idx=-1):  # attn_head_idx - index o[]
     tokenized_text = tokenizer.tokenize(text)
     if len(tokenized_text) > 200:
         tokenized_text = tokenized_text[0:200]
@@ -51,7 +51,7 @@ def getPooledFeatures(np_array):
     return np_array_mp
 
 
-def getNSPScore(sample_text, model,tokenizer):
+def getNSPScore(sample_text, model, tokenizer):
     m = torch.nn.Softmax()
 
     tokenized_text = tokenizer.tokenize(sample_text)
@@ -67,7 +67,7 @@ def getNSPScore(sample_text, model,tokenizer):
 
 
 def predict(model, mind_dict, input_text, get_nsp):
-  #split text into sentences and return sentence feature vector list
+    # split text into sentences and return sentence feature vector list
     sent_feat_list = []
     sent_list = []
     for sent in list(input_text.split('.')):
@@ -76,24 +76,24 @@ def predict(model, mind_dict, input_text, get_nsp):
             sent_feat_list.append(sent_feats)
             sent_list.append(sent)
 
-    #calculate cluster NSP score for each of the filtered sentence
+    # calculate cluster NSP score for each of the filtered sentence
     segment_nsp_list = []
     if get_nsp == "True":
         for sent in sent_list:
             curr_sent_nsp = []
             for clust_sent in list(mind_dict['sentence'].values()):
                 nsp_input = sent + ' [SEP] ' + clust_sent
-                curr_sent_nsp.append(getNSPScore(nsp_input,model,tokenizer))
+                curr_sent_nsp.append(getNSPScore(nsp_input, model, tokenizer))
             segment_nsp_list.append(curr_sent_nsp)
 
     if len(sent_feat_list) > 0:
-        sent_feat_list = np.array(sent_feat_list).reshape(len(sent_feat_list),-1)
+        sent_feat_list = np.array(sent_feat_list).reshape(len(sent_feat_list), -1)
     feats = list(mind_dict['feature_vector'].values())
-    mind_feats_nparray = np.array(feats).reshape(len(feats),-1)
+    mind_feats_nparray = np.array(feats).reshape(len(feats), -1)
     if len(segment_nsp_list) > 0:
-        segment_nsp_list = np.array(segment_nsp_list).reshape(len(segment_nsp_list),-1)
+        segment_nsp_list = np.array(segment_nsp_list).reshape(len(segment_nsp_list), -1)
 
     json_out = {'sent_feats': [sent_feat_list],
-                          'mind_feats': [mind_feats_nparray],
-                          'sent_nsp_scores':[segment_nsp_list]}
+                'mind_feats': [mind_feats_nparray],
+                'sent_nsp_scores': [segment_nsp_list]}
     return json_out

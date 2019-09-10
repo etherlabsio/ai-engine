@@ -15,14 +15,14 @@ from .util import (
 logger = logging.getLogger(__name__)
 
 if os.path.isdir("vendor/nltk_data"):
-    nltk.data.path.append("vendor/nltk_data/") 
+    nltk.data.path.append("vendor/nltk_data/")
     try:
         nltk.data.find("tokenizers/punkt/PY3/english.pickle")
     except LookupError:
         nltk.download("punkt")
 else:
     if os.path.isdir("/tmp/nltk_data"):
-        nltk.data.path.append("/tmp/nltk_data") 
+        nltk.data.path.append("/tmp/nltk_data")
         try:
             nltk.data.find("tokenizers/punkt/PY3/english.pickle")
         except LookupError:
