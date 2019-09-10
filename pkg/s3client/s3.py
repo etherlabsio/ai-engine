@@ -1,6 +1,6 @@
 import os
 import logging
-from boto3 import client
+from boto3 import client, Session
 
 logger = logging.getLogger(__name__)
 logging.getLogger("boto3").setLevel(logging.CRITICAL)
@@ -15,8 +15,9 @@ class S3Manager(object):
     """
 
     def __init__(self, *args, **kwargs):
+        sess = Session(profile_name="staging2")
         self.bucket_name = kwargs.get("bucket_name")
-        self.conn = client("s3")
+        self.conn = sess.client("s3")
 
     def upload_to_s3(self, object_name, file_name=None):
         """
@@ -110,8 +111,7 @@ class S3Manager(object):
         Returns:
             bucket_object_list: List of objects in an S3 Bucket
         """
-        dir_name = dir_name.split("tmp/")[-1]
-        paginator = self.conn.get_paginator("list_objects")
+        paginator = self.conn.get_paginator("list_objects_v2")
         s3_results = paginator.paginate(
             Bucket=self.bucket_name,
             Prefix=dir_name,
