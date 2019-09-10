@@ -36,6 +36,7 @@ class GraphIO(object):
         return s
 
     def load_graph_from_pickle(self, byte_string: bytes, filename=None):
+
         """
 
         Args:
