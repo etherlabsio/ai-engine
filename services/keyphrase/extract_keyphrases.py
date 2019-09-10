@@ -618,7 +618,6 @@ class KeyphraseExtractor(object):
         keyphrase_list, descriptive_kp = self.wg.get_segment_keyphrases(
             segment_object=segment_object, word_graph=meeting_word_graph
         )
-        # segment_object = req_data["segments"]
         for i in range(len(segment_object)):
             input_segment = segment_object[i].get("originalText")
             input_segment_id = segment_object[i].get("id")
@@ -732,10 +731,6 @@ class KeyphraseExtractor(object):
             [items for items, values in sorted_keyphrase_dict.items()]
         )
         keyphrase = processed_entities
-
-        # Log final keyphrase list to validation set
-        # for i, kp_dict in enumerate(keyphrase_object):
-        #     kp_dict["keyphrases"] = keyphrase
 
         return keyphrase, keyphrase_object
 
