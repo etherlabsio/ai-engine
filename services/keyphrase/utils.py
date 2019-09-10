@@ -145,7 +145,7 @@ class KeyphraseUtils(object):
                 if r > -1:
                     try:
                         single_phrase.remove(kw)
-                    except:
+                    except Exception:
                         continue
 
         # Remove same word occurrences in a multi-keyphrase
@@ -164,7 +164,7 @@ class KeyphraseUtils(object):
             if len(tmp_entitites) < 4 or ("*" in entities or "." in entities):
                 try:
                     processed_entities.remove(entities)
-                except:
+                except Exception:
                     continue
 
         return processed_entities

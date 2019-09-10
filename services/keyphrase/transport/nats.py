@@ -142,7 +142,7 @@ class NATSTransport(object):
                     "responseTime": end - start,
                 },
             )
-        except Exception as e:
+        except Exception:
             end = timer()
             logger.error(
                 "Error populating graph",
