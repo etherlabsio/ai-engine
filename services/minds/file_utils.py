@@ -222,8 +222,8 @@ def get_from_cache(url, cache_dir=None):
             # GET file object
             if url.startswith("s3://"):
                 s3_get(url, temp_file)
-            else:
-                http_get(url, temp_file)
+            # else:
+                # http_get(url, temp_file)
 
             # we are copying the file before closing it, so flush to avoid truncation
             temp_file.flush()
