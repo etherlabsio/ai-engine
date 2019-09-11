@@ -147,4 +147,3 @@ class S3Manager(object):
                     bucket_root_list.append(s3_file_name)
 
         return bucket_root_list
-    

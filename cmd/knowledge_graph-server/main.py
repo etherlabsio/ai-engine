@@ -44,7 +44,11 @@ def handler(event, context):
     try:
         start = timer()
         context_id = process_input(json_request=json_request)
-        etl_obj.process_graph_object(context_id=context_id)
+
+        if context_id == "__all__":
+            etl_obj.process_all_objects(context_id_prefix="01")
+        else:
+            etl_obj.process_graph_object(context_id=context_id)
 
         response = json.dumps({"contextId": context_id})
 
