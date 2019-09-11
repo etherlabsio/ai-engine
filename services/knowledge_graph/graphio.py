@@ -182,6 +182,6 @@ class GraphTransforms(object):
                     f_.write(self.et.tostring(elem, encoding="utf-8"))
 
             # Free up memory for large graphs
-            # root.clear()
+            root.clear()
 
         return out_graphml_file
