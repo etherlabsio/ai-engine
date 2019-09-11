@@ -387,6 +387,21 @@ class KeyphraseExtractor(object):
                     req_data=req_data
                 )
 
+                # handle the situation when word graph is removed but gets request later
+                if meeting_word_graph.number_of_nodes() == 0:
+                    # Repopulate the graphs
+                    context_graph, meeting_word_graph = self.populate_word_graph(
+                        req_data
+                    )
+
+                    # Compute embeddings for segments and keyphrases
+                    context_graph, meeting_word_graph = self.populate_context_embeddings(
+                        req_data=req_data,
+                        segment_object=segment_object,
+                        context_graph=context_graph,
+                        meeting_word_graph=meeting_word_graph,
+                    )
+
             # Check if the segments are already present in the context graph
             status = self.check_for_segment_id(
                 segment_object=segment_object, context_graph=context_graph
@@ -759,7 +774,11 @@ class KeyphraseExtractor(object):
         # Download context graph from s3 and remove the word graph object upon reset
 
         context_graph, word_graph = self._retrieve_context_graph(req_data=req_data)
-        # context_graph.remove_node(word_graph)
+        context_graph.remove_node(word_graph)
+
+        # Remove the embedding features from the context graph
+        context_graph = self.kg.query_for_embedded_nodes(context_graph)
+        context_graph = self.kg.query_for_embedded_segments(context_graph)
 
         word_graph_id = word_graph.graph.get("graphId")
 
@@ -771,8 +790,7 @@ class KeyphraseExtractor(object):
             instance_id=instance_id,
         )
 
-        # self.gr.reset_graph()
-        # word_graph.clear()
+        word_graph.clear()
 
         end = timer()
         logger.info(
