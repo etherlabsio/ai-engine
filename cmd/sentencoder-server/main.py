@@ -19,14 +19,7 @@ setup_server_logger(debug=True)  # default False for disabling debug mode
 tf_log_level = os.getenv("TF_CPP_MIN_LOG_LEVEL", "3")
 os.environ["TF_CPP_MIN_LOG_LEVEL"] = tf_log_level
 
-bucket_store = os.getenv("BUCKET_NAME", "io.etherlabs.staging2.contexts")
-model_loc = os.getenv("MODEL", "MODELS/sentence_enc")
-MODEL_PATH = os.getenv("MODEL_PATH", None)
-
-if MODEL_PATH is None:
-    model_path = "s3://" + bucket_store + "/" + model_loc
-else:
-    model_path = MODEL_PATH
+model_path = os.getenv("MODEL")
 
 start = timer()
 
