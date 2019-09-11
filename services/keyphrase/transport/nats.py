@@ -1,6 +1,7 @@
 import json
 import logging
 from timeit import default_timer as timer
+import traceback
 
 logger = logging.getLogger(__name__)
 
@@ -111,17 +112,57 @@ class NATSTransport(object):
     # Topic Handler functions
 
     async def populate_graph(self, msg):
+        start = timer()
         request = json.loads(msg.data)
+        segment_object = request["segments"]
 
-        self.keyphrase_service.populate_word_graph(request)
+        try:
+            context_graph, meeting_word_graph = self.keyphrase_service.populate_word_graph(
+                request
+            )
+
+            # Compute embeddings for segments and keyphrases
+            context_graph, meeting_word_graph = self.keyphrase_service.populate_context_embeddings(
+                req_data=request,
+                segment_object=segment_object,
+                context_graph=context_graph,
+                meeting_word_graph=meeting_word_graph,
+            )
+
+            end = timer()
+            logger.info(
+                "Populated graph and written to s3",
+                extra={
+                    "graphId": meeting_word_graph.graph.get("graphId"),
+                    "nodes": meeting_word_graph.number_of_nodes(),
+                    "edges": meeting_word_graph.number_of_edges(),
+                    "kgNodes": context_graph.number_of_nodes(),
+                    "kgEdges": context_graph.number_of_edges(),
+                    "instanceId": request["instanceId"],
+                    "responseTime": end - start,
+                },
+            )
+        except Exception:
+            end = timer()
+            logger.error(
+                "Error populating graph",
+                extra={
+                    "err": traceback.print_exc(),
+                    "responseTime": end - start,
+                    "instanceId": request["instanceId"],
+                },
+            )
 
     async def extract_segment_keyphrases(self, msg):
         start = timer()
         request = json.loads(msg.data)
+        segment_object = request["segments"]
         context_info = request["contextId"] + ":" + request["instanceId"]
 
         limit = request.get("limit", 10)
-        output = self.keyphrase_service.get_keyphrases(request, n_kw=limit)
+        output = self.keyphrase_service.get_keyphrases(
+            request, segment_object=segment_object, n_kw=limit, validate=False
+        )
         end = timer()
 
         deadline_time = end - start
@@ -197,9 +238,7 @@ class NATSTransport(object):
         context_info = request["contextId"] + ":" + request["instanceId"]
 
         limit = request.get("limit", 10)
-        output = self.keyphrase_service.get_chapter_offset_keyphrases(
-            request, n_kw=limit
-        )
+        output = self.keyphrase_service.get_keyphrases_with_offset(request, n_kw=limit)
         end = timer()
 
         deadline_time = end - start

@@ -38,5 +38,7 @@ COPY pkg pkg
 COPY vendor vendor
 COPY --from=compile-image /build/dist/server.pex .
 
+ENV NLTK_DATA /app/vendor/nltk_data/
+
 ENTRYPOINT ["./server.pex"]
 CMD []

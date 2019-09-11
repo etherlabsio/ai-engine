@@ -7,6 +7,7 @@ import uvloop
 from dotenv import load_dotenv
 from nltk import word_tokenize, WordNetLemmatizer
 import logging
+from copy import deepcopy
 
 load_dotenv()
 
@@ -91,7 +92,16 @@ async def populate_graph():
     topic, resp = replace_ids(
         test_json["contextId"], test_json["instanceId"], topic, resp={}
     )
-    await nc.publish(topic, json.dumps(test_json).encode())
+
+    json_dict = deepcopy(test_json)
+    segment_object = test_json["segments"]
+    for i, segment_dict in enumerate(segment_object):
+        segment_object_list = []
+        segment_object_list.append(segment_dict)
+        json_dict["segments"] = segment_object_list
+
+        await nc.publish(topic, json.dumps(json_dict).encode())
+        await asyncio.sleep(0.5)
     # await nc.flush()
     await nc.close()
 
@@ -315,13 +325,15 @@ if __name__ == "__main__":
     loop = asyncio.get_event_loop()
     single_json_file = os.path.join(os.getcwd(), "pim_test.json")
     multi_json_file = os.path.join(os.getcwd(), "chapter_test.json")
-    meeting_json_file = os.path.join(os.getcwd(), "meeting_test.json")
+    meeting_json_file = os.path.join(os.getcwd(), "meeting_test_3.json")
 
     if args.topics == "def":
         t1 = loop.run_until_complete(create_context())
     elif args.topics == "start":
         loop.run_until_complete(start_context())
     elif args.topics == "populate":
+        t1 = loop.run_until_complete(create_context())
+        loop.run_until_complete(start_context())
         loop.run_until_complete(populate_graph())
     elif args.topics == "pub_chapter":
         loop.run_until_complete(publish_chapter_keyphrase())
