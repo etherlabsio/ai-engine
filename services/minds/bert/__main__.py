@@ -7,20 +7,19 @@ def main():
         "convert_transfo_xl_checkpoint",
         "convert_gpt2_checkpoint",
     ]:
-        print(
-        "Should be used as one of: \n"
-        ">> `pytorch_pretrained_bert convert_tf_checkpoint_to_pytorch TF_CHECKPOINT TF_CONFIG PYTORCH_DUMP_OUTPUT`, \n"
-        ">> `pytorch_pretrained_bert convert_openai_checkpoint OPENAI_GPT_CHECKPOINT_FOLDER_PATH PYTORCH_DUMP_OUTPUT [OPENAI_GPT_CONFIG]`, \n"
-        ">> `pytorch_pretrained_bert convert_transfo_xl_checkpoint TF_CHECKPOINT_OR_DATASET PYTORCH_DUMP_OUTPUT [TF_CONFIG]` or \n"
-        ">> `pytorch_pretrained_bert convert_gpt2_checkpoint TF_CHECKPOINT PYTORCH_DUMP_OUTPUT [GPT2_CONFIG]`")
+        print("Should be used as one of: \n"
+              ">> `pytorch_pretrained_bert convert_tf_checkpoint_to_pytorch TF_CHECKPOINT TF_CONFIG PYTORCH_DUMP_OUTPUT`, \n"
+              ">> `pytorch_pretrained_bert convert_openai_checkpoint OPENAI_GPT_CHECKPOINT_FOLDER_PATH PYTORCH_DUMP_OUTPUT [OPENAI_GPT_CONFIG]`, \n"
+              ">> `pytorch_pretrained_bert convert_transfo_xl_checkpoint TF_CHECKPOINT_OR_DATASET PYTORCH_DUMP_OUTPUT [TF_CONFIG]` or \n"
+              ">> `pytorch_pretrained_bert convert_gpt2_checkpoint TF_CHECKPOINT PYTORCH_DUMP_OUTPUT [GPT2_CONFIG]`")
     else:
         if sys.argv[1] == "convert_tf_checkpoint_to_pytorch":
             try:
                 from .convert_tf_checkpoint_to_pytorch import convert_tf_checkpoint_to_pytorch
             except ImportError:
                 print("pytorch_pretrained_bert can only be used from the commandline to convert TensorFlow models in PyTorch, "
-                    "In that case, it requires TensorFlow to be installed. Please see "
-                    "https://www.tensorflow.org/install/ for installation instructions.")
+                      "In that case, it requires TensorFlow to be installed. Please see "
+                      "https://www.tensorflow.org/install/ for installation instructions.")
                 raise
 
             if len(sys.argv) != 5:
@@ -47,8 +46,8 @@ def main():
                 from .convert_transfo_xl_checkpoint_to_pytorch import convert_transfo_xl_checkpoint_to_pytorch
             except ImportError:
                 print("pytorch_pretrained_bert can only be used from the commandline to convert TensorFlow models in PyTorch, "
-                    "In that case, it requires TensorFlow to be installed. Please see "
-                    "https://www.tensorflow.org/install/ for installation instructions.")
+                      "In that case, it requires TensorFlow to be installed. Please see "
+                      "https://www.tensorflow.org/install/ for installation instructions.")
                 raise
 
             if 'ckpt' in sys.argv[2].lower():
@@ -68,8 +67,8 @@ def main():
                 from .convert_gpt2_checkpoint_to_pytorch import convert_gpt2_checkpoint_to_pytorch
             except ImportError:
                 print("pytorch_pretrained_bert can only be used from the commandline to convert TensorFlow models in PyTorch, "
-                    "In that case, it requires TensorFlow to be installed. Please see "
-                    "https://www.tensorflow.org/install/ for installation instructions.")
+                      "In that case, it requires TensorFlow to be installed. Please see "
+                      "https://www.tensorflow.org/install/ for installation instructions.")
                 raise
 
             TF_CHECKPOINT = sys.argv[2]
@@ -79,5 +78,7 @@ def main():
             else:
                 TF_CONFIG = ""
             convert_gpt2_checkpoint_to_pytorch(TF_CHECKPOINT, TF_CONFIG, PYTORCH_DUMP_OUTPUT)
+
+
 if __name__ == '__main__':
     main()

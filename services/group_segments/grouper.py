@@ -1,10 +1,11 @@
 import json
-from group_segments.grouper_topics import gettopics
+from group_segments.grouper_topics import get_topics
 from group_segments import grouper_segments
 
-def getgroups(segments, model1):
+
+def get_groups(segments, model1):
     community_extraction = grouper_segments.community_detection(segments, model1)
     pims = community_extraction.get_communities()
-    topics = gettopics(pims)
+    topics = get_topics(pims)
 
     return topics, pims

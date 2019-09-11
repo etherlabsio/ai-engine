@@ -7,6 +7,7 @@ except ImportError:
 import json
 import logging
 import os
+import numpy as np
 from timeit import default_timer as timer
 
 from log.logger import setup_server_logger
@@ -79,8 +80,10 @@ def handler(event, context):
         logger.error(
             "Error processing request", extra={"err": e, "request": json_request}
         )
+        placeholder_embeddings = np.zeros(shape=(1, 512))
+        response = json.dumps({"embeddings": placeholder_embeddings}, cls=NumpyEncoder)
         return {
             "statusCode": 404,
             "headers": {"Content-Type": "application/json"},
-            "body": e,
+            "body": response,
         }
