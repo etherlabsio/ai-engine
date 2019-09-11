@@ -39,7 +39,7 @@ def get_score(mind_input, lambda_function):
         feature_vector, mind_vector, nsp_list = np.array(data['sent_feats'][0]), np.array(
             data['mind_feats'][0]), data['sent_nsp_scores'][0]
 
-        if lambda_function.lower() == "mind-gpt" and len(feature_vector) > 0:
+        if lambda_function.lower() == "mind-01daaqyn9gbebc92aywnxedp0c" and len(feature_vector) > 0:
             for sent_vec in feature_vector:
                 sent_score_list = []
                 for mind_vec in mind_vector:

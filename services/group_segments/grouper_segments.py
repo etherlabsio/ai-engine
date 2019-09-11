@@ -8,9 +8,8 @@ import community
 from datetime import datetime
 from group_segments import scorer
 import logging
-
+from log.logger import setup_server_logger
 logger = logging.getLogger()
-
 
 class community_detection():
     segments_list = []

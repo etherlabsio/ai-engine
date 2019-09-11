@@ -31,8 +31,8 @@ def handler(event, context):
         output_pims = format_pims_output(pim, json_request, Request_obj.segments_map, mindId)
     except Exception as e:
         logger.warning("Unable to extract topic", extra={"exception": e})
-        output_pims = {"statusCode": 500,
+        output_pims = {"statusCode": 200,
                        "headers": {"Content-Type": "application/json"},
-                       "body": json.dumps({"error": "Unable to extract topics"})}
+                       "body": json.dumps({"err": "Unable to extract topics " + str(e)})}
     # pim['extracted_topics'] = topics
     return output_pims
