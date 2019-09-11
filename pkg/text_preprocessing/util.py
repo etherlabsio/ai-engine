@@ -28,7 +28,6 @@ else:
     else:
         nltk.download("wordnet", download_dir="/tmp/nltk_data")
         nltk.download("stopwords", download_dir="/tmp/nltk_data")
-
 stop_words_nltk = stopwords.words("english")
 
 stop_words_spacy = list(
