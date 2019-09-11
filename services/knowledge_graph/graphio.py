@@ -154,8 +154,7 @@ class GraphTransforms(object):
     def graphml_transformer(self, graphml_file, out_graphml_file=None):
 
         if out_graphml_file is None:
-            # out_graphml_file = os.path.splitext(graphml_file)[0]
-            out_graphml_file = out_graphml_file + ".graphml"
+            out_graphml_file = graphml_file + ".graphml"
 
         # Get key maps
         key_dict = self.get_key_dict(graphml_file)
@@ -182,6 +181,6 @@ class GraphTransforms(object):
                     f_.write(self.et.tostring(elem, encoding="utf-8"))
 
             # Free up memory for large graphs
-            # root.clear()
+            root.clear()
 
         return out_graphml_file
