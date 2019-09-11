@@ -98,17 +98,17 @@ update-vendor:
 
 .PHONY: update-lambda-function-mind
 update-lambda-function-mind:
-	aws lambda update-function-code --function-name mind-01daayheky5f4e02qvrjptftxv --s3-bucket io.etherlabs.artifacts --s3-key ${ENV}/mind-serving-lambda.pex
-	aws lambda update-function-code --function-name mind-01daatanxnrqa35e6004hb7mbn --s3-bucket io.etherlabs.artifacts --s3-key ${ENV}/mind-serving-lambda.pex
-	aws lambda update-function-code --function-name mind-01daaqy88qzb19jqz5prjfr76y --s3-bucket io.etherlabs.artifacts --s3-key ${ENV}/mind-serving-lambda.pex
-	aws lambda update-function-code --function-name mind-01daatbc3ak1qwc5nyc5ahv2xz  --s3-bucket io.etherlabs.artifacts --s3-key ${EN}/mind-serving-lambda.pex
-	aws lambda update-function-code --function-name mind-01dadp74wfv607knpcb6vvxgtg --s3-bucket io.etherlabs.artifacts --s3-key ${ENV}/mind-serving-lambda.pex
+	aws lambda update-function-code --function-name mind-01daayheky5f4e02qvrjptftxv --s3-bucket io.etherlabs.artifacts --s3-key ${env_bucket}/mind-serving-lambda.pex --profile ${ENV}
+	aws lambda update-function-code --function-name mind-01daatanxnrqa35e6004hb7mbn --s3-bucket io.etherlabs.artifacts --s3-key ${env_bucket}/mind-serving-lambda.pex --profile ${ENV}
+	aws lambda update-function-code --function-name mind-01daaqy88qzb19jqz5prjfr76y --s3-bucket io.etherlabs.artifacts --s3-key ${env_bucket}/mind-serving-lambda.pex --profile ${ENV}
+	aws lambda update-function-code --function-name mind-01daatbc3ak1qwc5nyc5ahv2xz  --s3-bucket io.etherlabs.artifacts --s3-key ${env_bucket}/mind-serving-lambda.pex --profile ${ENV}
+	aws lambda update-function-code --function-name mind-01dadp74wfv607knpcb6vvxgtg --s3-bucket io.etherlabs.artifacts --s3-key ${env_bucket}/mind-serving-lambda.pex --profile ${ENV}
 
 .PHONY: uploadtos3-mind
 uploadtos3-mind:
-	aws s3 cp --profile ${ENVIRONMENT} dist/mind-serving-lambda.pex s3://io.etherlabs.artifacts/${ENV}/mind-serving-lambda.pex
+	aws s3 cp --profile production dist/mind-serving-lambda.pex s3://io.etherlabs.artifacts/${ENV}/mind-serving-lambda.pex
 
 .PHONY: update-lambda-function-pims
 update-lambda-function-pims:
-	aws s3 cp --profile ${ENVIRONMENT} /dist/pims-serving-lambda.pex s3://io.etherlabs.artifacts/${ENV}/pims-serving-lambda.pex
+	aws s3 cp --profile production dist/pims-serving-lambda.pex s3://io.etherlabs.artifacts/${ENV}/pims-serving-lambda.pex
 	aws lambda update-function-code --function-name pim --s3-bucket io.etherlabs.artifacts --s3-key ${ENV}/pims-serving-lambda.pex

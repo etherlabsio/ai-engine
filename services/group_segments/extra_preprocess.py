@@ -25,7 +25,7 @@ def preprocess_text(text):
     return mod_texts
 
 
-def format_Time(tz_time, datetime_object=False):
+def format_time(tz_time, datetime_object=False):
     isoTime = iso8601.parse_date(tz_time)
     ts = isoTime.timestamp()
     ts = datetime.utcfromtimestamp(ts).strftime("%Y-%m-%d %H:%M:%S:%f")
