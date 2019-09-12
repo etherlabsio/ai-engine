@@ -1,6 +1,7 @@
 import json
 import text_preprocessing.preprocess as tp
-from group_segments.extra_preprocess import format_time
+from group_segments import extra_preprocess
+# from group_segments.extra_preprocess import format_time
 import networkx as nx
 import math
 from group_segments.scorer import cosine
@@ -126,7 +127,7 @@ class community_detection():
 
             for (index1, (sent1, time1, user1, id1)), (index2, (sent2, time2, user2, id2)) in zip(enumerate(com[0:]), enumerate(com[1:])):
                 if id1 != id2:
-                    if ((format_time(time2, True) - format_time(time1, True)).seconds <= 120):
+                    if ((extra_preprocess.format_time(time2, True) - extra_preprocess.format_time(time1, True)).seconds <= 120):
                         if (not flag):
                             pims[index_pim] = {'segment' + str(index_segment): [sent1, time1, user1, id1]}
                             index_segment += 1
@@ -188,7 +189,7 @@ class community_detection():
         max_mod = 0
         for nodea, nodeb, weight in yetto_prune[:50]:
             logger.info("yetto prune", extra={"sentence 1": graph_list[nodea], "sentence 2": graph_list[nodeb], "weight:": weight})
-        for v in [0.15, 0.1, 0.05]:
+        for v in [0.15, 0.1, 0.05, 0.01]:
             # flag = False
             for count in range(5):
                 meeting_graph_pruned = self.prune_edges(meeting_graph, graph_list, yetto_prune, v)
@@ -202,7 +203,7 @@ class community_detection():
                 #     meeting_graph_pruned = self.prune_edges(meeting_graph, graph_list, yetto_prune, 0.15)
                 #     flag = True
                 #     break
-                if mod > max_mod and mod < 3.5:
+                if mod > max_mod and mod < 0.40:
                     max_meeting_grap_pruned = meeting_graph_pruned
                     max_community_set = community_set
                     max_mod = mod

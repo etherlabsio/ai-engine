@@ -125,3 +125,4 @@ vendor/
 *.json
 *.png
 *.gexf
+local/*
