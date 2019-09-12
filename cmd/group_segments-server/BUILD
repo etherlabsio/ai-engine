@@ -4,7 +4,7 @@ python_binary(
 		'pkg:common-libs',
 		'services/group_segments:group_segments-libs',
 		':group_segments-dep',
-		'services:grouping-services',
+		'services:global-services',
 	],
 	source="main.py",
     compatibility=['CPython==3.7.*'],
