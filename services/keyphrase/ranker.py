@@ -37,43 +37,49 @@ class KeyphraseRanker(object):
         else:
             lambda_payload = {"body": {"request": req_data, "text_input": input_list}}
 
-        logger.info("Invoking lambda function")
-        invoke_response = self.encoder_lambda_client.invoke(
-            FunctionName=self.lambda_function,
-            InvocationType="RequestResponse",
-            Payload=json.dumps(lambda_payload),
-        )
-
-        lambda_output = (
-            invoke_response["Payload"].read().decode("utf8").replace("'", '"')
-        )
-        response = json.loads(lambda_output)
-        status_code = response["statusCode"]
-        response_body = response["body"]
-
-        end = timer()
-        if status_code == 200:
-            embedding_vector = np.asarray(json.loads(response_body)["embeddings"])
-            logger.info(
-                "Received response from encoder lambda function",
-                extra={
-                    "featureShape": embedding_vector.shape,
-                    "lambdaResponseTime": end - start,
-                },
+        try:
+            logger.info("Invoking lambda function")
+            invoke_response = self.encoder_lambda_client.invoke(
+                FunctionName=self.lambda_function,
+                InvocationType="RequestResponse",
+                Payload=json.dumps(lambda_payload),
             )
 
-        else:
-            embedding_vector = np.asarray(json.loads(response_body)["embeddings"])
-            logger.warning(
-                "Invalid response from encoder lambda function",
-                extra={
-                    "warn": "null embeddings",
-                    "featureShape": embedding_vector.shape,
-                    "lambdaResponseTime": end - start,
-                },
+            lambda_output = (
+                invoke_response["Payload"].read().decode("utf8").replace("'", '"')
             )
+            response = json.loads(lambda_output)
+            status_code = response["statusCode"]
+            response_body = response["body"]
 
-        return embedding_vector
+            end = timer()
+            if status_code == 200:
+                embedding_vector = np.asarray(json.loads(response_body)["embeddings"])
+                logger.info(
+                    "Received response from encoder lambda function",
+                    extra={
+                        "featureShape": embedding_vector.shape,
+                        "lambdaResponseTime": end - start,
+                    },
+                )
+
+            else:
+                embedding_vector = np.asarray(json.loads(response_body)["embeddings"])
+                logger.warning(
+                    "Invalid response from encoder lambda function",
+                    extra={
+                        "warn": "null embeddings",
+                        "featureShape": embedding_vector.shape,
+                        "lambdaResponseTime": end - start,
+                    },
+                )
+
+            return embedding_vector
+
+        except Exception as e:
+            logger.error("Invoking failed", extra={"err": e})
+            embedding_vector = np.zeros((1, 512))
+            return embedding_vector
 
     def compute_edge_weights(self, word_graph):
 
