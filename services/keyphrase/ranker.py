@@ -60,6 +60,7 @@ class KeyphraseRanker(object):
                     extra={
                         "featureShape": embedding_vector.shape,
                         "lambdaResponseTime": end - start,
+                        "payload": input_list,
                     },
                 )
 
@@ -71,6 +72,7 @@ class KeyphraseRanker(object):
                         "warn": "null embeddings",
                         "featureShape": embedding_vector.shape,
                         "lambdaResponseTime": end - start,
+                        "payload": input_list,
                     },
                 )
 
