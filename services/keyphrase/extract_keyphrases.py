@@ -62,6 +62,12 @@ class KeyphraseExtractor(object):
         graph_id = context_id + ":" + instance_id
         return graph_id
 
+    def wake_up_lambda(self, req_data):
+        # Start the encoder lambda to avoid cold start problem
+        logger.info("Invoking lambda on instance created to reduce cold-start ...")
+        test_segment = ["Wake up Sesame!"]
+        self.ranker.get_embeddings(input_list=test_segment, req_data=req_data)
+
     def initialize_meeting_graph(self, req_data: dict):
         graph_id = self.get_graph_id(req_data=req_data)
         context_id = req_data["contextId"]
@@ -266,6 +272,20 @@ class KeyphraseExtractor(object):
                 text_list=text_list, graph=meeting_word_graph
             )
 
+            end = timer()
+            logger.info(
+                "Populated graph and written to s3",
+                extra={
+                    "graphId": meeting_word_graph.graph.get("graphId"),
+                    "nodes": meeting_word_graph.number_of_nodes(),
+                    "edges": meeting_word_graph.number_of_edges(),
+                    "kgNodes": context_graph.number_of_nodes(),
+                    "kgEdges": context_graph.number_of_edges(),
+                    "instanceId": req_data["instanceId"],
+                    "responseTime": end - start,
+                },
+            )
+
         except Exception as e:
             end = timer()
             logger.error(
@@ -379,6 +399,8 @@ class KeyphraseExtractor(object):
     ):
         start = timer()
 
+        context_id = req_data["contextId"]
+        instance_id = req_data["instanceId"]
         keyphrases = []
         try:
             if context_graph is None and meeting_word_graph is None:
@@ -387,20 +409,36 @@ class KeyphraseExtractor(object):
                     req_data=req_data
                 )
 
-                # handle the situation when word graph is removed but gets request later
-                if meeting_word_graph.number_of_nodes() == 0:
-                    # Repopulate the graphs
-                    context_graph, meeting_word_graph = self.populate_word_graph(
-                        req_data
-                    )
+            # handle the situation when word graph is removed but gets request later
+            if (
+                meeting_word_graph.graph.get("state") == "reset"
+                and meeting_word_graph.number_of_nodes() == 0
+            ):
+                # Repopulate the graphs
+                logger.info("re-populating graph since it is in reset state")
+                context_graph = self.kg.populate_word_graph_info(
+                    request=req_data,
+                    context_graph=context_graph,
+                    word_graph=meeting_word_graph,
+                )
 
-                    # Compute embeddings for segments and keyphrases
-                    context_graph, meeting_word_graph = self.populate_context_embeddings(
-                        req_data=req_data,
-                        segment_object=segment_object,
-                        context_graph=context_graph,
-                        meeting_word_graph=meeting_word_graph,
-                    )
+                # Write it back to s3
+                self.io_util.upload_s3(
+                    graph_obj=context_graph,
+                    s3_dir=self.context_dir,
+                    context_id=context_id,
+                    instance_id=instance_id,
+                )
+
+                context_graph, meeting_word_graph = self.populate_word_graph(req_data)
+
+                # Compute embeddings for segments and keyphrases
+                context_graph, meeting_word_graph = self.populate_context_embeddings(
+                    req_data=req_data,
+                    segment_object=segment_object,
+                    context_graph=context_graph,
+                    meeting_word_graph=meeting_word_graph,
+                )
 
             # Check if the segments are already present in the context graph
             status = self.check_for_segment_id(
@@ -794,7 +832,7 @@ class KeyphraseExtractor(object):
 
         end = timer()
         logger.info(
-            "Post-reset: Graph info - Temporarily not resetting graph",
+            "Post-reset: Graph info",
             extra={
                 "deletedGraphId": word_graph_id,
                 "nodes": word_graph.number_of_nodes(),
