@@ -17,7 +17,7 @@ post-deploy-notify:
 
 deploy_ecs:
 	$(MAKE) pre-deploy-notify
-	ecs deploy ${CLUSTER_NAME} ${SERVICE_NAME} --timeout 600 --profile ${AWS_PROFILE}
+	ecs deploy ${CLUSTER_NAME} ${SERVICE_NAME} --timeout 600 --profile ${AWS_PROFILE} --task keyphrase
 	$(MAKE) post-deploy-notify
 
 deploy-staging2:

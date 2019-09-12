@@ -206,8 +206,43 @@ class KnowledgeGraph(object):
             if e_attr == "hasWordGraph":
                 if isinstance(n2, nx.Graph):
                     logger.debug("retrieved word graph object")
+
+                    return n2
                 else:
                     logger.error(
                         "graphId does not exist or does not match context info"
                     )
-                return n2
+                    return nx.Graph(graphId=context_graph.graph.get("graphId"))
+
+    def query_for_embedded_nodes(self, context_graph):
+        """
+        Query and remove embedding vectors from keyphrase nodes
+        Args:
+            context_graph:
+
+        Returns:
+
+        """
+        for node, n_attr in context_graph.nodes.data("attribute"):
+            if n_attr == "segmentKeywords" or n_attr == "importantKeywords":
+                context_graph.nodes[node]["embedding_vector"] = 0
+
+        logger.info("removed embeddings vectors from keyword nodes")
+        return context_graph
+
+    def query_for_embedded_segments(self, context_graph):
+        """
+        Query and remove embeddings from segments
+        Args:
+            context_graph:
+
+        Returns:
+
+        """
+
+        for node, n_attr in context_graph.nodes.data("attribute"):
+            if n_attr == "segmentId":
+                context_graph.nodes[node]["embedding_vector"] = 0
+
+        logger.info("removed embeddings vectors from segment nodes")
+        return context_graph
