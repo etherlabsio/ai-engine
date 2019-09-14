@@ -6,6 +6,8 @@ from timeit import default_timer as timer
 from knowledge_graph.graphio import GraphTransforms, GraphIO
 from knowledge_graph.etl import GraphETL
 from knowledge_graph.graphml2csv import GraphML2CSV
+from knowledge_graph.backfill import BackFillCleanupJob
+
 
 from log.logger import setup_server_logger
 from s3client.s3 import S3Manager
@@ -15,8 +17,9 @@ setup_server_logger(debug=True)
 
 bucket_store = os.getenv("STORAGE_BUCKET", "io.etherlabs.staging2.contexts")
 
-s3_client = S3Manager(bucket_name=bucket_store)
-gio = GraphIO(s3_client=s3_client)
+backfill_object = BackFillCleanupJob()
+s3_client = S3Manager(bucket_name=bucket_store, profile_name="staging2")
+gio = GraphIO(s3_client=s3_client, backfill_obj=backfill_object)
 gtransform = GraphTransforms()
 neptune_obj = GraphML2CSV()
 

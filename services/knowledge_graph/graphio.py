@@ -11,8 +11,9 @@ logger = logging.getLogger(__name__)
 
 
 class GraphIO(object):
-    def __init__(self, s3_client=None):
+    def __init__(self, s3_client=None, backfill_obj=None):
         self.s3_client = s3_client
+        self.backfill = backfill_obj
 
     def write_to_pickle(
         self, graph_obj, filename=None, protocol=pickle.HIGHEST_PROTOCOL
@@ -59,13 +60,32 @@ class GraphIO(object):
             return graph_obj
 
     def cleanup_graph(self, graph_obj):
-        graph_obj = GraphTransforms.cleanup_nx_data_types(graph=graph_obj)
+        logger.info("Checking for older labels ...")
+        graph_obj = self.backfill.format_old_labels(g=graph_obj)
+
+        logger.info("Checking for arrays and word graphs in context-graph ...")
+        graph_obj = self.backfill.cleanup_nx_data_types(graph=graph_obj)
+
+        logger.info(
+            "Cleaned-up context graph",
+            extra={
+                "nodes": graph_obj.number_of_nodes(),
+                "edges": graph_obj.number_of_edges(),
+            },
+        )
 
         return graph_obj
 
     def convert_pickle_to_graphml(self, graph_pickle: bytes, output_filename: str):
         graph_obj = self.load_graph_from_pickle(byte_string=graph_pickle)
 
+        logger.info(
+            "converting graph to GraphML. Starting cleanup and backfill process",
+            extra={
+                "nodes": graph_obj.number_of_nodes(),
+                "edges": graph_obj.number_of_edges(),
+            },
+        )
         try:
             processed_graph = self.cleanup_graph(graph_obj=graph_obj)
             nx.write_graphml_lxml(processed_graph, output_filename)
@@ -107,79 +127,6 @@ class GraphTransforms(object):
             raise ImportError(msg)
 
         self.et = et
-
-    @staticmethod
-    def remove_word_graph_object(context_graph):
-        for (n1, n2, e_attr) in context_graph.edges.data("relation"):
-            if e_attr == "hasWordGraph":
-                if isinstance(n2, nx.Graph):
-                    logger.debug("retrieved word graph object")
-
-                    context_graph.remove_node(n2)
-                    return context_graph
-                else:
-                    logger.error(
-                        "graphId does not exist or does not match context info"
-                    )
-                    return context_graph
-
-    @staticmethod
-    def remove_embedded_nodes(context_graph):
-        """
-        Query and remove embedding vectors from keyphrase nodes
-        Args:
-            context_graph:
-
-        Returns:
-
-        """
-        for node, n_attr in context_graph.nodes.data("attribute"):
-            if n_attr == "segmentKeywords" or n_attr == "importantKeywords":
-                try:
-                    assert context_graph.nodes[node]["embedding_vector"] == 0
-                except AssertionError:
-                    context_graph.nodes[node]["embedding_vector"] = 0
-                    continue
-
-        logger.info("removed embeddings vectors from keyword nodes")
-        return context_graph
-
-    @staticmethod
-    def remove_embedded_segments(context_graph):
-        """
-        Query and remove embeddings from segments
-        Args:
-            context_graph:
-
-        Returns:
-
-        """
-
-        for node, n_attr in context_graph.nodes.data("attribute"):
-            if n_attr == "segmentId":
-                try:
-                    assert context_graph.nodes[node]["embedding_vector"] == 0
-                except AssertionError:
-                    context_graph.nodes[node]["embedding_vector"] = 0
-                    continue
-
-        logger.info("removed embeddings vectors from segment nodes")
-        return context_graph
-
-    @staticmethod
-    def cleanup_nx_data_types(graph):
-        """
-        Checks if there is any numpy array or dict or any other data types are present in the graph object and
-        removes it before converting to GraphML
-        Returns:
-            graph (nx.DiGraph)
-
-        """
-        graph = GraphTransforms.remove_word_graph_object(context_graph=graph)
-        graph = GraphTransforms.remove_embedded_nodes(context_graph=graph)
-        graph = GraphTransforms.remove_embedded_segments(context_graph=graph)
-
-        return graph
 
     @staticmethod
     def fixtag(ns, tag):
