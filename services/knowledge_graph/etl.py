@@ -55,6 +55,7 @@ class GraphETL(object):
             graph_file_name = graph_obj_file.split(".")[0]
             file_format = graph_obj_file.split(".")[-1]
 
+            # logger.info("Processing graph file", extra={"name": graph_file_name})
             if file_format == "pickle" or file_format == "pkl":
                 try:
                     # Download graph pickle object
@@ -82,7 +83,7 @@ class GraphETL(object):
                     with open(transformed_graphml_filename, "rb") as graphml_string:
                         self.gio.upload_s3(
                             file_name=graphml_string,
-                            s3_path=s3_upload_path + transformed_graphml_filename,
+                            s3_path=s3_path + transformed_graphml_filename,
                         )
 
                     # Upload CSVs to s3
@@ -141,6 +142,8 @@ class GraphETL(object):
                 graph_file_name = graph_obj_file.split(".")[0]
                 file_format = graph_obj_file.split(".")[-1]
 
+                # logger.info("Processing graph file", extra={"name": graph_file_name})
+
                 if file_format == "pickle" or file_format == "pkl":
                     try:
                         # Download graph pickle object
@@ -169,7 +172,7 @@ class GraphETL(object):
                         with open(transformed_graphml_filename, "rb") as graphml_string:
                             self.gio.upload_s3(
                                 file_name=graphml_string,
-                                s3_path=s3_upload_path + transformed_graphml_filename,
+                                s3_path=s3_path + transformed_graphml_filename,
                             )
 
                         # Upload CSVs to s3
