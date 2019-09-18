@@ -16,7 +16,7 @@ class S3Manager(object):
 
     def __init__(self, *args, **kwargs):
         self.bucket_name = kwargs.get("bucket_name")
-        self.profile_name = kwargs.get("profile_name")
+        self.profile_name = kwargs.get("profile_name", "default")
         s3_sess = session.Session(profile_name=self.profile_name)
         self.conn = s3_sess.client("s3")
 

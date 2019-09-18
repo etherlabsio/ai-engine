@@ -15,10 +15,16 @@ from s3client.s3 import S3Manager
 logger = logging.getLogger()
 setup_server_logger(debug=True)
 
-bucket_store = os.getenv("STORAGE_BUCKET", "io.etherlabs.staging2.contexts")
+bucket_store = os.getenv("STORAGE_BUCKET", "io.etherlabs.production.contexts")
+s2_bucket_store = os.getenv("S2_STORAGE_BUCKET", "io.etherlabs.staging2.contexts")
+
+neptune_store_dir = "NeptuneData/"
+s2_neptune_store_dir = "NeptuneDataS2/"
+
+s3_client = S3Manager(bucket_name=bucket_store, profile_name="default")
+staging2_s3_client = S3Manager(bucket_name=s2_bucket_store, profile_name="staging2")
 
 backfill_object = BackFillCleanupJob()
-s3_client = S3Manager(bucket_name=bucket_store, profile_name="staging2")
 gio = GraphIO(s3_client=s3_client, backfill_obj=backfill_object)
 gtransform = GraphTransforms()
 neptune_obj = GraphML2CSV()
@@ -28,6 +34,7 @@ etl_obj = GraphETL(
     graph_io_obj=gio,
     graph_transform_obj=gtransform,
     neptune_util_obj=neptune_obj,
+    staging2_s3_client=staging2_s3_client,
 )
 
 
@@ -48,10 +55,19 @@ def handler(event, context):
         start = timer()
         context_id = process_input(json_request=json_request)
 
-        if context_id == "__all__":
-            etl_obj.process_all_objects(context_id_prefix="01")
+        if bucket_store.split(".")[-2] == "staging2":
+            upload_path = s2_neptune_store_dir
         else:
-            etl_obj.process_graph_object(context_id=context_id)
+            upload_path = neptune_store_dir
+
+        if context_id == "__all__":
+            etl_obj.process_all_objects(
+                context_id_prefix="01", s3_upload_path=upload_path
+            )
+        else:
+            etl_obj.process_graph_object(
+                context_id=context_id, s3_upload_path=upload_path
+            )
 
         response = json.dumps({"contextId": context_id})
 

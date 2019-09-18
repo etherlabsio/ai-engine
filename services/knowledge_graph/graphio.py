@@ -60,11 +60,11 @@ class GraphIO(object):
             return graph_obj
 
     def cleanup_graph(self, graph_obj):
-        logger.info("Checking for older labels ...")
         graph_obj = self.backfill.format_old_labels(g=graph_obj)
-
-        logger.info("Checking for arrays and word graphs in context-graph ...")
+        graph_obj = self.backfill.convert_id_to_uuid_format(g=graph_obj)
         graph_obj = self.backfill.cleanup_nx_data_types(graph=graph_obj)
+
+        assert nx.is_directed(graph_obj) is True
 
         logger.info(
             "Cleaned-up context graph",
@@ -88,7 +88,7 @@ class GraphIO(object):
         )
         try:
             processed_graph = self.cleanup_graph(graph_obj=graph_obj)
-            nx.write_graphml_lxml(processed_graph, output_filename)
+            nx.write_graphml(processed_graph, output_filename, infer_numeric_types=True)
 
         except Exception as e:
             logger.error(
@@ -100,9 +100,11 @@ class GraphIO(object):
 
     # S3 storage utility functions
 
-    def upload_s3(self, file_name, s3_path):
+    def upload_s3(self, file_name, s3_path, s3_client=None):
+        if s3_client is None:
+            s3_client = self.s3_client
 
-        resp = self.s3_client.upload_object(body=file_name, s3_key=s3_path)
+        resp = s3_client.upload_object(body=file_name, s3_key=s3_path)
         if resp:
             return True
         else:
