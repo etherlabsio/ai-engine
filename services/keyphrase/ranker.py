@@ -132,6 +132,7 @@ class KeyphraseRanker(object):
             keyphrase_dict = kp_dict[dict_key]
 
             segment_relevance_score_list = []
+            entity_relevance_score = []
             for j, (phrase, values) in enumerate(keyphrase_dict.items()):
                 phrase_len = len(phrase.split())
 
@@ -156,39 +157,46 @@ class KeyphraseRanker(object):
                 keyphrase_dict[phrase][1] = norm_seg_score
                 segment_relevance_score_list.append(norm_seg_score)
 
+                # Compute boosted score
+                keyphrase_dict = self.compute_boosted_rank(
+                    ranked_keyphrase_dict=keyphrase_dict
+                )
+                entity_relevance_score.append(keyphrase_dict[phrase][2])
+
             if len(segment_relevance_score_list) > 0:
                 segment_confidence_score = np.mean(segment_relevance_score_list)
+                median_score = np.median(segment_relevance_score_list)
+
+                entity_confidence_score = np.mean(entity_relevance_score)
+                entity_median_score = np.median(entity_relevance_score)
             else:
                 segment_confidence_score = 0
-            kp_dict["quality"] = segment_confidence_score
+                median_score = 0
+
+                entity_confidence_score = 0
+                entity_median_score = 0
+
+            if dict_key == "descriptive" or dict_key == "original":
+                kp_dict["keyphraseQuality"] = segment_confidence_score
+                kp_dict["medianKeyphraseQuality"] = median_score
+            else:
+                kp_dict["entitiesQuality"] = entity_confidence_score
+                kp_dict["medianEntitiesQuality"] = entity_median_score
 
         logger.info("Computed segment relevance score")
 
         return keyphrase_object
 
-    def compute_boosted_rank(self, ranked_keyphrase_list):
-        boosted_rank_list = []
+    def compute_boosted_rank(self, ranked_keyphrase_dict):
 
-        for i, items in enumerate(ranked_keyphrase_list):
-            keyphrase = items[0]
-            pagerank_score = items[1]
-            segment_score = items[2]
-            loc = items[3]
+        for i, (phrase, items) in enumerate(ranked_keyphrase_dict.items()):
+            pagerank_score = items[0]
+            segment_score = items[1]
 
             boosted_score = pagerank_score + segment_score
-            boosted_rank_list[i] = (
-                keyphrase,
-                pagerank_score,
-                segment_score,
-                boosted_score,
-                loc,
-            )
+            ranked_keyphrase_dict[phrase][2] = boosted_score
 
-        assert len(ranked_keyphrase_list) == len(boosted_rank_list)
-
-        logger.info("Computed pagerank boosted score")
-
-        return boosted_rank_list
+        return ranked_keyphrase_dict
 
     def _query_segment_phrase_embeddings(
         self, context_graph, keyphrase_object, dict_key="descriptive"

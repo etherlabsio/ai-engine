@@ -90,6 +90,16 @@ class WordGraphBuilder(object):
             "PERSON",
             "TITLE",
         ]
+
+        preference_order_dict = {
+            "COMMERCIAL_ITEM": 1,
+            "ORGANIZATION": 2,
+            "PERSON": 3,
+            "LOCATION": 4,
+            "EVENT": 5,
+            "TITLE": 6,
+        }
+
         match_dict = dict(zip(spacy_list, comprehend_list))
 
         doc = self.nlp(input_segment)
@@ -109,7 +119,32 @@ class WordGraphBuilder(object):
         for entt in list(zip(filtered_entities, t_ner_type)):
             entity_dict.append({"text": str(entt[0]), "type": entt[1]})
 
-        return filtered_entities
+        entity_preference_list = []
+        for content in entity_dict:
+            entity = content["text"]
+            entity_type = content["type"]
+            if entity_type in preference_order_dict.keys():
+                entity_preference_list.append(
+                    {
+                        "text": entity,
+                        "preference": preference_order_dict[entity_type],
+                        "type": entity_type,
+                    }
+                )
+
+        sorted_entity_preference_list = self.utils.sort_by_value(
+            entity_preference_list, key="preference", order="asc"
+        )
+        entity_list = [item["text"] for item in sorted_entity_preference_list]
+        logger.debug(
+            "sorted preference for entities",
+            extra={
+                "orderedEntities": sorted_entity_preference_list,
+                "entities": entity_list,
+            },
+        )
+
+        return entity_list
 
     def get_segment_keyphrases(
         self, segment_object: dict, word_graph: nx.Graph

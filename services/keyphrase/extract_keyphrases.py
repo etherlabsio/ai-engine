@@ -333,7 +333,7 @@ class KeyphraseExtractor(object):
                 req_data=req_data
             )
 
-        entities_list, keyphrase_object = self.extract_keywords(
+        keyphrase_object = self.extract_keywords(
             segment_object=segment_object,
             context_graph=context_graph,
             meeting_word_graph=meeting_word_graph,
@@ -344,8 +344,14 @@ class KeyphraseExtractor(object):
         for i, kp_dict in enumerate(keyphrase_object):
             seg_text = kp_dict["segments"]
             segment_keyphrase_dict = kp_dict[default_form]
+            segment_entity_dict = kp_dict["entities"]
 
             keyphrase_list = list(segment_keyphrase_dict.keys())
+            entities_list = list(segment_entity_dict.keys())
+
+            input_embedding_list = []
+            input_embedding_list.extend(entities_list)
+            input_embedding_list.extend(keyphrase_list)
 
             # Compute segment embedding vector and store it
             segment_embedding = self.ranker.get_embeddings(
@@ -354,7 +360,7 @@ class KeyphraseExtractor(object):
 
             # Compute keyphrase embedding vectors and store it
             keyphrase_embeddings = self.ranker.get_embeddings(
-                input_list=keyphrase_list, req_data=req_data
+                input_list=input_embedding_list, req_data=req_data
             )
 
             # Update context graph with embedding vectors
@@ -367,7 +373,7 @@ class KeyphraseExtractor(object):
 
             context_graph = self._update_context_with_keyphrases(
                 req_data=req_data,
-                segment_keyphrases=keyphrase_list,
+                segment_keyphrases=input_embedding_list,
                 context_graph=context_graph,
                 is_pim=False,
                 upload=True,
@@ -457,7 +463,7 @@ class KeyphraseExtractor(object):
                     meeting_word_graph=meeting_word_graph,
                 )
 
-            entities, keyphrase_object = self.extract_keywords(
+            keyphrase_object = self.extract_keywords(
                 segment_object=segment_object,
                 context_graph=context_graph,
                 meeting_word_graph=meeting_word_graph,
@@ -471,8 +477,15 @@ class KeyphraseExtractor(object):
                     normalize=False,
                 )
 
+                # Compute the relevance of entities
+                keyphrase_object = self.ranker.compute_local_relevance(
+                    keyphrase_object=keyphrase_object,
+                    context_graph=context_graph,
+                    normalize=False,
+                    dict_key="entities",
+                )
+
             keyphrases, keyphrase_object = self.prepare_keyphrase_output(
-                processed_entities=entities,
                 keyphrase_object=keyphrase_object,
                 top_n=n_kw,
                 default_form=default_form,
@@ -558,7 +571,7 @@ class KeyphraseExtractor(object):
             relative_time = self.utils.formatTime(
                 req_data["relativeTime"], datetime_object=True
             )
-            entities, keyphrase_object = self.extract_keywords(
+            keyphrase_object = self.extract_keywords(
                 segment_object=segment_object,
                 context_graph=context_graph,
                 meeting_word_graph=meeting_word_graph,
@@ -571,7 +584,6 @@ class KeyphraseExtractor(object):
                 )
 
             keyphrases, keyphrase_object = self.prepare_keyphrase_output(
-                processed_entities=entities,
                 keyphrase_object=keyphrase_object,
                 top_n=n_kw,
                 default_form=default_form,
@@ -664,6 +676,7 @@ class KeyphraseExtractor(object):
             "offset": 0.0,
             "original": {},
             "descriptive": {},
+            "entities": {},
         }
 
         segment_relevance_score = 0
@@ -706,27 +719,44 @@ class KeyphraseExtractor(object):
                         (pagerank_score, segment_relevance_score, boosted_score, loc)
                     )
 
+            # Add entity scores in the object
+            for word in segment_entities:
+                loc = input_segment.find(word)
+                if loc > -1 and ("*" not in word or "." not in word):
+                    try:
+                        entity_pagerank_score = meeting_word_graph.nodes[word].get(
+                            "pagerank"
+                        )
+                    except:
+                        entity_pagerank_score = 0
+
+                    segment_dict["entities"][word] = list(
+                        (
+                            entity_pagerank_score,
+                            segment_relevance_score,
+                            boosted_score,
+                            loc,
+                        )
+                    )
+
             cleaned_keyphrase_list.append(segment_dict)
 
-        processed_entities, cleaned_keyphrase_list = self.utils.post_process_output(
-            entity_list=segment_entities,
+        cleaned_keyphrase_list = self.utils.post_process_output(
             keyphrase_object=cleaned_keyphrase_list,
             preserve_singlewords=preserve_singlewords,
             dict_key="original",
         )
 
-        processed_entities, cleaned_keyphrase_list = self.utils.post_process_output(
-            entity_list=segment_entities,
+        cleaned_keyphrase_list = self.utils.post_process_output(
             keyphrase_object=cleaned_keyphrase_list,
             preserve_singlewords=preserve_singlewords,
             dict_key="descriptive",
         )
 
-        return processed_entities, cleaned_keyphrase_list
+        return cleaned_keyphrase_list
 
     def prepare_keyphrase_output(
         self,
-        processed_entities: list,
         keyphrase_object: List[dict],
         top_n: int = None,
         default_form: str = "descriptive",
@@ -744,9 +774,11 @@ class KeyphraseExtractor(object):
         sort_key_dict = {"loc": 3, "order": "asc"}
 
         final_keyphrase_dict = OrderedDict()
+        final_entity_dict = OrderedDict()
 
         for i, kp_dict in enumerate(keyphrase_object):
             keyphrase_dict = kp_dict[default_form]
+            entity_dict = kp_dict["entities"]
 
             # Sort by rank/scores
             ranked_keyphrase_dict = self.utils.sort_dict_by_value(
@@ -755,22 +787,55 @@ class KeyphraseExtractor(object):
                 order=rank_key_dict["order"],
             )
 
-            final_keyphrase_dict = {**ranked_keyphrase_dict, **final_keyphrase_dict}
+            # Sort Entities by rank/score
+            ranked_entities_dict = self.utils.sort_dict_by_value(
+                dict_var=entity_dict,
+                key=rank_key_dict["boosted_score"],
+                order=rank_key_dict["order"],
+            )
 
+            final_keyphrase_dict = {**ranked_keyphrase_dict, **final_keyphrase_dict}
+            final_entity_dict = {**ranked_entities_dict, **final_entity_dict}
+
+        # Sort once again if order got changed while insertion
         final_keyphrase_dict = self.utils.sort_dict_by_value(
             dict_var=final_keyphrase_dict,
             key=rank_key_dict[rank_by],
             order=rank_key_dict["order"],
         )
 
-        # Limit keyphrase list to top-n
-        processed_entities, final_keyphrase_dict = self.utils.limit_phrase_list(
-            entities_list=processed_entities,
-            keyphrase_dict=final_keyphrase_dict,
-            phrase_limit=top_n,
+        final_entity_dict = self.utils.sort_dict_by_value(
+            dict_var=final_entity_dict,
+            key=rank_key_dict["boosted_score"],
+            order=rank_key_dict["order"],
         )
 
-        # Sort only descriptive by time spoken
+        logger.debug(
+            "Keyphrase and entity list before limiting",
+            extra={
+                "entities": list(final_entity_dict.keys()),
+                "keyphrases": list(final_keyphrase_dict.keys()),
+            },
+        )
+
+        # Limit keyphrase list to top-n
+        final_entity_dict, final_keyphrase_dict = self.utils.limit_phrase_list(
+            entities_dict=final_entity_dict,
+            keyphrase_dict=final_keyphrase_dict,
+            phrase_limit=top_n,
+            keyphrase_object=keyphrase_object,
+            remove_phrases=True,
+        )
+
+        logger.debug(
+            "Keyphrase and entity list after limiting",
+            extra={
+                "entities": list(final_entity_dict.keys()),
+                "keyphrases": list(final_keyphrase_dict.keys()),
+            },
+        )
+
+        # Sort only descriptive and entities by time spoken
         if default_form == "descriptive":
             sorted_keyphrase_dict = self.utils.sort_dict_by_value(
                 dict_var=final_keyphrase_dict,
@@ -779,6 +844,15 @@ class KeyphraseExtractor(object):
             )
         else:
             sorted_keyphrase_dict = final_keyphrase_dict
+
+        # Sort entities by time spoken
+        sorted_entity_dict = self.utils.sort_dict_by_value(
+            dict_var=final_entity_dict,
+            key=sort_key_dict[sort_by],
+            order=sort_key_dict["order"],
+        )
+
+        processed_entities = list(sorted_entity_dict.keys())
 
         processed_entities.extend(
             [items for items, values in sorted_keyphrase_dict.items()]
@@ -832,7 +906,7 @@ class KeyphraseExtractor(object):
 
         end = timer()
         logger.info(
-            "Post-reset: Graph info - Temporarily not resetting graph",
+            "Post-reset: Graph info",
             extra={
                 "deletedGraphId": word_graph_id,
                 "nodes": word_graph.number_of_nodes(),

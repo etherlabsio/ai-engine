@@ -83,21 +83,30 @@ class KeyphraseUtils(object):
         return segment_list
 
     def post_process_output(
-        self,
-        entity_list,
-        keyphrase_object,
-        dict_key="descriptive",
-        preserve_singlewords=False,
+        self, keyphrase_object, dict_key="descriptive", preserve_singlewords=False
     ):
 
-        # Get distinct entities and keyphrases
-        distinct_entities = list(dict.fromkeys(entity_list))
-        # distinct_keyword_list = list(dict.fromkeys(keyphrase_list))
-
-        # Post-process entities
-        distinct_entities = self.post_process_entities(distinct_entities)
+        # # Get distinct entities and keyphrases
+        # distinct_entities = list(dict.fromkeys(entity_list))
+        # # distinct_keyword_list = list(dict.fromkeys(keyphrase_list))
+        #
+        # # Post-process entities
+        # distinct_entities = self.post_process_entities(distinct_entities)
+        # # distinct_entities = self.post_process_entities(entity_dict=entity_list)
 
         for i, kp_item in enumerate(keyphrase_object):
+
+            # Post-process entities
+            entity_dict = kp_item["entities"]
+            distinct_entities = list(entity_dict.keys())
+            entity_scores = list(entity_dict.values())
+
+            processed_entities = self.post_process_entities(distinct_entities)
+            keyphrase_object[i]["entities"] = dict(
+                zip(processed_entities, entity_scores)
+            )
+
+            # Post-process keyphrases
             keyphrase_dict = kp_item[dict_key]
 
             # Remove the first occurrence of entity in the list of keyphrases
@@ -129,7 +138,7 @@ class KeyphraseUtils(object):
 
             keyphrase_object[i][dict_key] = multiphrase_dict
 
-        return distinct_entities, keyphrase_object
+        return keyphrase_object
 
     def post_process_entities(self, entity_list):
         processed_entities = []
@@ -170,20 +179,46 @@ class KeyphraseUtils(object):
         return processed_entities
 
     def limit_phrase_list(
-        self, entities_list, keyphrase_dict, phrase_limit=6, word_limit=3
+        self,
+        entities_dict,
+        keyphrase_dict,
+        phrase_limit=6,
+        word_limit=3,
+        keyphrase_object=None,
+        remove_phrases=False,
     ):
+        modified_entity_dict = {}
+        modified_keyphrase_dict = {}
+        if remove_phrases:
+            for i, kp_dict in enumerate(keyphrase_object):
+                entity_quality_score = kp_dict["entitiesQuality"]
+                keyphrase_quality_score = kp_dict["medianKeyphraseQuality"]
 
-        if len(entities_list) >= phrase_limit:
+                for entity, scores in entities_dict.items():
+                    boosted_score = scores[2]
+                    if boosted_score > entity_quality_score:
+                        modified_entity_dict[entity] = scores
+
+                for phrase, scores in keyphrase_dict.items():
+                    segment_score = scores[1]
+                    if segment_score > keyphrase_quality_score:
+                        modified_keyphrase_dict[phrase] = scores
+
+        else:
+            modified_keyphrase_dict = keyphrase_dict
+            modified_entity_dict = entities_dict
+
+        if len(list(modified_entity_dict.keys())) >= phrase_limit:
             limited_keyphrase_dict = dict(
-                itertools.islice(keyphrase_dict.items(), word_limit)
+                itertools.islice(modified_keyphrase_dict.items(), word_limit)
             )
             # limited_keyphrase_list = keyphrase_list[:word_limit]
         else:
-            num_of_entities = len(entities_list)
+            num_of_entities = len(list(modified_entity_dict.keys()))
             difference = phrase_limit - num_of_entities
             limited_keyphrase_dict = dict(
-                itertools.islice(keyphrase_dict.items(), difference)
+                itertools.islice(modified_keyphrase_dict.items(), difference)
             )
             # limited_keyphrase_list = keyphrase_list[:difference]
 
-        return entities_list, limited_keyphrase_dict
+        return modified_entity_dict, limited_keyphrase_dict
