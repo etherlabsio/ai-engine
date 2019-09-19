@@ -20,7 +20,6 @@ from io import open
 import boto3
 import requests
 from botocore.exceptions import ClientError
-from tqdm import tqdm
 
 try:
     from torch.hub import _get_torch_home
