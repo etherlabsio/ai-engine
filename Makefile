@@ -112,3 +112,8 @@ uploadtos3-mind:
 update-lambda-function-pims:
 	aws s3 cp --profile production dist/pims-serving-lambda.pex s3://io.etherlabs.artifacts/${ENV}/pims-serving-lambda.pex
 	aws lambda update-function-code --function-name pim --s3-bucket io.etherlabs.artifacts --s3-key ${ENV}/pims-serving-lambda.pex
+
+.PHONY: update-lambda-function-gs
+update-lambda-function-gs:
+	aws s3 cp --profile production dist/group_segments_code.pex s3://io.etherlabs.artifacts/${ENV}/group_segments_code.pex
+	aws lambda update-function-code --function-name group-segments --s3-bucket io.etherlabs.artifacts --s3-key ${ENV}/group_segments_code.pex

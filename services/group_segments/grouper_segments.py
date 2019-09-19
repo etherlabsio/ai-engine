@@ -154,14 +154,15 @@ class community_detection():
         for index1, i in enumerate(pims.keys()):
             for index2, j in enumerate(pims.keys()):
                 if index1 != index2:
-                    if pims[i]['segment0'][1] >= pims[j]['segment0'][1] and pims[i]['segment0'][1] <= pims[j]['segment' + str(len(pims[j].values()) - 1)][1]:
+                    # if pims[i]['segment0'][1] >= pims[j]['segment0'][1] and pims[i]['segment0'][1] <= pims[j]['segment' + str(len(pims[j].values()) - 1)][1]:
+                    if (pims[i]['segment0'][1] >= pims[j]['segment0'][1] and pims[i]['segment0'][1] <= pims[j]['segment' + str(len(pims[j].values()) - 1)][1]) and (pims[i]['segment' + str(len(pims[i].values()) - 1)][1] >= pims[j]['segment0'][1] and pims[i]['segment' + str(len(pims[i].values()) - 1)][1] <= pims[j]['segment' + str(len(pims[j].values()) - 1)][1]) :
                         if (j, i) not in yet_to_combine and i not in need_to_remove and j not in need_to_remove:
                             yet_to_combine.append((i, j))
                             need_to_remove.append(i)
         for i, j in yet_to_combine:
             for k in pims[i]:
                 if pims[i][k] not in pims[j].values():
-                    pims[j]['segment' + str(len(pims[j].values()) - 1)] = pims[i][k]
+                    pims[j]['segment' + str(len(pims[j].values()))] = pims[i][k]
                     continue
         for i in need_to_remove:
             pims.pop(i)
@@ -187,9 +188,7 @@ class community_detection():
         max_meeting_grap_pruned = None
         max_community_set = None
         max_mod = 0
-        for nodea, nodeb, weight in yetto_prune[:50]:
-            logger.info("yetto prune", extra={"sentence 1": graph_list[nodea], "sentence 2": graph_list[nodeb], "weight:": weight})
-        for v in [0.15, 0.1, 0.05, 0.01]:
+        for v in [0.15, 0.1, 0.05, 0.04, 0.03, 0.02, 0.01]:
             # flag = False
             for count in range(5):
                 meeting_graph_pruned = self.prune_edges(meeting_graph, graph_list, yetto_prune, v)
@@ -203,7 +202,7 @@ class community_detection():
                 #     meeting_graph_pruned = self.prune_edges(meeting_graph, graph_list, yetto_prune, 0.15)
                 #     flag = True
                 #     break
-                if mod > max_mod and mod < 0.40:
+                if mod > max_mod and mod <= 0.36:
                     max_meeting_grap_pruned = meeting_graph_pruned
                     max_community_set = community_set
                     max_mod = mod
