@@ -12,8 +12,8 @@ import boto3
 import requests
 
 import torch
-from action_item_detector.bert_utils import BertConfig
-from action_item_detector.action_detector import get_ai_sentences, BertForActionItemDetection
+from bert_utils import BertConfig
+from action_detector import get_ai_sentences, BertForActionItemDetection
 import numpy as np
 import pickle
 from log.logger import setup_server_logger
