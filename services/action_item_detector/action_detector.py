@@ -4,9 +4,19 @@ from bert_utils.tokenization_bert import BertTokenizer
 
 import nltk
 from nltk.tokenize import sent_tokenize
-nltk.download('stopwords')
-from nltk.corpus import stopwords
-stop_words = set(stopwords.words('english'))
+import os
+
+if os.path.isdir("/tmp/nltk_data"):
+    nltk.data.path.append("/tmp/nltk_data")
+    try:
+        nltk.data.find("stopwords")
+    except LookupError:
+        nltk.download("stopwords", download_dir="/tmp/nltk_data")
+else:
+    nltk.download("stopwords", download_dir="/tmp/nltk_data")
+
+from nlkt.stopwords import stopwords
+stop_words = set(stopwords.words("english"))
 stop_words.add('hear')
 stop_words.add('see')
 
