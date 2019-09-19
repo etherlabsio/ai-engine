@@ -24,7 +24,7 @@ python_library(
 )
 
 python_awslambda(
-  name='action_item_detector-lambda',
-  binary=':action_item_detector-server',
+  name='lambda_build',
+  binary=':server',
   handler='main:handler',
 )
