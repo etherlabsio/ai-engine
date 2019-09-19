@@ -1095,7 +1095,9 @@ class BertForMultipleChoice(BertPreTrainedModel):
 
         return outputs  # (loss), reshaped_logits, (hidden_states), (attentions)
 
-
+    @add_start_docstrings("""Bert Model with a token classification head on top (a linear layer on top of
+        the pooled output and a softmax) e.g. for RocStories/SWAG tasks. """,
+        BERT_START_DOCSTRING)
     class BertForTokenClassification(BertPreTrainedModel):
         r"""
             **labels**: (`optional`) ``torch.LongTensor`` of shape ``(batch_size, sequence_length)``:
