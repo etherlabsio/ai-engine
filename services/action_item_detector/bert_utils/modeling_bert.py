@@ -1099,7 +1099,7 @@ class BertForMultipleChoice(BertPreTrainedModel):
 @add_start_docstrings("""Bert Model with a token classification head on top (a linear layer on top of
     the hidden-states output) e.g. for Named-Entity-Recognition (NER) tasks. """,
     BERT_START_DOCSTRING, BERT_INPUTS_DOCSTRING)
-    class BertForTokenClassification(BertPreTrainedModel):
+class BertForTokenClassification(BertPreTrainedModel):
         r"""
             **labels**: (`optional`) ``torch.LongTensor`` of shape ``(batch_size, sequence_length)``:
                 Labels for computing the token classification loss.
