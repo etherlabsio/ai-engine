@@ -16,7 +16,7 @@ if os.path.isdir("/tmp/nltk_data"):
 else:
     nltk.download("stopwords", download_dir="/tmp/nltk_data")
 
-stop_words = set(stopwords.words("english"))
+from nltk.corpus import stopwords
 stop_words.add('hear')
 stop_words.add('see')
 
