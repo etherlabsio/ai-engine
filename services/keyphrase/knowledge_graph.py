@@ -194,6 +194,7 @@ class KnowledgeGraph(object):
             attribute="wordGraph",
             type="graphObject",
             graphId=word_graph.graph.get("graphId"),
+            state="processing",
         )
 
         # Add edge between instanceId and word graph
@@ -202,17 +203,29 @@ class KnowledgeGraph(object):
         return context_graph
 
     def query_word_graph_object(self, context_graph):
-        for (n1, n2, e_attr) in context_graph.edges.data("relation"):
+        # Get instance id for faster search
+        instance_id = ""
+        for n, n_attr in context_graph.nodes.data("attribute"):
+            if n_attr == "instanceId":
+                instance_id = n
+
+        # Use instance Id only to search from
+        for (n1, n2, e_attr) in context_graph.edges(
+            data="relation", nbunch=[instance_id]
+        ):
+            print(n1, n2)
             if e_attr == "hasWordGraph":
                 if isinstance(n2, nx.Graph):
-                    logger.debug("retrieved word graph object")
+                    logger.info("retrieved word graph object")
 
                     return n2
-                else:
-                    logger.error(
-                        "graphId does not exist or does not match context info"
-                    )
-                    return nx.Graph(graphId=context_graph.graph.get("graphId"))
+            else:
+                if context_graph.nodes[n2]["attribute"] != "wordGraph":
+                    continue
+        logger.warning(
+            "graphId does not exist or does not match context info. Returning empty graph with a reset state"
+        )
+        return nx.Graph(graphId=context_graph.graph.get("graphId"), state="reset")
 
     def query_for_embedded_nodes(self, context_graph):
         """
