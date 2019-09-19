@@ -6,3 +6,4 @@ from .modeling_bert import (BertConfig, BertModel, BertForPreTraining,
                        BertForSequenceClassification, BertForMultipleChoice,
                        BertForTokenClassification, BertForQuestionAnswering,
                        load_tf_weights_in_bert)
+from .file_utils import PYTORCH_PRETRAINED_BERT_CACHE, cached_path
