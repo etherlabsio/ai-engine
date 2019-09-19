@@ -1,8 +1,6 @@
 import torch.nn as nn
 from bert_utils.modeling_bert import BertConfig,BertPreTrainedModel,BertModel
 from bert_utils.tokenization_bert import BertTokenizer
-from bert_utils.optimization import AdamW, WarmupLinearSchedule
-from torch.nn import CrossEntropyLoss
 
 import nltk
 from nltk.tokenize import sent_tokenize

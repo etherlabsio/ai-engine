@@ -6,4 +6,3 @@ from .modeling_bert import (BertConfig, BertModel, BertForPreTraining,
                        BertForSequenceClassification, BertForMultipleChoice,
                        BertForTokenClassification, BertForQuestionAnswering,
                        load_tf_weights_in_bert)
-from .optimization import BertAdam
