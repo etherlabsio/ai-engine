@@ -183,6 +183,7 @@ class KeyphraseUtils(object):
         entities_dict,
         keyphrase_dict,
         phrase_limit=6,
+        entities_limit=2,
         word_limit=3,
         keyphrase_object=None,
         remove_phrases=False,
@@ -196,7 +197,13 @@ class KeyphraseUtils(object):
 
                 for entity, scores in entities_dict.items():
                     boosted_score = scores[2]
-                    if boosted_score > entity_quality_score:
+                    preference_value = scores[3]
+
+                    # Check for relevance scores if the entity type is other than Organization or Product
+                    if preference_value > 2:
+                        if boosted_score >= entity_quality_score:
+                            modified_entity_dict[entity] = scores
+                    else:
                         modified_entity_dict[entity] = scores
 
                 for phrase, scores in keyphrase_dict.items():
@@ -209,16 +216,18 @@ class KeyphraseUtils(object):
             modified_entity_dict = entities_dict
 
         if len(list(modified_entity_dict.keys())) >= phrase_limit:
+            modified_entity_dict = dict(
+                itertools.islice(modified_entity_dict.items(), entities_limit)
+            )
+
             limited_keyphrase_dict = dict(
                 itertools.islice(modified_keyphrase_dict.items(), word_limit)
             )
-            # limited_keyphrase_list = keyphrase_list[:word_limit]
         else:
             num_of_entities = len(list(modified_entity_dict.keys()))
             difference = phrase_limit - num_of_entities
             limited_keyphrase_dict = dict(
                 itertools.islice(modified_keyphrase_dict.items(), difference)
             )
-            # limited_keyphrase_list = keyphrase_list[:difference]
 
         return modified_entity_dict, limited_keyphrase_dict

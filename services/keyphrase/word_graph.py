@@ -144,7 +144,7 @@ class WordGraphBuilder(object):
             },
         )
 
-        return entity_list
+        return sorted_entity_preference_list
 
     def get_segment_keyphrases(
         self, segment_object: dict, word_graph: nx.Graph

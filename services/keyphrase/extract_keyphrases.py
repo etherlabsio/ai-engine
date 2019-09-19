@@ -720,7 +720,9 @@ class KeyphraseExtractor(object):
                     )
 
             # Add entity scores in the object
-            for word in segment_entities:
+            for item in segment_entities:
+                word = item["text"]
+                preference = item["preference"]
                 loc = input_segment.find(word)
                 if loc > -1 and ("*" not in word or "." not in word):
                     try:
@@ -735,6 +737,7 @@ class KeyphraseExtractor(object):
                             entity_pagerank_score,
                             segment_relevance_score,
                             boosted_score,
+                            preference,
                             loc,
                         )
                     )
@@ -771,7 +774,7 @@ class KeyphraseExtractor(object):
             "order": "desc",
         }
 
-        sort_key_dict = {"loc": 3, "order": "asc"}
+        sort_key_dict = {"loc": -1, "preference": 3, "order": "asc"}
 
         final_keyphrase_dict = OrderedDict()
         final_entity_dict = OrderedDict()
@@ -787,11 +790,21 @@ class KeyphraseExtractor(object):
                 order=rank_key_dict["order"],
             )
 
-            # Sort Entities by rank/score
+            # Sort Entities by preference
             ranked_entities_dict = self.utils.sort_dict_by_value(
                 dict_var=entity_dict,
-                key=rank_key_dict["boosted_score"],
-                order=rank_key_dict["order"],
+                key=sort_key_dict["preference"],
+                order=sort_key_dict["order"],
+            )
+
+            # For chapters: Choose top-n from each segment for better diversity
+            ranked_entities_dict, ranked_keyphrase_dict = self.utils.limit_phrase_list(
+                entities_dict=ranked_entities_dict,
+                keyphrase_dict=ranked_keyphrase_dict,
+                phrase_limit=top_n,
+                entities_limit=2,
+                keyphrase_object=keyphrase_object,
+                remove_phrases=True,
             )
 
             final_keyphrase_dict = {**ranked_keyphrase_dict, **final_keyphrase_dict}
@@ -806,8 +819,8 @@ class KeyphraseExtractor(object):
 
         final_entity_dict = self.utils.sort_dict_by_value(
             dict_var=final_entity_dict,
-            key=rank_key_dict["boosted_score"],
-            order=rank_key_dict["order"],
+            key=sort_key_dict["preference"],
+            order=sort_key_dict["order"],
         )
 
         logger.debug(
@@ -823,6 +836,7 @@ class KeyphraseExtractor(object):
             entities_dict=final_entity_dict,
             keyphrase_dict=final_keyphrase_dict,
             phrase_limit=top_n,
+            entities_limit=2,
             keyphrase_object=keyphrase_object,
             remove_phrases=True,
         )
@@ -835,29 +849,16 @@ class KeyphraseExtractor(object):
             },
         )
 
-        # Sort only descriptive and entities by time spoken
-        if default_form == "descriptive":
-            sorted_keyphrase_dict = self.utils.sort_dict_by_value(
-                dict_var=final_keyphrase_dict,
-                key=sort_key_dict[sort_by],
-                order=sort_key_dict["order"],
-            )
-        else:
-            sorted_keyphrase_dict = final_keyphrase_dict
+        # Combine entities and keyphrases
+        final_result_dict = {**final_entity_dict, **final_keyphrase_dict}
 
-        # Sort entities by time spoken
-        sorted_entity_dict = self.utils.sort_dict_by_value(
-            dict_var=final_entity_dict,
+        sorted_keyphrase_dict = self.utils.sort_dict_by_value(
+            dict_var=final_result_dict,
             key=sort_key_dict[sort_by],
             order=sort_key_dict["order"],
         )
 
-        processed_entities = list(sorted_entity_dict.keys())
-
-        processed_entities.extend(
-            [items for items, values in sorted_keyphrase_dict.items()]
-        )
-        keyphrase = processed_entities
+        keyphrase = [phrases for phrases, scores in sorted_keyphrase_dict.items()]
 
         return keyphrase, keyphrase_object
 
