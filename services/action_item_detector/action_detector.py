@@ -21,7 +21,7 @@ from log.logger import setup_server_logger
 
 logger = logging.getLogger(__name__)
 setup_server_logger(debug=True)
-tokenizer = BertTokenizer.from_pretrained('bert-base-uncased-vocab.txt')
+tokenizer = BertTokenizer('bert-base-uncased-vocab.txt')
 
 class BertForActionItemDetection(BertPreTrainedModel):
     def __init__(self, config):
@@ -47,7 +47,7 @@ class BertForActionItemDetection(BertPreTrainedModel):
 def get_ai_probability(model,input_sent):
 	if input_sent[-1]=='.' or input_sent[-1]=='?':
 		input_sent = input_sent[:-1]
-	input_ids = torch.tensor(tokenizer.encode(text)).unsqueeze(0)
+	input_ids = torch.tensor(tokenizer.encode(input_sent)).unsqueeze(0)
 	ai_scores = model(input_ids)
 	return ai_scores.detach().numpy()[0][1] #[0,1] - [non_ai, ai] scores respectively
 
