@@ -1,3 +1,4 @@
+import torch
 import torch.nn as nn
 from bert_utils.modeling_bert import BertConfig,BertPreTrainedModel,BertModel
 from bert_utils.tokenization_bert import BertTokenizer
@@ -5,18 +6,13 @@ from bert_utils.tokenization_bert import BertTokenizer
 import nltk
 from nltk.tokenize import sent_tokenize
 import os
-from nltk.corpus import stopwords
 
-if os.path.isdir("/tmp/nltk_data"):
-    nltk.data.path.append("/tmp/nltk_data")
-    try:
-        nltk.data.find("stopwords")
-    except LookupError:
-        nltk.download("stopwords", download_dir="/tmp/nltk_data")
-else:
-    nltk.download("stopwords", download_dir="/tmp/nltk_data")
-
+#if os.path.isdir("/tmp/nltk_data"):
+nltk.data.path.append("/tmp/nltk_data")
+nltk.download("stopwords", download_dir="/tmp/nltk_data")
+nltk.download('punkt', download_dir="/tmp/nltk_data")
 from nltk.corpus import stopwords
+stop_words = set(stopwords.words("english"))
 stop_words.add('hear')
 stop_words.add('see')
 
@@ -25,6 +21,7 @@ from log.logger import setup_server_logger
 
 logger = logging.getLogger(__name__)
 setup_server_logger(debug=True)
+tokenizer = BertTokenizer.from_pretrained('bert-base-uncased-vocab.txt')
 
 class BertForActionItemDetection(BertPreTrainedModel):
     def __init__(self, config):
@@ -78,7 +75,7 @@ def get_ai_sentences(model,transcript_text, ai_confidence_threshold = 0.5):
 	else:
 		sent_list = sent_tokenize(transcript_text)
 		for sent in sent_list:
-			sent_ai_prob = get_ai_probability(model,input_sent)
+			sent_ai_prob = get_ai_probability(model,sent)
 			if sent_ai_prob>=ai_confidence_threshold and post_process_ai_check(sent):
 				detected_ai_list.append(sent)
 	return detected_ai_list
