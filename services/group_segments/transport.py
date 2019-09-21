@@ -34,4 +34,5 @@ def decode_json_request(req) -> Request:
         segments_map[segm['id']] = deepcopy(segm)
     segments_org = deepcopy(req)
     segments = decode_segments(segments_org)
+    print(segments)
     return Request(segments, segments_org, segments_map)

@@ -70,9 +70,11 @@ class community_detection():
 
     def prune_edges(self, meeting_graph, graph_list, yetto_prune, v):
         yetto_prune = sorted(yetto_prune, key=lambda kv : kv[2], reverse=True)
+        meeting_graph_pruned = nx.Graph()
+        for nodea, nodeb, weight in yetto_prune:
+            meeting_graph_pruned.add_nodes_from([nodea, nodeb])
         yetto_prune = yetto_prune[:math.ceil(len(yetto_prune) * v) + 1]
         logger.info("pruning value", extra={"v is : ": v})
-        meeting_graph_pruned = nx.Graph()
         for indexa, indexb, c_score in yetto_prune:
             meeting_graph_pruned.add_edge(indexa, indexb)
         return meeting_graph_pruned
@@ -125,6 +127,10 @@ class community_detection():
             temp = []
             flag = False
 
+            if com[1:] == []:
+                pims[index_pim] = {'segment0': [com[0][0], com[0][1], com[0][2], com[0][3]]}
+                index_pim +=1
+
             for (index1, (sent1, time1, user1, id1)), (index2, (sent2, time2, user2, id2)) in zip(enumerate(com[0:]), enumerate(com[1:])):
                 if id1 != id2:
                     if ((extra_preprocess.format_time(time2, True) - extra_preprocess.format_time(time1, True)).seconds <= 120):
@@ -140,6 +146,17 @@ class community_detection():
                         if flag is True:
                             index_pim += 1
                             index_segment = 0
+                        elif flag is False and index2 == len(com)-1:
+                            pims[index_pim] = {'segment0' : [sent1, time1, user1, id1]}
+                            index_pim += 1
+                            temp.append((sent1, time1, user1, id1))
+                            pims[index_pim] = {'segment0' : [sent2, time2, user2, id2]}
+                            index_pim += 1
+                            temp.append((sent2, time2, user2, id2))
+                        else:
+                            pims[index_pim] = {'segment0' : [sent1, time1, user1, id1]}
+                            index_pim += 1
+                            temp.append((sent1, time1, user1, id1))
                         flag = False
             if flag is True:
                 index_pim += 1
@@ -154,7 +171,6 @@ class community_detection():
         for index1, i in enumerate(pims.keys()):
             for index2, j in enumerate(pims.keys()):
                 if index1 != index2:
-                    # if pims[i]['segment0'][1] >= pims[j]['segment0'][1] and pims[i]['segment0'][1] <= pims[j]['segment' + str(len(pims[j].values()) - 1)][1]:
                     if (pims[i]['segment0'][1] >= pims[j]['segment0'][1] and pims[i]['segment0'][1] <= pims[j]['segment' + str(len(pims[j].values()) - 1)][1]) and (pims[i]['segment' + str(len(pims[i].values()) - 1)][1] >= pims[j]['segment0'][1] and pims[i]['segment' + str(len(pims[i].values()) - 1)][1] <= pims[j]['segment' + str(len(pims[j].values()) - 1)][1]) :
                         if (j, i) not in yet_to_combine and i not in need_to_remove and j not in need_to_remove:
                             yet_to_combine.append((i, j))
@@ -179,6 +195,109 @@ class community_detection():
                     c_len += 1
                 pims[c_len] = {"segment0": [' '.join(text for text in segment['originalText']), segment['startTime'], segment['spokenBy'], segment['id']]}
         return pims
+
+    def wrap_community_by_time_refined_d(self, pims):
+        inverse_dangling_pims = []
+        pims_keys = list(pims.keys())
+
+        for i in pims_keys:
+            for j in pims_keys:
+                if i != j and i in pims.keys() and j in pims.keys():
+                    if (pims[i]['segment0'][1] >= pims[j]['segment0'][1] and pims[i]['segment0'][1] <= pims[j]['segment' + str(len(pims[j].values()) - 1)][1]) and (pims[i]['segment' + str(len(pims[i].values()) - 1)][1] >= pims[j]['segment0'][1] and pims[i]['segment' + str(len(pims[i].values()) - 1)][1] <= pims[j]['segment' + str(len(pims[j].values()) - 1)][1]):
+                        for seg in pims[i].values():
+                            pims[j]['segment' + str(len(pims[j].values()))] = seg
+                        del pims[i]
+
+                        sorted_j = sorted(pims[j].values(), key = lambda kv: kv[1], reverse = False)
+                        temp_pims = {}
+                        new_index = 0
+                        for new_seg in sorted_j:
+                            temp_pims['segment' + str(new_index)] = new_seg
+                            new_index += 1
+                        pims[j] = temp_pims
+
+        for index, p in enumerate(pims.keys()):
+            for seg in pims[p].keys():
+                pims[p][seg][0] = [' '.join(text for text in segment['originalText']) for segment in self.segments_list if segment['id'] == pims[p][seg][3]]
+                inverse_dangling_pims.append(pims[p][seg][3])
+
+        # c_len = 0
+        #for segment in self.segments_list:
+        #    if segment['id'] not in inverse_dangling_pims:
+        #        while c_len in pims.keys():
+        #            c_len += 1
+        #        pims[c_len] = {"segment0": [' '.join(text for text in segment['originalText']), segment['startTime'], segment['spokenBy'], segment['id']]}
+
+        new_pim = {}
+        for pim in list(pims.keys()):
+            seen = []
+            new_pim[pim] = {}
+            index = 0
+            for seg in list(pims[pim]):
+                if pims[pim][seg][3] in seen:
+                    pass
+                else:
+                    new_pim[pim]['segment' + str(index)] = {}
+                    new_pim[pim]['segment' + str(index)] = pims[pim][seg]
+                    index += 1
+                    seen.append(pims[pim][seg][3])
+
+        return new_pim
+
+    def wrap_community_by_time_refined(self, pims):
+        inverse_dangling_pims = []
+        pims_keys = list(pims.keys())
+        i = 0
+        j = 0
+        while i != len(pims_keys):
+            j = 0
+            while j != len(pims_keys):
+                if i != j and pims_keys[i] in pims and pims_keys[j] in pims:
+                    if (pims[pims_keys[i]]['segment0'][1] >= pims[pims_keys[j]]['segment0'][1] and pims[pims_keys[i]]['segment0'][1] <= pims[pims_keys[j]]['segment' + str(len(pims[pims_keys[j]].values()) - 1)][1]):
+                        if (pims[pims_keys[i]]['segment' + str(len(pims[pims_keys[i]].values()) - 1)][1] >= pims[pims_keys[j]]['segment0'][1] and pims[pims_keys[i]]['segment' + str(len(pims[pims_keys[i]].values()) - 1)][1] <= pims[pims_keys[j]]['segment' + str(len(pims[pims_keys[j]].values()) - 1)][1]):
+                            for seg in pims[pims_keys[i]].values():
+                                pims[pims_keys[j]]['segment' + str(len(pims[pims_keys[j]].values()))] = seg
+                            del pims[pims_keys[i]]
+
+                            sorted_j = sorted(pims[pims_keys[j]].values(), key = lambda kv: kv[1], reverse = False)
+                            temp_pims = {}
+                            new_index = 0
+                            for new_seg in sorted_j:
+                                temp_pims['segment' + str(new_index)] = new_seg
+                                new_index += 1
+                            pims[pims_keys[j]] = temp_pims
+                            j = -1
+                            i = 0
+                j += 1
+            i += 1
+
+        for index, p in enumerate(pims.keys()):
+            for seg in pims[p].keys():
+                pims[p][seg][0] = [' '.join(text for text in segment['originalText']) for segment in self.segments_list if segment['id'] == pims[p][seg][3]]
+                inverse_dangling_pims.append(pims[p][seg][3])
+
+        #c_len = 0
+        #for segment in self.segments_list:
+        #    if (segment['id'] not in inverse_dangling_pims):
+        #        while c_len in pims.keys():
+        #            c_len += 1
+        #        pims[c_len] = {"segment0": [' '.join(text for text in segment['originalText']), segment['startTime'], segment['spokenBy'], segment['id']]}
+
+        new_pim = {}
+        for pim in list(pims.keys()):
+            seen = []
+            new_pim[pim] = {}
+            index = 0
+            for seg in list(pims[pim]):
+                if pims[pim][seg][3] in seen:
+                    pass
+                else:
+                    new_pim[pim]['segment' + str(index)] = {}
+                    new_pim[pim]['segment' + str(index)] = pims[pim][seg]
+                    index += 1
+                    seen.append(pims[pim][seg][3])
+
+        return new_pim
 
     def get_communities(self):
         # segments_data = ' '.join([sentence for segment in self.segments_list for sentence in segment['originalText']])
@@ -207,8 +326,8 @@ class community_detection():
                     max_community_set = community_set
                     max_mod = mod
                     # flag = True
-            # if flag:
-            #     break
+                    # if flag:
+                    #     break
         meeting_graph_pruned = max_meeting_grap_pruned
         community_set = max_community_set
         mod = max_mod
@@ -218,7 +337,6 @@ class community_detection():
         community_timerange = self.refine_community(community_set_sorted, graph_list)
         # logger.info("commnity timerange", extra={"timerange": community_timerange})
         pims = self.group_community_by_time(community_timerange)
-        pims = self.wrap_community_by_time(pims)
-
+        pims = self.wrap_community_by_time_refined(pims)
         logger.info("Final PIMs", extra={"PIMs": pims})
         return pims
