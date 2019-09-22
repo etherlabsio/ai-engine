@@ -53,7 +53,7 @@ def handler(event, context):
         transcript_text = json_request['segments'][0]['originalText']
         #get the AI probabilities for each sentence in the transcript
         ai_sent_list = get_ai_sentences(model, transcript_text)
-        ai_sent_list = '|'.join(ai_sent_list)
+        ai_sent_list = '| '.join(ai_sent_list)
         response = json.dumps({"action_items": ai_sent_list})
         return {
             "statusCode": 200,
