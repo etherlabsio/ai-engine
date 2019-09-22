@@ -8,9 +8,10 @@ from nltk.tokenize import sent_tokenize
 import os
 
 #if os.path.isdir("/tmp/nltk_data"):
-nltk.data.path.append("/tmp/nltk_data")
+nltk.data.path.append("/tmp/nltk_data1")
 nltk.download("stopwords", download_dir="/tmp/nltk_data")
-nltk.download('punkt', download_dir="/tmp/nltk_data")
+nltk.download("punkt", download_dir="/tmp/nltk_data")
+nltk.download("averaged_perceptron_tagger",download_dir="/tmp/nltk_data")
 from nltk.corpus import stopwords
 stop_words = set(stopwords.words("english"))
 stop_words.add('hear')
