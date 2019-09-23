@@ -29,6 +29,7 @@ logger = logging.getLogger(__name__)
 SPECIAL_TOKENS_MAP_FILE = 'special_tokens_map.json'
 ADDED_TOKENS_FILE = 'added_tokens.json'
 
+
 class PreTrainedTokenizer(object):
     """ An abstract class to handle dowloading and loading pretrained tokenizers and adding tokens to the vocabulary.
 
@@ -145,11 +146,9 @@ class PreTrainedTokenizer(object):
             if key in self.SPECIAL_TOKENS_ATTRIBUTES:
                 setattr(self, key, value)
 
-
     @classmethod
     def from_pretrained(cls, *inputs, **kwargs):
         return cls._from_pretrained(*inputs, **kwargs)
-
 
     @classmethod
     def _from_pretrained(cls, pretrained_model_name_or_path, cache_dir=None, *inputs, **kwargs):
@@ -242,12 +241,11 @@ class PreTrainedTokenizer(object):
         # Add supplementary tokens.
         if added_tokens_file is not None:
             added_tok_encoder = json.load(open(added_tokens_file, encoding="utf-8"))
-            added_tok_decoder = {v:k for k, v in added_tok_encoder.items()}
+            added_tok_decoder = {v: k for k, v in added_tok_encoder.items()}
             tokenizer.added_tokens_encoder.update(added_tok_encoder)
             tokenizer.added_tokens_decoder.update(added_tok_decoder)
 
         return tokenizer
-
 
     def save_pretrained(self, save_directory):
         """ Save the tokenizer vocabulary files (with added tokens) and the
@@ -275,24 +273,19 @@ class PreTrainedTokenizer(object):
 
         return vocab_files + (special_tokens_map_file, added_tokens_file)
 
-
     def save_vocabulary(self, save_directory):
         """ Save the tokenizer vocabulary to a directory. This method doesn't save added tokens
             and special token mappings.
-            
             Please use `save_pretrained()` to save the full Tokenizer state so that it can be
             reloaded using the `from_pretrained(save_directory)` class method.
         """
         raise NotImplementedError
 
-
     def vocab_size(self):
         raise NotImplementedError
 
-
     def __len__(self):
         return self.vocab_size + len(self.added_tokens_encoder)
-
 
     def add_tokens(self, new_tokens):
         """ Add a list of new tokens to the tokenizer class. If the new tokens are not in the
@@ -313,12 +306,11 @@ class PreTrainedTokenizer(object):
                 logger.info("Adding %s to the vocabulary", token)
 
         added_tok_encoder = dict((tok, len(self) + i) for i, tok in enumerate(to_add_tokens))
-        added_tok_decoder = {v:k for k, v in added_tok_encoder.items()}
+        added_tok_decoder = {v: k for k, v in added_tok_encoder.items()}
         self.added_tokens_encoder.update(added_tok_encoder)
         self.added_tokens_decoder.update(added_tok_decoder)
 
         return len(to_add_tokens)
-
 
     def add_special_tokens(self, special_tokens_dict):
         """ Add a dictionnary of special tokens (eos, pad, cls...) to the encoder and link them
@@ -338,7 +330,6 @@ class PreTrainedTokenizer(object):
             setattr(self, key, value)
 
         return added_special_tokens
-
 
     def tokenize(self, text, **kwargs):
         """ Converts a string in a sequence of tokens (string), using the tokenizer.
@@ -394,13 +385,11 @@ class PreTrainedTokenizer(object):
     def _convert_token_to_id(self, token):
         raise NotImplementedError
 
-
     def encode(self, text):
         """ Converts a string in a sequence of ids (integer), using the tokenizer and vocabulary.
             same as self.convert_tokens_to_ids(self.tokenize(text)).
         """
         return self.convert_tokens_to_ids(self.tokenize(text))
-
 
     def convert_ids_to_tokens(self, ids, skip_special_tokens=False):
         """ Converts a single index or a sequence of indices (integers) in a token "
@@ -476,7 +465,6 @@ class PreTrainedTokenizer(object):
         all_toks = self.all_special_tokens
         all_ids = list(self.convert_tokens_to_ids(t) for t in all_toks)
         return all_ids
-
 
 
 def clean_up_tokenization(out_string):

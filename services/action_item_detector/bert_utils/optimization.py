@@ -23,6 +23,7 @@ from torch.optim.lr_scheduler import LambdaLR
 
 logger = logging.getLogger(__name__)
 
+
 class ConstantLRSchedule(LambdaLR):
     """ Constant learning rate schedule.
     """
@@ -78,6 +79,7 @@ class WarmupCosineSchedule(LambdaLR):
 
         super(WarmupCosineSchedule, self).__init__(optimizer, lr_lambda, last_epoch=last_epoch)
 
+
 class WarmupCosineWithHardRestartsSchedule(LambdaLR):
     """ Linear warmup and then cosine cycles with hard restarts.
         Linearly increases learning rate from 0 to 1 over `warmup_steps` training steps.
@@ -113,7 +115,7 @@ class AdamW(Optimizer):
             raise ValueError("Invalid learning rate: {} - should be >= 0.0".format(lr))
         if not 0.0 <= betas[0] < 1.0:
             raise ValueError("Invalid beta parameter: {} - should be in [0.0, 1.0[".format(betas[0]))
-        if not 0.0 <= betas[1]  < 1.0:
+        if not 0.0 <= betas[1] < 1.0:
             raise ValueError("Invalid beta parameter: {} - should be in [0.0, 1.0[".format(betas[1]))
         if not 0.0 <= eps:
             raise ValueError("Invalid epsilon value: {} - should be >= 0.0".format(eps))
