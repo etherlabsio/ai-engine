@@ -61,7 +61,7 @@ def handler(event, context):
             has_action_item = 1
         else:
             has_action_item = 0
-        
+            ai_sent_list = ['NO ACTION ITEM DETECTED']
         ai_sent_list = '| '.join(ai_sent_list)
         response = json.dumps({"has_action_item": has_action_item,
             "action_item_text": ai_sent_list})
