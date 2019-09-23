@@ -52,29 +52,46 @@ def handler(event, context):
     else:
         json_request = event['body']
 
-    try:
-        transcript_text = json_request['segments'][0]['originalText']
-        # get the AI probabilities for each sentence in the transcript
-        ai_sent_list = get_ai_sentences(model, transcript_text)
+    # try:
+    #     transcript_text = json_request['segments'][0]['originalText']
+    #     # get the AI probabilities for each sentence in the transcript
+    #     ai_sent_list = get_ai_sentences(model, transcript_text)
         
-        if len(ai_sent_list) > 0:
-            has_action_item = 1
-        else:
-            has_action_item = 0
-            ai_sent_list = ['NO ACTION ITEM DETECTED']
-        ai_sent_list = '| '.join(ai_sent_list)
-        response = json.dumps({"has_action_item": has_action_item,
-            "action_item_text": ai_sent_list})
-        return {
-            "statusCode": 200,
-            "body" : response
-        }
-    except Exception as e:
-        logger.error(
-            "Error processing request", extra={"err": e, "request": json_request}
-        )
-        response = json.dumps({"action_items": []})
-        return {
-            "statusCode": 404,
-            "body" : response
-        }
+    #     if len(ai_sent_list) > 0:
+    #         has_action_item = 1
+    #     else:
+    #         has_action_item = 0
+    #         ai_sent_list = ['NO ACTION ITEM DETECTED']
+    #     ai_sent_list = '| '.join(ai_sent_list)
+    #     response = json.dumps({"has_action_item": has_action_item,
+    #         "action_item_text": ai_sent_list})
+    #     return {
+    #         "statusCode": 200,
+    #         "body" : response
+    #     }
+    # except Exception as e:
+    #     logger.error(
+    #         "Error processing request", extra={"err": e, "request": json_request}
+    #     )
+    #     response = json.dumps({"action_items": []})
+    #     return {
+    #         "statusCode": 404,
+    #         "body" : response
+    #     }
+
+    transcript_text = json_request['segments'][0]['originalText']
+        # get the AI probabilities for each sentence in the transcript
+    ai_sent_list = get_ai_sentences(model, transcript_text)
+    
+    if len(ai_sent_list) > 0:
+        has_action_item = 1
+    else:
+        has_action_item = 0
+        ai_sent_list = ['NO ACTION ITEM DETECTED']
+    ai_sent_list = '| '.join(ai_sent_list)
+    response = json.dumps({"has_action_item": has_action_item,
+        "action_item_text": ai_sent_list})
+    return {
+        "statusCode": 200,
+        "body" : response
+    }

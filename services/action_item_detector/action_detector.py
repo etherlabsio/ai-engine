@@ -9,7 +9,7 @@ from log.logger import setup_server_logger
 import nltk
 from nltk.tokenize import sent_tokenize
 import os
-from .text_utils import CandidateKPExtractor
+from text_utils import CandidateKPExtractor
 
 logger = logging.getLogger(__name__)
 setup_server_logger(debug=True)
@@ -24,7 +24,6 @@ nltk.download("punkt", download_dir="/tmp/nltk_data")
 nltk.download("averaged_perceptron_tagger", download_dir="/tmp/nltk_data")
 from nltk.corpus import stopwords
 
-c_kp = CandidateKPExtractor(stop_words)
 
 stop_words = set(stopwords.words("english"))
 stop_words.add('hear')
@@ -101,6 +100,8 @@ yet you your yours yourself yourselves
 stop_words = set(list(stop_words) + stop_words_spacy)
 tokenizer = BertTokenizer('bert-base-uncased-vocab.txt')
 
+c_kp = CandidateKPExtractor(stop_words)
+
 
 class BertForActionItemDetection(BertPreTrainedModel):
 
@@ -134,10 +135,12 @@ def get_ai_probability(model, input_sent):
 
 def post_process_ai_check(candidate_text):  #returns is_ai flag and candidate action item
     is_ai_flag = 0
+    ret_candidate = ''
     candidate_ais = c_kp.getCandidatePhrases(candidate_text)
-    if len(candidate_ais)>1:
+    if len(candidate_ais)>=1:
         is_ai_flag = 1
-    return is_ai_flag,candidate_ais[0]
+        ret_candidate = candidate_ais[0]
+    return is_ai_flag,ret_candidate
 
 
 def get_ai_sentences(model, transcript_text, ai_confidence_threshold=0.5):
