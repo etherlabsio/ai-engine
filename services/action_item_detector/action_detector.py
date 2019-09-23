@@ -13,14 +13,14 @@ import os
 logger = logging.getLogger(__name__)
 setup_server_logger(debug=True)
 
-if os.path.isdir("/tmp/nltk_data"):
-    logger.info('Using existing nltk download files')
-else:
-    nltk.data.path.append("/tmp/nltk_data")
-    logger.info('Downloading nltk data files to /tmp/nltk_data')
-    nltk.download("stopwords", download_dir="/tmp/nltk_data")
-    nltk.download("punkt", download_dir="/tmp/nltk_data")
-    nltk.download("averaged_perceptron_tagger", download_dir="/tmp/nltk_data")
+# if os.path.isdir("/tmp/nltk_data"):
+#     logger.info('Using existing nltk download files')
+# else:
+nltk.data.path.append("/tmp/nltk_data")
+logger.info('Downloading nltk data files to /tmp/nltk_data')
+nltk.download("stopwords", download_dir="/tmp/nltk_data")
+nltk.download("punkt", download_dir="/tmp/nltk_data")
+nltk.download("averaged_perceptron_tagger", download_dir="/tmp/nltk_data")
 from nltk.corpus import stopwords
 
 stop_words = set(stopwords.words("english"))
@@ -153,7 +153,8 @@ def get_ai_sentences(model, transcript_text, ai_confidence_threshold=0.5):
     else:
         sent_list = sent_tokenize(transcript_text)
         for sent in sent_list:
-            sent_ai_prob = get_ai_probability(model, sent)
-            if sent_ai_prob >= ai_confidence_threshold and post_process_ai_check(sent):
-                detected_ai_list.append(sent)
+            if len(sent.split(' '))>2:
+                sent_ai_prob = get_ai_probability(model, sent)
+                if sent_ai_prob >= ai_confidence_threshold and post_process_ai_check(sent):
+                    detected_ai_list.append(sent)
     return detected_ai_list
