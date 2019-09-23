@@ -23,6 +23,7 @@ s3 = boto3.resource('s3')
 logger = logging.getLogger(__name__)
 setup_server_logger(debug=True)  # default False for disabling debug mode
 
+
 def load_model():
     bucket = os.getenv('BUCKET_NAME')
     model_path = os.getenv('MODEL')
@@ -34,6 +35,7 @@ def load_model():
     state_dict = torch.load(io.BytesIO(modelObj.get()["Body"].read()), map_location='cpu')
     return state_dict
 
+
 # load the model when lambda execution context is created
 state_dict = load_model()
 config = BertConfig()
@@ -41,6 +43,7 @@ model = BertForActionItemDetection(config)
 model.load_state_dict(state_dict)
 model.eval()
 logger.info(f'Model loaded for evaluation')
+
 
 def handler(event, context):
     logger.info("POST request recieved", extra={"event['body']:": event['body']})
@@ -51,7 +54,7 @@ def handler(event, context):
 
     try:
         transcript_text = json_request['segments'][0]['originalText']
-        #get the AI probabilities for each sentence in the transcript
+        # get the AI probabilities for each sentence in the transcript
         ai_sent_list = get_ai_sentences(model, transcript_text)
         ai_sent_list = '| '.join(ai_sent_list)
         response = json.dumps({"action_items": ai_sent_list})
@@ -68,4 +71,3 @@ def handler(event, context):
             "statusCode": 404,
             "body" : response
         }
-
