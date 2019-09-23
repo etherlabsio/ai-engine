@@ -12,6 +12,7 @@ import logging
 from log.logger import setup_server_logger
 logger = logging.getLogger()
 
+
 class community_detection():
     segments_list = []
     segments_org = []
@@ -129,7 +130,7 @@ class community_detection():
 
             if com[1:] == []:
                 pims[index_pim] = {'segment0': [com[0][0], com[0][1], com[0][2], com[0][3]]}
-                index_pim +=1
+                index_pim += 1
 
             for (index1, (sent1, time1, user1, id1)), (index2, (sent2, time2, user2, id2)) in zip(enumerate(com[0:]), enumerate(com[1:])):
                 if id1 != id2:
@@ -146,7 +147,7 @@ class community_detection():
                         if flag is True:
                             index_pim += 1
                             index_segment = 0
-                        elif flag is False and index2 == len(com)-1:
+                        elif flag is False and index2 == len(com) - 1:
                             pims[index_pim] = {'segment0' : [sent1, time1, user1, id1]}
                             index_pim += 1
                             temp.append((sent1, time1, user1, id1))
@@ -208,7 +209,7 @@ class community_detection():
                             pims[j]['segment' + str(len(pims[j].values()))] = seg
                         del pims[i]
 
-                        sorted_j = sorted(pims[j].values(), key = lambda kv: kv[1], reverse = False)
+                        sorted_j = sorted(pims[j].values(), key=lambda kv: kv[1], reverse=False)
                         temp_pims = {}
                         new_index = 0
                         for new_seg in sorted_j:
@@ -222,7 +223,7 @@ class community_detection():
                 inverse_dangling_pims.append(pims[p][seg][3])
 
         # c_len = 0
-        #for segment in self.segments_list:
+        # for segment in self.segments_list:
         #    if segment['id'] not in inverse_dangling_pims:
         #        while c_len in pims.keys():
         #            c_len += 1
@@ -253,31 +254,59 @@ class community_detection():
             j = 0
             while j != len(pims_keys):
                 if i != j and pims_keys[i] in pims and pims_keys[j] in pims:
-                    if (pims[pims_keys[i]]['segment0'][1] >= pims[pims_keys[j]]['segment0'][1] and pims[pims_keys[i]]['segment0'][1] <= pims[pims_keys[j]]['segment' + str(len(pims[pims_keys[j]].values()) - 1)][1]):
-                        if (pims[pims_keys[i]]['segment' + str(len(pims[pims_keys[i]].values()) - 1)][1] >= pims[pims_keys[j]]['segment0'][1] and pims[pims_keys[i]]['segment' + str(len(pims[pims_keys[i]].values()) - 1)][1] <= pims[pims_keys[j]]['segment' + str(len(pims[pims_keys[j]].values()) - 1)][1]):
-                            for seg in pims[pims_keys[i]].values():
-                                pims[pims_keys[j]]['segment' + str(len(pims[pims_keys[j]].values()))] = seg
-                            del pims[pims_keys[i]]
+                    if (pims[pims_keys[i]]['segment0'][1] >= pims[pims_keys[j]]['segment0'][1] and pims[pims_keys[i]]['segment0'][1] <= pims[pims_keys[j]]['segment' + str(len(pims[pims_keys[j]].values()) - 1)][1]) and (pims[pims_keys[i]]['segment' + str(len(pims[pims_keys[i]].values()) - 1)][1] >= pims[pims_keys[j]]['segment0'][1] and pims[pims_keys[i]]['segment' + str(len(pims[pims_keys[i]].values()) - 1)][1] <= pims[pims_keys[j]]['segment' + str(len(pims[pims_keys[j]].values()) - 1)][1]):
+                        for seg in pims[pims_keys[i]].values():
+                            pims[pims_keys[j]]['segment' + str(len(pims[pims_keys[j]].values()))] = seg
+                        del pims[pims_keys[i]]
 
-                            sorted_j = sorted(pims[pims_keys[j]].values(), key = lambda kv: kv[1], reverse = False)
-                            temp_pims = {}
-                            new_index = 0
-                            for new_seg in sorted_j:
-                                temp_pims['segment' + str(new_index)] = new_seg
-                                new_index += 1
-                            pims[pims_keys[j]] = temp_pims
-                            j = -1
-                            i = 0
+                        sorted_j = sorted(pims[pims_keys[j]].values(), key=lambda kv: kv[1], reverse=False)
+                        temp_pims = {}
+                        new_index = 0
+                        for new_seg in sorted_j:
+                            temp_pims['segment' + str(new_index)] = new_seg
+                            new_index += 1
+                        pims[pims_keys[j]] = temp_pims
+                        j = -1
+                        i = 0
+                    elif (pims[pims_keys[i]]['segment0'][1] >= pims[pims_keys[j]]['segment0'][1] and pims[pims_keys[i]]['segment0'][1] <= pims[pims_keys[j]]['segment' + str(len(pims[pims_keys[j]].values()) - 1)][1]) and (pims[pims_keys[i]]['segment' + str(len(pims[pims_keys[i]].values()) - 1)][1] >= pims[pims_keys[j]]['segment0'][1] and pims[pims_keys[i]]['segment' + str(len(pims[pims_keys[i]].values()) - 1)][1] >= pims[pims_keys[j]]['segment' + str(len(pims[pims_keys[j]].values()) - 1)][1]):
+
+                        for seg in pims[pims_keys[i]].values():
+                            pims[pims_keys[j]]['segment' + str(len(pims[pims_keys[j]].values()))] = seg
+                        del pims[pims_keys[i]]
+
+                        sorted_j = sorted(pims[pims_keys[j]].values(), key=lambda kv: kv[1], reverse=False)
+                        temp_pims = {}
+                        new_index = 0
+                        for new_seg in sorted_j:
+                            temp_pims['segment' + str(new_index)] = new_seg
+                            new_index += 1
+                        pims[pims_keys[j]] = temp_pims
+                        j = -1
+                        i = 0
+                    elif (pims[pims_keys[i]]['segment0'][1] <= pims[pims_keys[j]]['segment0'][1] and pims[pims_keys[i]]['segment0'][1] <= pims[pims_keys[j]]['segment' + str(len(pims[pims_keys[j]].values()) - 1)][1]) and (pims[pims_keys[i]]['segment' + str(len(pims[pims_keys[i]].values()) - 1)][1] >= pims[pims_keys[j]]['segment0'][1] and pims[pims_keys[i]]['segment' + str(len(pims[pims_keys[i]].values()) - 1)][1] <= pims[pims_keys[j]]['segment' + str(len(pims[pims_keys[j]].values()) - 1)][1]):
+                        for seg in pims[pims_keys[i]].values():
+                            pims[pims_keys[j]]['segment' + str(len(pims[pims_keys[j]].values()))] = seg
+                        del pims[pims_keys[i]]
+
+                        sorted_j = sorted(pims[pims_keys[j]].values(), key=lambda kv: kv[1], reverse=False)
+                        temp_pims = {}
+                        new_index = 0
+                        for new_seg in sorted_j:
+                            temp_pims['segment' + str(new_index)] = new_seg
+                            new_index += 1
+                        pims[pims_keys[j]] = temp_pims
+                        j = -1
+                        i = 0
                 j += 1
             i += 1
-
         for index, p in enumerate(pims.keys()):
             for seg in pims[p].keys():
-                pims[p][seg][0] = [' '.join(text for text in segment['originalText']) for segment in self.segments_list if segment['id'] == pims[p][seg][3]]
+                # pims[p][seg][0] = [' '.join(text for text in segment['originalText']) for segment in self.segments_list if segment['id'] == pims[p][seg][3]]
+                pims[p][seg][0] = [segment['originalText'] for segment in self.segments_org["segments"] if segment['id'] == pims[p][seg][3]]
                 inverse_dangling_pims.append(pims[p][seg][3])
 
-        #c_len = 0
-        #for segment in self.segments_list:
+        # c_len = 0
+        # for segment in self.segments_list:
         #    if (segment['id'] not in inverse_dangling_pims):
         #        while c_len in pims.keys():
         #            c_len += 1
