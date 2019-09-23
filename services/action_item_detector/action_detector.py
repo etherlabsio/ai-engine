@@ -157,4 +157,3 @@ def get_ai_sentences(model, transcript_text, ai_confidence_threshold=0.5):
             if sent_ai_prob >= ai_confidence_threshold and post_process_ai_check(sent):
                 detected_ai_list.append(sent)
     return detected_ai_list
-    
