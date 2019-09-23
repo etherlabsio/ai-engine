@@ -9,6 +9,7 @@ from log.logger import setup_server_logger
 import nltk
 from nltk.tokenize import sent_tokenize
 import os
+from .text_utils import CandidateKPExtractor
 
 logger = logging.getLogger(__name__)
 setup_server_logger(debug=True)
@@ -22,6 +23,8 @@ nltk.download("stopwords", download_dir="/tmp/nltk_data")
 nltk.download("punkt", download_dir="/tmp/nltk_data")
 nltk.download("averaged_perceptron_tagger", download_dir="/tmp/nltk_data")
 from nltk.corpus import stopwords
+
+c_kp = CandidateKPExtractor(stop_words)
 
 stop_words = set(stopwords.words("english"))
 stop_words.add('hear')
@@ -129,23 +132,18 @@ def get_ai_probability(model, input_sent):
     return ai_scores.detach().numpy()[0][1]   # [0,1] - [non_ai, ai] scores respectively
 
 
-def post_process_ai_check(candidate_text):
-    is_ai_flag = False
-    tagged_sents = nltk.pos_tag_sents(nltk.word_tokenize(sent) for sent in nltk.sent_tokenize(candidate_text))[0]
-    token_list = [ele[0] for ele in tagged_sents]
-    tag_list = [ele[1] for ele in tagged_sents]
-    if 'VB' in tag_list:
-        # get VB locations and see if they all are in stop_words
-        vb_loc = [i for i, e in enumerate(tag_list) if e == 'VB']
-        vb_tokens = [token_list[i] for i in vb_loc]
-        if len(set(vb_tokens) & set(stop_words)) < len(set(vb_tokens)):
-            is_ai_flag = True
-    return is_ai_flag
+def post_process_ai_check(candidate_text):  #returns is_ai flag and candidate action item
+    is_ai_flag = 0
+    candidate_ais = c_kp.getCandidatePhrases(candidate_text)
+    if len(candidate_ais)>1:
+        is_ai_flag = 1
+    return is_ai_flag,candidate_ais[0]
 
 
 def get_ai_sentences(model, transcript_text, ai_confidence_threshold=0.5):
 
-    detected_ai_list = []
+    #detected_ai_list = []
+    action_item_candidate = []
     if type(transcript_text) != str:
         logger.warn(
             "Invalid transcript. Returning empty list",
@@ -155,6 +153,7 @@ def get_ai_sentences(model, transcript_text, ai_confidence_threshold=0.5):
         for sent in sent_list:
             if len(sent.split(' '))>2:
                 sent_ai_prob = get_ai_probability(model, sent)
-                if sent_ai_prob >= ai_confidence_threshold and post_process_ai_check(sent):
-                    detected_ai_list.append(sent)
-    return detected_ai_list
+                if sent_ai_prob >= ai_confidence_threshold and post_process_ai_check(sent)[0]:
+                    #detected_ai_list.append(sent)
+                    action_item_candidate.append(post_process_ai_check(sent)[1])
+    return action_item_candidate
