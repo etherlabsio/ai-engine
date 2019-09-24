@@ -136,7 +136,7 @@ def get_ai_probability(model, input_sent):
 def post_process_ai_check(candidate_text):  #returns is_ai flag and candidate action item
     is_ai_flag = 0
     ret_candidate = ''
-    candidate_ais = c_kp.getCandidatePhrases(candidate_text)
+    candidate_ais = c_kp.get_ai_subjects(candidate_text)
     if len(candidate_ais)>=1:
         is_ai_flag = 1
         ret_candidate = candidate_ais[0]
