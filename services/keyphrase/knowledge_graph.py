@@ -213,7 +213,6 @@ class KnowledgeGraph(object):
         for (n1, n2, e_attr) in context_graph.edges(
             data="relation", nbunch=[instance_id]
         ):
-            print(n1, n2)
             if e_attr == "hasWordGraph":
                 if isinstance(n2, nx.Graph):
                     logger.info("retrieved word graph object")
