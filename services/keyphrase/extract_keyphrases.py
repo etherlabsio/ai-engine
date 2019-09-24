@@ -64,7 +64,7 @@ class KeyphraseExtractor(object):
 
     def wake_up_lambda(self, req_data):
         # Start the encoder lambda to avoid cold start problem
-        logger.info("Invoking lambda on instance created to reduce cold-start ...")
+        logger.info("Invoking lambda to reduce cold-start ...")
         test_segment = ["Wake up Sesame!"]
         self.ranker.get_embeddings(input_list=test_segment, req_data=req_data)
 
@@ -95,9 +95,7 @@ class KeyphraseExtractor(object):
         )
 
         # Start the encoder lambda to avoid cold start problem
-        logger.info("Invoking lambda to reduce cold-start ...")
-        test_segment = ["Wake up Sesame!"]
-        self.ranker.get_embeddings(input_list=test_segment, req_data=req_data)
+        self.wake_up_lambda(req_data=req_data)
 
     def _retrieve_context_graph(
         self, req_data: SegmentType

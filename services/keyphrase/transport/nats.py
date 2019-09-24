@@ -34,7 +34,6 @@ class NATSTransport(object):
             "topics subscribed",
             extra={"topics": list(self.nats_manager.subscriptions.keys())},
         )
-        self.keyphrase_service.wake_up_lambda(req_data=msg_data)
 
     async def subscribe_context_events(self):
         await self.nats_manager.subscribe(
