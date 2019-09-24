@@ -1,11 +1,18 @@
-CONTAINER_IMAGE=registry.gitlab.com/etherlabs/ether/keyphrase-server
-ENV=staging
-SLACK_WEBHOOK_URL="https://hooks.slack.com/services/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"
-BRANCH=$(shell git rev-parse HEAD || echo -e '$CI_COMMIT_SHA')
-
 AWS_ACCESS_KEY_ID=$(shell aws configure get aws_access_key_id --profile ${AWS_PROFILE})
 AWS_SECRET_ACCESS_KEY=$(shell aws configure get aws_secret_access_key --profile ${AWS_PROFILE})
 AWS_REGION=$(shell aws configure get region --profile ${AWS_PROFILE})
+LOGIN=$(shell AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID} AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY} aws ecr get-login --no-include-email --region ${AWS_REGION})
+
+
+CONTAINER_IMAGE=817390009919.dkr.ecr.us-east-1.amazonaws.com/etherlabs/keyphrase
+STAGING2_IMAGE=933389821341.dkr.ecr.us-east-1.amazonaws.com/etherlabs/keyphrase
+
+ACTIVE_ENV=staging2
+SLACK_WEBHOOK_URL="https://hooks.slack.com/services/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"
+BRANCH=$(shell git rev-parse --short HEAD || echo -e '$CI_COMMIT_SHA')
+ARTIFACT=keyphrase-server
+SERVICE_NAME=keyphrase-service
+
 
 pre-deploy-notify:
 	@curl -X POST --data-urlencode 'payload={"text": "[${ENVIRONMENT}] [${BRANCH}] ${USER}: ${ARTIFACT} is being deployed"}' \
@@ -15,18 +22,26 @@ post-deploy-notify:
 	@curl -X POST --data-urlencode 'payload={"text": "[${ENVIRONMENT}] [${BRANCH}] ${USER}: ${ARTIFACT} is deployed"}' \
 				 ${SLACK_WEBHOOK_URL}
 
-deploy_ecs:
+build: clean
+	echo ${ACTIVE_ENV} ${ARTIFACT} ${CONTAINER_IMAGE} ${BRANCH}
+	eval ${LOGIN}
+	@docker build --build-arg active_env=${ACTIVE_ENV} --build-arg app=keyphrase -t ${CONTAINER_IMAGE}:${CONTAINER_TAG} .
+	@docker push ${CONTAINER_IMAGE}:${CONTAINER_TAG}
+	@docker tag ${CONTAINER_IMAGE}:${CONTAINER_TAG} ${CONTAINER_IMAGE}:${BRANCH}
+	@docker push ${CONTAINER_IMAGE}:${BRANCH}
+
+deploy_ecs: build
 	$(MAKE) pre-deploy-notify
-	ecs deploy ${CLUSTER_NAME} ${SERVICE_NAME} --timeout 600 --profile ${AWS_PROFILE} --task keyphrase
+	ecs deploy ${CLUSTER_NAME} ${SERVICE_NAME} --timeout 600 --profile ${AWS_PROFILE} --task keyphrase --tag ${BRANCH}
 	$(MAKE) post-deploy-notify
 
 deploy-staging2:
-	$(MAKE) deploy_ecs ARTIFACT=keyphrase-server CONTAINER_TAG=staging2 CONTAINER_IMAGE=registry.gitlab.com/etherlabs/ether/keyphrase-server \
-			ENVIRONMENT=staging2 CLUSTER_NAME=ml-inference SERVICE_NAME=keyphrase-service AWS_PROFILE=staging2
+	$(MAKE) deploy_ecs ARTIFACT=${ARTIFACT} CONTAINER_TAG=staging2 CONTAINER_IMAGE=${STAGING2_IMAGE} \
+			ENVIRONMENT=staging2 CLUSTER_NAME=ml-inference SERVICE_NAME=${SERVICE_NAME} AWS_PROFILE=staging2
 
 deploy-production:
-	$(MAKE) deploy_ecs ARTIFACT=keyphrase-server CONTAINER_TAG=latest CONTAINER_IMAGE=registry.gitlab.com/etherlabs/ether/keyphrase-server \
-			ENVIRONMENT=production CLUSTER_NAME=ml-inference SERVICE_NAME=keyphrase-service AWS_PROFILE=default
+	$(MAKE) deploy_ecs ARTIFACT=${ARTIFACT} CONTAINER_TAG=latest CONTAINER_IMAGE=${CONTAINER_IMAGE} \
+			ENVIRONMENT=production CLUSTER_NAME=ml-inference SERVICE_NAME=${SERVICE_NAME} AWS_PROFILE=default
 
 .PHONY: dependencies
 dependencies:
@@ -36,15 +51,14 @@ dependencies:
 version:
 	git rev-parse HEAD > .version
 
-.PHONY: staging
-staging: version
-	sudo docker build -t ${CONTAINER_IMAGE}:staging . --build-arg app=${app}
-	docker push ${CONTAINER_IMAGE}:staging
 
-.PHONY: staging2
-staging2: version
-	sudo docker build -t ${CONTAINER_IMAGE}:staging2 . --build-arg app=${app}
-	docker push ${CONTAINER_IMAGE}:staging2
+# .PHONY: build
+# build: version
+#     @eval ${LOGIN}
+# 	sudo docker build -t ${CONTAINER_IMAGE}:staging2 . --build-arg app=${app}
+# 	docker push ${CONTAINER_IMAGE}:staging2
+# 	docker tag ${CONTAINER_IMAGE}:${CONTAINER_TAG} ${CONTAINER_IMAGE}:${BRANCH}
+# 	docker push ${CONTAINER_IMAGE}:${BRANCH}
 
 .PHONY: production
 production: version
@@ -54,11 +68,6 @@ production: version
 .PHONY: clean
 clean:
 	rm -f .version
-	docker system prune -f
-
-.PHONY: deploy-staging
-deploy-staging:
-	sup -f Deployfile staging deploy
 
 .PHONY: run
 run:

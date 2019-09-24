@@ -201,6 +201,11 @@ class GraphRank(object):
             # creating keyphrases from the T-top words
             top_words = top_words[: int(nodes_to_keep)]
 
+        # Store the pagerank node weights as a node property
+        nx.set_node_attributes(
+            G=graph_obj, values=normalized_node_weights, name="pagerank"
+        )
+
         return normalized_node_weights, top_words
 
     def _tag_text_for_keywords(
