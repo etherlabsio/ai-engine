@@ -7,3 +7,8 @@ python_library(
     name="grouping-services",
     sources=["group_segments/*"],
 )
+
+python_library(
+    name="action_item_detector",
+    sources=["action_item_detector/*"],
+)
