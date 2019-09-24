@@ -86,14 +86,6 @@ class KeyphraseUtils(object):
         self, keyphrase_object, dict_key="descriptive", preserve_singlewords=False
     ):
 
-        # # Get distinct entities and keyphrases
-        # distinct_entities = list(dict.fromkeys(entity_list))
-        # # distinct_keyword_list = list(dict.fromkeys(keyphrase_list))
-        #
-        # # Post-process entities
-        # distinct_entities = self.post_process_entities(distinct_entities)
-        # # distinct_entities = self.post_process_entities(entity_dict=entity_list)
-
         for i, kp_item in enumerate(keyphrase_object):
 
             # Post-process entities
@@ -215,7 +207,7 @@ class KeyphraseUtils(object):
             modified_keyphrase_dict = keyphrase_dict
             modified_entity_dict = entities_dict
 
-        if len(list(modified_entity_dict.keys())) >= phrase_limit:
+        if len(list(modified_entity_dict.keys())) > entities_limit:
             modified_entity_dict = dict(
                 itertools.islice(modified_entity_dict.items(), entities_limit)
             )
