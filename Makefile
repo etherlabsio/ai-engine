@@ -112,3 +112,9 @@ uploadtos3-mind:
 update-lambda-function-pims:
 	aws s3 cp --profile production dist/pims-serving-lambda.pex s3://io.etherlabs.artifacts/${ENV}/pims-serving-lambda.pex
 	aws lambda update-function-code --function-name pim --s3-bucket io.etherlabs.artifacts --s3-key ${ENV}/pims-serving-lambda.pex
+
+
+.PHONY: update-lambda-function-action_items
+update-lambda-function-action_items:
+	aws s3 cp --profile production dist/action_item_detection.pex s3://io.etherlabs.artifacts/${ENV}/action_item_detection-lambda.pex
+	aws lambda update-function-code --function-name action-detection --s3-bucket io.etherlabs.artifacts --s3-key ${ENV}/action_item_detection-lambda.pex
