@@ -4,16 +4,11 @@ from nats.aio.client import Client as NATS
 import argparse
 import os
 import uvloop
-from dotenv import load_dotenv
-from nltk import word_tokenize, WordNetLemmatizer
 import logging
 from copy import deepcopy
 
-load_dotenv()
-
-ACTIVE_ENV = os.getenv("ACTIVE_ENV")
 NATS_URL = os.getenv("NATS_URL")
-DEFAULT_ENV = os.getenv("DEF_ENV")
+TIMEOUT = os.getenv("TIMEOUT", 20)
 
 logger = logging.getLogger(__name__)
 
@@ -26,9 +21,9 @@ async def publish_keyphrase():
     topic, resp = replace_ids(
         test_json["contextId"], test_json["instanceId"], topic, resp={}
     )
-    await nc.request(topic, json.dumps(test_json).encode())
-    # await nc.flush()
-    # await nc.close()
+    msg = await nc.request(topic, json.dumps(test_json).encode(), timeout=TIMEOUT)
+    data = msg.data.decode()
+    print("Received a message: {data}".format(data=data))
 
 
 async def publish_chapter_keyphrase():
@@ -39,9 +34,9 @@ async def publish_chapter_keyphrase():
     topic, resp = replace_ids(
         test_json["contextId"], test_json["instanceId"], topic, resp={}
     )
-    await nc.request(topic, json.dumps(test_json).encode())
-    # await nc.flush()
-    await nc.close()
+    msg = await nc.request(topic, json.dumps(test_json).encode(), timeout=TIMEOUT)
+    data = msg.data.decode()
+    print("Received a message: {data}".format(data=data))
 
 
 async def publish_chapter_offset_keyphrase():
@@ -52,9 +47,9 @@ async def publish_chapter_offset_keyphrase():
     topic, resp = replace_ids(
         test_json["contextId"], test_json["instanceId"], topic, resp={}
     )
-    await nc.request(topic, json.dumps(test_json).encode())
-    # await nc.flush()
-    await nc.close()
+    msg = await nc.request(topic, json.dumps(test_json).encode(), timeout=TIMEOUT)
+    data = msg.data.decode()
+    print("Received a message: {data}".format(data=data))
 
 
 async def publish_instance_keyphrase():
@@ -65,9 +60,9 @@ async def publish_instance_keyphrase():
     topic, resp = replace_ids(
         test_json["contextId"], test_json["instanceId"], topic, resp={}
     )
-    await nc.request(topic, json.dumps(test_json).encode())
-    # await nc.flush()
-    await nc.close()
+    msg = await nc.request(topic, json.dumps(test_json).encode(), timeout=TIMEOUT)
+    data = msg.data.decode()
+    print("Received a message: {data}".format(data=data))
 
 
 async def reset_keyphrase():
@@ -79,7 +74,6 @@ async def reset_keyphrase():
         test_json["contextId"], test_json["instanceId"], topic, resp={}
     )
     await nc.request(topic, json.dumps(test_json).encode())
-    # await nc.flush()
     await nc.close()
 
 
@@ -101,8 +95,7 @@ async def populate_graph():
         json_dict["segments"] = segment_object_list
 
         await nc.publish(topic, json.dumps(json_dict).encode())
-        await asyncio.sleep(0.5)
-    # await nc.flush()
+        await asyncio.sleep(0.2)
     await nc.close()
 
 
@@ -114,8 +107,6 @@ async def create_context():
 
     topic, resp = replace_ids(topic=topic, resp=resp)
     await nc.publish(topic, json.dumps(resp).encode())
-    # await start_context()
-    # await nc.flush()
     pass
 
 
@@ -126,8 +117,6 @@ async def start_context():
     resp = {"instanceId": "*", "state": "started", "contextId": "*"}
     topic, resp = replace_ids(topic=topic, resp=resp)
     await nc.publish(topic, json.dumps(resp).encode())
-    # await asyncio.sleep(10, loop=loop)
-    # await nc.flush()
     pass
 
 
@@ -247,6 +236,8 @@ def post_process():
 
 
 def _lemmatize_sentence(keyphrase_list):
+    from nltk import word_tokenize, WordNetLemmatizer
+
     tmp_check_list = keyphrase_list
     result = []
     lemma = WordNetLemmatizer()
@@ -313,19 +304,52 @@ if __name__ == "__main__":
         description="topic arguments for keyphrase_service"
     )
     parser.add_argument(
-        "--topics", type=str, default="def", help="publish keyphrase graph"
+        "-t",
+        "--topics",
+        type=str,
+        default="def",
+        help="define nats topics for the keyphrase service to listent to",
     )
     parser.add_argument(
-        "--nats_url", type=str, default=NATS_URL, help="nats server url"
+        "-n", "--nats_url", type=str, default=NATS_URL, help="nats server url address"
+    )
+    parser.add_argument(
+        "-ti",
+        "--timeout",
+        type=int,
+        default=TIMEOUT,
+        help="specify NATS reply timeout in sec",
+    )
+    parser.add_argument(
+        "-mf",
+        "--meeting_file",
+        type=str,
+        default="meeting_test.json",
+        help="specify filename for meeting transcript file for population",
+    )
+    parser.add_argument(
+        "-pf",
+        "--pim_file",
+        type=str,
+        default="pim_test.json",
+        help="specify filename for PIM transcript file to get PIM keyphrases",
+    )
+    parser.add_argument(
+        "-cf",
+        "--chapter_file",
+        type=str,
+        default="chapter_test.json",
+        help="specify filename for chapter transcript file to get chapter keyphrases",
     )
     args = parser.parse_args()
-    nats_url = args.nats_url
 
+    single_json_file = os.path.join(os.getcwd(), args.pim_file)
+    multi_json_file = os.path.join(os.getcwd(), args.chapter_file)
+    meeting_json_file = os.path.join(os.getcwd(), args.meeting_file)
+
+    nats_url = args.nats_url
     asyncio.set_event_loop_policy(uvloop.EventLoopPolicy())
     loop = asyncio.get_event_loop()
-    single_json_file = os.path.join(os.getcwd(), "pim_test.json")
-    multi_json_file = os.path.join(os.getcwd(), "chapter_test.json")
-    meeting_json_file = os.path.join(os.getcwd(), "meeting_test.json")
 
     if args.topics == "def":
         t1 = loop.run_until_complete(create_context())
