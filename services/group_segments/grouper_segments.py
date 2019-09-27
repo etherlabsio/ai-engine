@@ -350,7 +350,7 @@ class community_detection():
                 #     meeting_graph_pruned = self.prune_edges(meeting_graph, graph_list, yetto_prune, 0.15)
                 #     flag = True
                 #     break
-                if mod > max_mod and mod <= 0.36:
+                if mod > max_mod and mod <= 0.6:
                     max_meeting_grap_pruned = meeting_graph_pruned
                     max_community_set = community_set
                     max_mod = mod
