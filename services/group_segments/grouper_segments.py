@@ -64,7 +64,7 @@ class community_detection():
         for nodea in graph_list.keys():
             for nodeb in graph_list.keys():
                 if nodeb > nodea:
-                    c_weight = 1 - cosine(fv[nodea], fv[nodeb])
+                    c_weight = cosine(fv[nodea], fv[nodeb])
                     meeting_graph.add_edge(nodea, nodeb, weight=c_weight)
                     yetto_prune.append((nodea, nodeb, c_weight))
         return meeting_graph, yetto_prune
