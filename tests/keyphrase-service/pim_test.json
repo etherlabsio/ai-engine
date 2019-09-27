@@ -1,0 +1,29 @@
+{
+    "contextId":"6baa3490",
+    "instanceId":"b5d4",
+    "limit": 10,
+    "mindId": "mind123",
+    "segments": [
+        {
+            "id": "0f1aa05f2e944142a18974369bb9b73e",
+            "originalText": "Also as the experiment to test on staging to what time what I've done is calculated in phrase and ent*ties code with respect to segment. I and the overall medium code is also a noted right. So now what I do is I check if any of the key for is lower than this overall quality code and if it is then I just remove it before sending it to platform. ",
+
+            "confidence": 0.86578494,
+            "startTime": "2019-01-29T06:03:02Z",
+            "endTime": "2019-01-29T06:03:14Z",
+            "duration": 12,
+            "recordingId": "9789538caa6d4857a7d6bf47584aafd8",
+            "spokenBy": "394d6dd0-7dbe-4d77-92c6-2af7f8314329",
+            "languageCode": "en-US",
+            "transcriber": "google_speech_api",
+            "status": "completed",
+            "transcriptId": "e62bba58-b959-4aab-af7e-a75737fd736c",
+            "createdAt": "2019-01-29T06:03:18.049750006Z",
+            "updatedAt": "2019-01-29T06:03:39.783385299Z",
+            "deletedAt": null,
+            "deleted": false,
+            "tenantId": "932daeaf-6ae7-44ed-8d8d-f0b6feedc3aa"
+        }
+    ]
+}
+
