@@ -1,8 +1,6 @@
 import logging
-from log.logger import setup_server_logger
 
 logger = logging.getLogger()
-setup_server_logger(debug=True)
 
 
 def get_pims(Request):

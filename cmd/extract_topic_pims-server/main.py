@@ -16,9 +16,9 @@ def handler(event, context):
         else:
             json_request = event['body']
         logger.info("POST request recieved", extra={"request": json_request})
-        Request_obj = decode_json_request(json_request)
+        request_obj = decode_json_request(json_request)
         lambda_function = "mind-" + mindId
-        output_pims = get_pims(Request_obj)
+        output_pims = get_pims(request_obj)
         # output_pims = format_pims_output(pim, json_request, Request_obj.segments_map, mindId)
     except Exception as e:
         logger.warning("Unable to extract topic", extra={"exception": e})
