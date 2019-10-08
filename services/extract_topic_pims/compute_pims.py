@@ -4,12 +4,13 @@ from log.logger import setup_server_logger
 logger = logging.getLogger()
 setup_server_logger(debug=True)
 
+
 def get_pims(Request):
     used_topics = []
     group_no = None
     index = 0
     topic_pim = {}
-    ranked_pims = sorted([(k,v) for (k,v) in Request.pim_result.items()], key= lambda kv: kv[1])
+    ranked_pims = sorted([(k, v) for (k, v) in Request.pim_result.items()], key=lambda kv: kv[1])
 
     for (rec_id, distance) in ranked_pims:
         if rec_id in Request.gs_result.keys():
