@@ -1,7 +1,7 @@
 python_binary(
 	name="server",
 	dependencies = [
-		'services/pims:scorer-libs',
+		'services/scorer:scorer-libs',
 		':scorer-dep',
 		'services:global-services',
         'pkg:common-libs',
@@ -18,6 +18,7 @@ python_library(
         '3rdparty/python:botocore',
         '3rdparty/python:numpy',
         '3rdparty/python:python-json-logger',
+        '3rdparty/python:nltk',
    ],              
 
 )

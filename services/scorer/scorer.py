@@ -23,12 +23,12 @@ class TextSegment:
 class Score(TextSegment):
     score: float
 
-class Scorer(object):
+class Scorer:
     @staticmethod
     def score(mind_id: str, mind_dict, Request: TextSegment) -> Score:
         score = []
         pre_processed_input = preprocess_text(Request.text)
-        lambda_function = "mind-"+mindId
+        lambda_function = "mind-"+mind_id
         transcript_text = Request.text
         if len(pre_processed_input) != 0:
             mind_input = json.dumps({"text": pre_processed_input})
@@ -67,8 +67,7 @@ class Scorer(object):
         mind_selected_list=[]
         if response == 200:
             logger.info('got {} from mind server'.format(response))
-            feature_vector = np.array(data['sent_feats'][0]
-            # Get distance metric
+            feature_vector = np.array(data['sent_feats'][0])
             if len(feature_vector) > 0:
                 # For paragraphs, uncomment below LOC
                 #feature_vector = np.mean(np.array(feature_vector),0).reshape(1,-1)
