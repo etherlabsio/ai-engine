@@ -126,3 +126,4 @@ vendor/
 *.png
 *.gexf
 local/*
+.scorer-old/*
