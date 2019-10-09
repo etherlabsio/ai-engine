@@ -36,7 +36,8 @@ python_library(
     name='text_preprocessing-pkg',
     sources=['text_preprocessing/*.py'],
     dependencies=[
-        'pkg/text_preprocessing:text_preprocessing'
+        'pkg/text_preprocessing:text_preprocessing',
+        '3rdparty/python:nltk',
     ],
     provides=setup_py(
         name='text_preprocessing',
