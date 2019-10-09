@@ -1,18 +1,20 @@
 import json
+
 from dataclasses import dataclass, asdict
 from typing import List
-import logging
-from copy import deepcopy
-from scorer.scorer import TextSegment, Score
+from scorer import TextSegment, Score
+
 
 @dataclass
 class Request:
     mind_id: str
     segments: List[TextSegment] = []
 
+
 @dataclass
 class Response:
     scores: List[Score]
+
 
 def decode_json_request(body) -> Request:
     req = body
