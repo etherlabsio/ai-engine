@@ -1,3 +1,17 @@
+# ---
+# jupyter:
+#   jupytext:
+#     text_representation:
+#       extension: .py
+#       format_name: light
+#       format_version: '1.3'
+#       jupytext_version: 0.8.6
+#   kernelspec:
+#     display_name: Python 3
+#     language: python
+#     name: python3
+# ---
+
 import numpy as np
 from numpy import dot
 from numpy.linalg import norm
@@ -49,13 +63,12 @@ class Scorer:
         return score
 
     @staticmethod
-    def getClusterScore(sent_vec, mind_vec):
-        score = cosine(sent_vec, mind_vec)
-        return score
-
-    @staticmethod
-    def cosine(vec1, vec2):
-        return dot(vec1, vec2) / (norm(vec1) * norm(vec2))
+    def getClusterScore(mind_vec, sent_vec):
+        n1 = norm(mind_vec,axis=1).reshape(1,-1)
+        n2 = norm(sent_vec,axis=1).reshape(-1,1)
+        dotp = dot(sent_vec, mind_vec).squeeze(2)
+        segment_scores = dotp/(n2*n1)
+        return segment_scores
 
     @staticmethod
     def getFeatureVector(mind_input, lambda_function, mind_dict):
@@ -73,13 +86,14 @@ class Scorer:
             if len(feature_vector) > 0:
                 # For paragraphs, uncomment below LOC
                 # feature_vector = np.mean(np.array(feature_vector),0).reshape(1,-1)
-                for sent_vec in feature_vector:
-                    sent_score_list = []
-                    for mind_vec in mind_vector:
-                        sent_score_list.append(getClusterScore(sent_vec, mind_vec))
-                    transcript_score_list.append(np.max(sent_score_list))
-                    # mind_selected_list.append(list(mind_dict['sentence'].values())[np.argmax(sent_score_list)])
-                    # selected_mind = max(mind_selected_list,key=mind_selected_list.count)
+                batch_size = min(10,feature_vector.shape[0])
+                for i in range(0,feature_vector.shape[0],batch_size):
+                    mind_vec = np.expand_dims(np.array(mind_vector),2)
+                    sent_vec = feature_vector[i:i+batch_size]
+
+                    cluster_scores = getClusterScore(mind_vec,sent_vec)
+                    batch_scores = cluster_scores.max(1)
+                    transcript_score_list.extend(batch_scores)
                 transcript_score = np.mean(transcript_score_list)
         else:
             logger.debug('Invalid response from mind service for input: {}'.format(mind_input))
