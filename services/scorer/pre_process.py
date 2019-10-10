@@ -9,5 +9,8 @@ def preprocess_text(text: str) -> List[str]:
     if len(mod_texts_unfiltered) > 1:
         for sentence in mod_texts_unfiltered:
             if len(sentence.split(' ')) > 3:
+                if sentence[-1] not in [".","?","!"]:
+                    sentence += "."
+                sentence = sentence.replace("?.","?")
                 mod_texts.append(sentence)
     return mod_texts

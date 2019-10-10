@@ -4,7 +4,7 @@ import boto3
 
 s3 = boto3.resource('s3')
 
-def loadMindFeatures(mind_id):
+def load_mind_features(mind_id):
     # BUCKET_NAME = io.etherlabs.artifacts
     bucket = os.getenv('BUCKET_NAME', 'io.etherlabs.artifacts')
     # MINDS = staging2/minds/

@@ -7,17 +7,17 @@ import os
 import logging
 from log.logger import setup_server_logger
 import json
-from mind_utils import loadMindFeatures
+from mind_utils import load_mind_features
 from transport import decode_json_request, Response, Request, AWSLambdaTransport
-from scorer.scorer import Scorer
+from scorer.scorer import get_score
 from copy import deepcopy
 logger = logging.getLogger()
 
 
 def handler(event, context):
     Request = decode_json_request(event)
-    mind_dict = loadMindFeatures(Request.mind_id)
-    scores = list(map(lambda s: Scorer.score(Request.mind_id, mind_dict, s), Request.segments))
+    mind_dict = load_mind_features(Request.mind_id)
+    scores = list(map(lambda s: get_score(Request.mind_id, mind_dict, s), Request.segments))
     out_response = []
     assert(len(Request.segments) == len(scores))
     for index in range(len(scores)):

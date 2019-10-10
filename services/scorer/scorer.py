@@ -40,63 +40,59 @@ class Score(TextSegment):
     score: float
 
 
-class Scorer:
-    @staticmethod
-    def score(mind_id: str, mind_dict, Request: TextSegment) -> Score:
-        score = []
-        pre_processed_input = preprocess_text(Request.text)
-        lambda_function = "mind-" + mind_id
-        transcript_text = Request.text
-        if len(pre_processed_input) != 0:
-            mind_input = json.dumps({"text": pre_processed_input})
-            mind_input = json.dumps({"body": mind_input})
-            logger.info('sending request to mind service')
-            transcript_score = getFeatureVector(mind_input, lambda_function, mind_dict)
-        else:
-            transcript_score = 0.00001
-            logger.warn('processing transcript: {}'.format(transcript_text))
-            logger.warn('transcript too small to process. Returning default score')
-        # hack to penalize out of domain small transcripts coming as PIMs - word level
-        if len(transcript_text.split(' ')) < 40:
-            transcript_score = 0.1 * transcript_score
-        score = 1 / transcript_score
-        return score
-
-    @staticmethod
-    def getClusterScore(mind_vec, sent_vec):
-        n1 = norm(mind_vec,axis=1).reshape(1,-1)
-        n2 = norm(sent_vec,axis=1).reshape(-1,1)
-        dotp = dot(sent_vec, mind_vec).squeeze(2)
-        segment_scores = dotp/(n2*n1)
-        return segment_scores
-
-    @staticmethod
-    def getFeatureVector(mind_input, lambda_function, mind_dict):
-        invoke_response = lambda_client.invoke(FunctionName=lambda_function, InvocationType='RequestResponse', Payload=mind_input)
-        out_json = invoke_response['Payload'].read().decode('utf8').replace("'", '"')
-        data = json.loads(json.loads(out_json)['body'])
-        response = json.loads(out_json)['statusCode']
-        feats = list(mind_dict['feature_vector'].values())
-        mind_vector = np.array(feats).reshape(len(feats), -1)
+def get_score(mind_id: str, mind_dict, Request: TextSegment) -> Score:
+    score = []
+    pre_processed_input = preprocess_text(Request.text)
+    lambda_function = "mind-" + mind_id
+    transcript_text = Request.text
+    if len(pre_processed_input) != 0:
+        mind_input = json.dumps({"text": pre_processed_input})
+        mind_input = json.dumps({"body": mind_input})
+        logger.info('sending request to mind service')
+        transcript_score = get_feature_vector(mind_input, lambda_function, mind_dict)
+    else:
         transcript_score = 0.00001
-        transcript_score_list = []
-        if response == 200:
-            logger.info('got {} from mind server'.format(response))
-            feature_vector = np.array(data['sent_feats'][0])
-            if len(feature_vector) > 0:
-                # For paragraphs, uncomment below LOC
-                # feature_vector = np.mean(np.array(feature_vector),0).reshape(1,-1)
-                batch_size = min(10,feature_vector.shape[0])
-                for i in range(0,feature_vector.shape[0],batch_size):
-                    mind_vec = np.expand_dims(np.array(mind_vector),2)
-                    sent_vec = feature_vector[i:i+batch_size]
+        logger.warn('processing transcript: {}'.format(transcript_text))
+        logger.warn('transcript too small to process. Returning default score')
+    # hack to penalize out of domain small transcripts coming as PIMs - word level
+    if len(transcript_text.split(' ')) < 40:
+        transcript_score = 0.1 * transcript_score
+    score = 1 / transcript_score
+    return score
 
-                    cluster_scores = getClusterScore(mind_vec,sent_vec)
-                    batch_scores = cluster_scores.max(1)
-                    transcript_score_list.extend(batch_scores)
-                transcript_score = np.mean(transcript_score_list)
-        else:
-            logger.debug('Invalid response from mind service for input: {}'.format(mind_input))
-            logger.debug('Returning default score')
+def getClusterScore(mind_vec, sent_vec):
+    n1 = norm(mind_vec,axis=1).reshape(1,-1)
+    n2 = norm(sent_vec,axis=1).reshape(-1,1)
+    dotp = dot(sent_vec, mind_vec).squeeze(2)
+    segment_scores = dotp/(n2*n1)
+    return segment_scores
 
-        return transcript_score
+def get_feature_vector(mind_input, lambda_function, mind_dict):
+    invoke_response = lambda_client.invoke(FunctionName=lambda_function, InvocationType='RequestResponse', Payload=mind_input)
+    out_json = invoke_response['Payload'].read().decode('utf8').replace("'", '"')
+    data = json.loads(json.loads(out_json)['body'])
+    response = json.loads(out_json)['statusCode']
+    feats = list(mind_dict['feature_vector'].values())
+    mind_vector = np.array(feats).reshape(len(feats), -1)
+    transcript_score = 0.00001
+    transcript_score_list = []
+    if response == 200:
+        logger.info('got {} from mind server'.format(response))
+        feature_vector = np.array(data['sent_feats'][0])
+        if len(feature_vector) > 0:
+            # For paragraphs, uncomment below LOC
+            # feature_vector = np.mean(np.array(feature_vector),0).reshape(1,-1)
+            batch_size = min(10,feature_vector.shape[0])
+            for i in range(0,feature_vector.shape[0],batch_size):
+                mind_vec = np.expand_dims(np.array(mind_vector),2)
+                sent_vec = feature_vector[i:i+batch_size]
+
+                cluster_scores = getClusterScore(mind_vec,sent_vec)
+                batch_scores = cluster_scores.max(1)
+                transcript_score_list.extend(batch_scores)
+            transcript_score = np.mean(transcript_score_list)
+    else:
+        logger.debug('Invalid response from mind service for input: {}'.format(mind_input))
+        logger.debug('Returning default score')
+
+    return transcript_score
