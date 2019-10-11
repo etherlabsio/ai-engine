@@ -1,30 +1,31 @@
 python_binary(
 	name="server",
 	dependencies = [
-		'services/minds:minds-libs',
-		':minds-dep',
+		'services/scorer:scorer-libs',
+		':scorer-dep',
 		'services:global-services',
         'pkg:common-libs',
 	],
 	source="main.py",
-    compatibility=['CPython==3.7.*'],
+        compatibility=['CPython==3.7.*'],
 )
 
 python_library(
-	name="minds-dep",
+	name="scorer-dep",
 	dependencies=[
 		'3rdparty/python:iso8601',
         '3rdparty/python:boto3',
         '3rdparty/python:botocore',
         '3rdparty/python:numpy',
         '3rdparty/python:python-json-logger',
-        '3rdparty/python:requests',
-        ]
+        '3rdparty/python:nltk',
+   ],              
+
 )
 
 
 python_awslambda(
-  name='minds_lambda',
+  name='scorer_lambda',
   binary=':server',
   handler='main:handler',
 )
