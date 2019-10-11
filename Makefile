@@ -127,8 +127,13 @@ update-lambda-function-gs:
 	aws s3 cp --profile production dist/group_segments_code.pex s3://io.etherlabs.artifacts/${ENV}/group_segments_code.pex
 	aws lambda update-function-code --function-name group-segments --s3-bucket io.etherlabs.artifacts --s3-key ${ENV}/group_segments_code.pex
 
-.PHONY: test-pex
-test-pex:
+.PHONY: minds-testing
+minds-testing:
+	./pants bundle cmd/minds-server:minds_lambda
+	aws s3 cp --profile staging2 dist/minds_lambda.pex s3://io.etherlabs.staging2.contexts/topics/minds_lambda.pex
+	aws lambda update-function-code --function-name pex_test --s3-bucket io.etherlabs.staging2.contexts --s3-key topics/minds_lambda.pex --profile staging2 --region=us-east-1
+.PHONY: scorer-testing
+scorer-testing:
 	./pants bundle cmd/scorer-server:scorer_lambda
 	aws s3 cp --profile staging2 dist/scorer_lambda.pex s3://io.etherlabs.staging2.contexts/topics/scorer_lambda.pex
 	aws lambda update-function-code --function-name pex_test --s3-bucket io.etherlabs.staging2.contexts --s3-key topics/scorer_lambda.pex --profile staging2 --region=us-east-1

@@ -24,7 +24,7 @@ python_library(
 
 
 python_awslambda(
-  name='lambda_build',
+  name='minds_lambda',
   binary=':server',
   handler='main:handler',
 )
