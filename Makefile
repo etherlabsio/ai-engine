@@ -117,10 +117,10 @@ update-lambda-function-mind:
 uploadtos3-mind:
 	aws s3 cp --profile production dist/mind-serving-lambda.pex s3://io.etherlabs.artifacts/${ENV}/mind-serving-lambda.pex
 
-.PHONY: update-lambda-function-pims
-update-lambda-function-pims:
-	aws s3 cp --profile production dist/pims-serving-lambda.pex s3://io.etherlabs.artifacts/${ENV}/pims-serving-lambda.pex
-	aws lambda update-function-code --function-name pim --s3-bucket io.etherlabs.artifacts --s3-key ${ENV}/pims-serving-lambda.pex
+.PHONY: update-lambda-function-scorer
+update-lambda-function-scorer:
+	aws s3 cp --profile production dist/scorer_lambda.pex s3://io.etherlabs.artifacts/${ENV}/scorer_lambda.pex
+	aws lambda update-function-code --function-name pim --s3-bucket io.etherlabs.artifacts --s3-key ${ENV}/scorer_lambda.pex
 
 .PHONY: update-lambda-function-gs
 update-lambda-function-gs:

@@ -12,9 +12,11 @@ from transport import decode_json_request, Response, Request, AWSLambdaTransport
 from scorer.scorer import get_score
 from copy import deepcopy
 logger = logging.getLogger()
+setup_server_logger(debug=True)
 
 
 def handler(event, context):
+    logger.info("POST request Recieved: ", extra={"Request": event})
     Request = decode_json_request(event)
     mind_dict = load_mind_features(Request.mind_id)
     scores = list(map(lambda s: get_score(Request.mind_id, mind_dict, s), Request.segments))

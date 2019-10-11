@@ -19,7 +19,7 @@ class Response:
 
 def decode_json_request(body) -> Request:
     req = body
-    if isinstance(body, str):
+    if isinstance(body['body'], str):
         req = json.loads(body['body'])
     else:
         req = body['body']
