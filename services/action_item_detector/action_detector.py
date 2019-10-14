@@ -142,7 +142,6 @@ def post_process_ai_check(candidate_text):  #returns is_ai flag and candidate ac
         ret_candidate = candidate_ais[0]
     return is_ai_flag,ret_candidate
 
-
 def get_ai_sentences(model, transcript_text, ai_confidence_threshold=0.5):
 
     #detected_ai_list = []
