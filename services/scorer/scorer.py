@@ -75,6 +75,7 @@ def get_feature_vector(mind_input, lambda_function, mind_dict):
     feats = list(mind_dict['feature_vector'].values())
     mind_vector = np.array(feats).reshape(len(feats), -1)
     transcript_score = 0.00001
+    transcript_mind_list=[]
     transcript_score_list = []
     if response == 200:
         logger.info('got {} from mind server'.format(response))
@@ -88,9 +89,14 @@ def get_feature_vector(mind_input, lambda_function, mind_dict):
                 sent_vec = feature_vector[i:i+batch_size]
 
                 cluster_scores = getClusterScore(mind_vec,sent_vec)
+
                 batch_scores = cluster_scores.max(1)
                 transcript_score_list.extend(batch_scores)
+
+                minds_selected = cluster_scores.argmax(1)
+                transcript_mind_list.extend(minds_selected)
             transcript_score = np.mean(transcript_score_list)
+            logger.info("Mind Selected is {}".format({ele:transcript_mind_list.count(ele) for ele in set(transcript_mind_list)}))
     else:
         logger.debug('Invalid response from mind service for input: {}'.format(mind_input))
         logger.debug('Returning default score')
