@@ -135,5 +135,5 @@ minds-testing:
 .PHONY: scorer-testing
 scorer-testing:
 	./pants bundle cmd/scorer-server:scorer_lambda
-	aws s3 cp --profile staging2 dist/scorer_lambda.pex s3://io.etherlabs.staging2.contexts/topics/scorer_lambda.pex
+	aws s3 cp --profile production dist/scorer_lambda.pex 
 	aws lambda update-function-code --function-name pex_test --s3-bucket io.etherlabs.staging2.contexts --s3-key topics/scorer_lambda.pex --profile staging2 --region=us-east-1
