@@ -48,9 +48,7 @@ class community_detection():
                 if sent != '':
                     input_list.append(sent)
 
-        mind_input = json.dumps({"text": input_list})
-        mind_input = json.dumps({"body": mind_input})
-        transcript_score = scorer.get_feature_vector(mind_input, self.lambda_function)
+        transcript_score = scorer.get_feature_vector(input_list, self.lambda_function)
         for segment in self.segments_list:
             for sent in segment['originalText']:
                 if sent != '':

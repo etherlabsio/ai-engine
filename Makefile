@@ -126,3 +126,8 @@ update-lambda-function-pims:
 update-lambda-function-gs:
 	aws s3 cp --profile production dist/group_segments_code.pex s3://io.etherlabs.artifacts/${ENV}/group_segments_code.pex
 	aws lambda update-function-code --function-name group-segments --s3-bucket io.etherlabs.artifacts --s3-key ${ENV}/group_segments_code.pex
+
+.PHONY: update-lambda-function-et
+update-lambda-function-et:
+	aws s3 cp --profile production dist/extract_topics_lambda.pex s3://io.etherlabs.artifacts/${ENV}/extract_topics_lambda.pex
+	aws lambda update-function-code --function-name pex_test --s3-bucket io.etherlabs.artifacts --s3-key ${ENV}/extract_topics_lambda.pex

@@ -25,7 +25,7 @@ python_library(
 )
 
 python_awslambda(
-  name='lambda_build',
+  name='extract_topics_lambda',
   binary=':server',
   handler='main:handler',
 )
