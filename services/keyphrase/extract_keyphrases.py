@@ -469,27 +469,40 @@ class KeyphraseExtractor(object):
             )
 
             if rank:
-                keyphrase_object = self.ranker.compute_local_relevance(
-                    keyphrase_object=keyphrase_object,
-                    context_graph=context_graph,
-                    normalize=False,
-                )
+                try:
+                    keyphrase_object = self.ranker.compute_local_relevance(
+                        keyphrase_object=keyphrase_object,
+                        context_graph=context_graph,
+                        normalize=False,
+                    )
 
-                # Compute the relevance of entities
-                keyphrase_object = self.ranker.compute_local_relevance(
-                    keyphrase_object=keyphrase_object,
-                    context_graph=context_graph,
-                    normalize=False,
-                    dict_key="entities",
-                )
+                    # Compute the relevance of entities
+                    keyphrase_object = self.ranker.compute_local_relevance(
+                        keyphrase_object=keyphrase_object,
+                        context_graph=context_graph,
+                        normalize=False,
+                        dict_key="entities",
+                    )
 
-            keyphrases, keyphrase_object = self.prepare_keyphrase_output(
-                keyphrase_object=keyphrase_object,
-                top_n=n_kw,
-                default_form=default_form,
-                rank_by=rank_by,
-                sort_by=sort_by,
-            )
+                    keyphrases, keyphrase_object = self.prepare_keyphrase_output(
+                        keyphrase_object=keyphrase_object,
+                        top_n=n_kw,
+                        default_form=default_form,
+                        rank_by=rank_by,
+                        sort_by=sort_by,
+                    )
+                except Exception as e:
+                    logger.warning(
+                        "Error computing keyphrase relevance", extra={"warnMsg": e}
+                    )
+
+                    keyphrases, keyphrase_object = self.prepare_keyphrase_output(
+                        keyphrase_object=keyphrase_object,
+                        top_n=n_kw,
+                        default_form=default_form,
+                        rank_by="pagerank",
+                        sort_by=sort_by,
+                    )
 
             if validate:
                 self.utils.write_to_json(keyphrase_object)
@@ -501,7 +514,7 @@ class KeyphraseExtractor(object):
 
             # TODO need to separate it and move to context-graph-constructor service
             # Populate PIM keyphrases to context graph
-            if n_kw > 6:
+            if n_kw == 10:
                 original_pim_keyphrases = list(keyphrase_object[0]["original"].keys())
                 self._update_context_with_keyphrases(
                     req_data=req_data,
@@ -513,6 +526,9 @@ class KeyphraseExtractor(object):
                 )
                 logger.info("Updated context graph with PIM keyphrases")
 
+            result = {"keyphrases": keyphrases}
+            return result
+
         except Exception as e:
             end = timer()
             logger.error(
@@ -520,15 +536,12 @@ class KeyphraseExtractor(object):
                 extra={
                     "responseTime": end - start,
                     "instanceId": req_data["instanceId"],
-                    "segmentObj": req_data["segments"],
+                    "segmentsReceived": [seg_id["id"] for seg_id in segment_object],
                     "err": traceback.print_exc(),
                     "errMsg": e,
                 },
             )
-
-        result = {"keyphrases": keyphrases}
-
-        return result
+            raise
 
     def get_keyphrases_with_offset(
         self,
