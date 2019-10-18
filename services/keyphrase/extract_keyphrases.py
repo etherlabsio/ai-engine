@@ -79,7 +79,10 @@ class KeyphraseExtractor(object):
         # Populate context information into meeting-knowledge-graph
         context_graph = self.kg.populate_context_info(request=req_data, g=context_graph)
         context_graph = self.kg.populate_word_graph_info(
-            request=req_data, context_graph=context_graph, word_graph=meeting_word_graph
+            request=req_data,
+            context_graph=context_graph,
+            word_graph=meeting_word_graph,
+            state="processing",
         )
 
         logger.info(
@@ -381,6 +384,8 @@ class KeyphraseExtractor(object):
                 },
             )
 
+        logger.info("Computed embeddings and populated successfully ...")
+
         return context_graph, meeting_word_graph
 
     def encode_word_graph(self, word_graph):
@@ -414,16 +419,15 @@ class KeyphraseExtractor(object):
                 )
 
             # handle the situation when word graph is removed but gets request later
-            if (
-                meeting_word_graph.graph.get("state") == "reset"
-                and meeting_word_graph.number_of_nodes() == 0
-            ):
+            print(meeting_word_graph.graph.get("state"))
+            if meeting_word_graph.graph.get("state") == "reset":
                 # Repopulate the graphs
                 logger.info("re-populating graph since it is in reset state")
                 context_graph = self.kg.populate_word_graph_info(
                     request=req_data,
                     context_graph=context_graph,
                     word_graph=meeting_word_graph,
+                    state="reset",
                 )
 
                 # Write it back to s3
@@ -493,7 +497,8 @@ class KeyphraseExtractor(object):
                     )
                 except Exception as e:
                     logger.warning(
-                        "Error computing keyphrase relevance", extra={"warnMsg": e}
+                        "Error computing keyphrase relevance",
+                        extra={"warnMsg": e, "trace": traceback.print_exc()},
                     )
 
                     keyphrases, keyphrase_object = self.prepare_keyphrase_output(
