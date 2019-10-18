@@ -98,6 +98,9 @@ yet you your yours yourself yourselves
 )
 
 stop_words = set(list(stop_words) + stop_words_spacy)
+stop_words = stop_words-set(['get','give','go','do','make','please'])
+stop_words = set(list(stop_words)+list(stop_words_spacy))
+
 tokenizer = BertTokenizer('bert-base-uncased-vocab.txt')
 
 c_kp = CandidateKPExtractor(stop_words)
