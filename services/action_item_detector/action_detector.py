@@ -156,6 +156,10 @@ def post_process_ai_check(candidate_text):  #returns is_ai flag and candidate ac
     return is_ai_flag,ret_candidate
 
 
+def matcher(matchObj):
+    return matchObj.group(0)[0]+matchObj.group(0)[1]+" "+matchObj.group(0)[2]    
+
+
 def get_ai_sentences(model, transcript_text, ai_confidence_threshold=0.5):
 
     #detected_ai_list = []
@@ -165,17 +169,14 @@ def get_ai_sentences(model, transcript_text, ai_confidence_threshold=0.5):
             "Invalid transcript. Returning empty list",
             extra={"input text": transcript_text},)
     else:
+        transcript_text = re.sub("[a-z][.?][A-Z]",matcher,transcript_text)
         sent_list = sent_tokenize(transcript_text)
-        print('Input sentence list: ', sent_list)
         for sent in sent_list:
             if len(sent.split(' '))>2:
-                if (sent[-1]!="?" and sent[-2]!="?"):
-                    print('? check passed for: ', sent)
-                    sent_ai_prob = get_ai_probability(model, sent)
-                    print('get_ai_probability: ', sent_ai_prob)
-                    if sent_ai_prob >= ai_confidence_threshold and post_process_ai_check(sent)[0]:
-                        #detected_ai_list.append(sent)
-                        print('Appending into list: ', sent)
-                        #action_item_candidate.append(post_process_ai_check(sent)[1])
-                        action_item_candidate.append(sent)
+                # if (sent[-1]!="?" and sent[-2]!="?"):
+                sent_ai_prob = get_ai_probability(model, sent)
+                if sent_ai_prob >= ai_confidence_threshold and post_process_ai_check(sent)[0]:
+                    #detected_ai_list.append(sent)
+                    #action_item_candidate.append(post_process_ai_check(sent)[1])
+                    action_item_candidate.append(sent)
     return action_item_candidate
