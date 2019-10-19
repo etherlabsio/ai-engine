@@ -167,7 +167,7 @@ def get_ai_sentences(model, transcript_text, ai_confidence_threshold=0.5):
         sent_list = sent_tokenize(transcript_text)
         for sent in sent_list:
             if len(sent.split(' '))>2:
-                if (sent[-1]!=? and sent[-2]!=?):
+                if (sent[-1]!="?" and sent[-2]!="?"):
                     sent_ai_prob = get_ai_probability(model, sent)
                     if sent_ai_prob >= ai_confidence_threshold and post_process_ai_check(sent)[0]:
                         #detected_ai_list.append(sent)
