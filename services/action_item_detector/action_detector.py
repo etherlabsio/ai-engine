@@ -142,11 +142,12 @@ def post_process_ai_check(candidate_text):  #returns is_ai flag and candidate ac
     candidate_ais = c_kp.get_ai_subjects(candidate_text)
 
     drop_ctr = 0
+    #stop_drop_list = []
     for ai_sub in candidate_ais: #remove action items that are starting with stop_words
         if ai_sub.split(' ')[0] in stop_words:
             drop_ctr+=1
         if drop_ctr==len(candidate_ais):
-            stop_drop_list.append(ai_sent)
+            #stop_drop_list.append(ai_sent)
             candidate_ais = []
 
     if len(candidate_ais)>=1:
@@ -165,11 +166,16 @@ def get_ai_sentences(model, transcript_text, ai_confidence_threshold=0.5):
             extra={"input text": transcript_text},)
     else:
         sent_list = sent_tokenize(transcript_text)
+        print('Input sentence list: ', sent_list)
         for sent in sent_list:
             if len(sent.split(' '))>2:
                 if (sent[-1]!="?" and sent[-2]!="?"):
+                    print('? check passed for: ', sent)
                     sent_ai_prob = get_ai_probability(model, sent)
+                    print('get_ai_probability: ', sent_ai_prob)
                     if sent_ai_prob >= ai_confidence_threshold and post_process_ai_check(sent)[0]:
                         #detected_ai_list.append(sent)
-                        action_item_candidate.append(post_process_ai_check(sent)[1])
+                        print('Appending into list: ', sent)
+                        #action_item_candidate.append(post_process_ai_check(sent)[1])
+                        action_item_candidate.append(sent)
     return action_item_candidate
