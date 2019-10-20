@@ -1,3 +1,6 @@
+import os
+import re
+
 import torch
 import torch.nn as nn
 from bert_utils.modeling_bert import BertConfig, BertPreTrainedModel, BertModel
@@ -8,8 +11,8 @@ from log.logger import setup_server_logger
 
 import nltk
 from nltk.tokenize import sent_tokenize
-import os
 from text_utils import CandidateKPExtractor
+
 
 logger = logging.getLogger(__name__)
 setup_server_logger(debug=True)
@@ -23,7 +26,6 @@ nltk.download("stopwords", download_dir="/tmp/nltk_data")
 nltk.download("punkt", download_dir="/tmp/nltk_data")
 nltk.download("averaged_perceptron_tagger", download_dir="/tmp/nltk_data")
 from nltk.corpus import stopwords
-
 
 stop_words = set(stopwords.words("english"))
 stop_words.add('hear')
@@ -179,4 +181,8 @@ def get_ai_sentences(model, transcript_text, ai_confidence_threshold=0.5):
                     #detected_ai_list.append(sent)
                     #action_item_candidate.append(post_process_ai_check(sent)[1])
                     action_item_candidate.append(sent)
+    #map action_items to users
+    # 0 - current segment speaker
+    # 1 - previous segment speaker
+    # 2 - current and previous user
     return action_item_candidate
