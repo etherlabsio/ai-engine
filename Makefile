@@ -43,6 +43,10 @@ deploy-production:
 	$(MAKE) deploy_ecs ARTIFACT=${ARTIFACT} CONTAINER_TAG=latest CONTAINER_IMAGE=${CONTAINER_IMAGE} \
 			ENVIRONMENT=production CLUSTER_NAME=ml-inference SERVICE_NAME=${SERVICE_NAME} AWS_PROFILE=default
 
+.PHONY: clean
+clean:
+	rm -f .version
+
 .PHONY: dependencies.pex
 
 .PHONY: update-lambda-function-scorer
