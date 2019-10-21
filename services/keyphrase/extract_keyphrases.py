@@ -79,7 +79,10 @@ class KeyphraseExtractor(object):
         # Populate context information into meeting-knowledge-graph
         context_graph = self.kg.populate_context_info(request=req_data, g=context_graph)
         context_graph = self.kg.populate_word_graph_info(
-            request=req_data, context_graph=context_graph, word_graph=meeting_word_graph
+            request=req_data,
+            context_graph=context_graph,
+            word_graph=meeting_word_graph,
+            state="processing",
         )
 
         logger.info(
@@ -381,6 +384,8 @@ class KeyphraseExtractor(object):
                 },
             )
 
+        logger.info("Computed embeddings and populated successfully ...")
+
         return context_graph, meeting_word_graph
 
     def encode_word_graph(self, word_graph):
@@ -414,16 +419,14 @@ class KeyphraseExtractor(object):
                 )
 
             # handle the situation when word graph is removed but gets request later
-            if (
-                meeting_word_graph.graph.get("state") == "reset"
-                and meeting_word_graph.number_of_nodes() == 0
-            ):
+            if meeting_word_graph.graph.get("state") == "reset":
                 # Repopulate the graphs
                 logger.info("re-populating graph since it is in reset state")
                 context_graph = self.kg.populate_word_graph_info(
                     request=req_data,
                     context_graph=context_graph,
                     word_graph=meeting_word_graph,
+                    state="reset",
                 )
 
                 # Write it back to s3
@@ -469,27 +472,41 @@ class KeyphraseExtractor(object):
             )
 
             if rank:
-                keyphrase_object = self.ranker.compute_local_relevance(
-                    keyphrase_object=keyphrase_object,
-                    context_graph=context_graph,
-                    normalize=False,
-                )
+                try:
+                    keyphrase_object = self.ranker.compute_local_relevance(
+                        keyphrase_object=keyphrase_object,
+                        context_graph=context_graph,
+                        normalize=False,
+                    )
 
-                # Compute the relevance of entities
-                keyphrase_object = self.ranker.compute_local_relevance(
-                    keyphrase_object=keyphrase_object,
-                    context_graph=context_graph,
-                    normalize=False,
-                    dict_key="entities",
-                )
+                    # Compute the relevance of entities
+                    keyphrase_object = self.ranker.compute_local_relevance(
+                        keyphrase_object=keyphrase_object,
+                        context_graph=context_graph,
+                        normalize=False,
+                        dict_key="entities",
+                    )
 
-            keyphrases, keyphrase_object = self.prepare_keyphrase_output(
-                keyphrase_object=keyphrase_object,
-                top_n=n_kw,
-                default_form=default_form,
-                rank_by=rank_by,
-                sort_by=sort_by,
-            )
+                    keyphrases, keyphrase_object = self.prepare_keyphrase_output(
+                        keyphrase_object=keyphrase_object,
+                        top_n=n_kw,
+                        default_form=default_form,
+                        rank_by=rank_by,
+                        sort_by=sort_by,
+                    )
+                except Exception as e:
+                    logger.warning(
+                        "Error computing keyphrase relevance",
+                        extra={"warnMsg": e, "trace": traceback.print_exc()},
+                    )
+
+                    keyphrases, keyphrase_object = self.prepare_keyphrase_output(
+                        keyphrase_object=keyphrase_object,
+                        top_n=n_kw,
+                        default_form=default_form,
+                        rank_by="pagerank",
+                        sort_by=sort_by,
+                    )
 
             if validate:
                 self.utils.write_to_json(keyphrase_object)
@@ -501,7 +518,7 @@ class KeyphraseExtractor(object):
 
             # TODO need to separate it and move to context-graph-constructor service
             # Populate PIM keyphrases to context graph
-            if n_kw > 6:
+            if n_kw == 10:
                 original_pim_keyphrases = list(keyphrase_object[0]["original"].keys())
                 self._update_context_with_keyphrases(
                     req_data=req_data,
@@ -513,6 +530,9 @@ class KeyphraseExtractor(object):
                 )
                 logger.info("Updated context graph with PIM keyphrases")
 
+            result = {"keyphrases": keyphrases}
+            return result
+
         except Exception as e:
             end = timer()
             logger.error(
@@ -520,15 +540,12 @@ class KeyphraseExtractor(object):
                 extra={
                     "responseTime": end - start,
                     "instanceId": req_data["instanceId"],
-                    "segmentObj": req_data["segments"],
+                    "segmentsReceived": [seg_id["id"] for seg_id in segment_object],
                     "err": traceback.print_exc(),
                     "errMsg": e,
                 },
             )
-
-        result = {"keyphrases": keyphrases}
-
-        return result
+            raise
 
     def get_keyphrases_with_offset(
         self,
@@ -796,14 +813,25 @@ class KeyphraseExtractor(object):
             )
 
             # For chapters: Choose top-n from each segment for better diversity
-            ranked_entities_dict, ranked_keyphrase_dict = self.utils.limit_phrase_list(
-                entities_dict=ranked_entities_dict,
-                keyphrase_dict=ranked_keyphrase_dict,
-                phrase_limit=top_n,
-                entities_limit=2,
-                keyphrase_object=keyphrase_object,
-                remove_phrases=True,
-            )
+            try:
+                ranked_entities_dict, ranked_keyphrase_dict = self.utils.limit_phrase_list(
+                    entities_dict=ranked_entities_dict,
+                    keyphrase_dict=ranked_keyphrase_dict,
+                    phrase_limit=top_n,
+                    entities_limit=2,
+                    keyphrase_object=keyphrase_object,
+                    remove_phrases=True,
+                )
+            except Exception as e:
+                logger.warning("Not removing phrases by quality", extra={"warnMsg": e})
+                ranked_entities_dict, ranked_keyphrase_dict = self.utils.limit_phrase_list(
+                    entities_dict=ranked_entities_dict,
+                    keyphrase_dict=ranked_keyphrase_dict,
+                    phrase_limit=top_n,
+                    entities_limit=2,
+                    keyphrase_object=keyphrase_object,
+                    remove_phrases=False,
+                )
 
             final_keyphrase_dict = {**ranked_keyphrase_dict, **final_keyphrase_dict}
             final_entity_dict = {**ranked_entities_dict, **final_entity_dict}
@@ -830,14 +858,25 @@ class KeyphraseExtractor(object):
         )
 
         # Limit keyphrase list to top-n
-        final_entity_dict, final_keyphrase_dict = self.utils.limit_phrase_list(
-            entities_dict=final_entity_dict,
-            keyphrase_dict=final_keyphrase_dict,
-            phrase_limit=top_n,
-            entities_limit=2,
-            keyphrase_object=keyphrase_object,
-            remove_phrases=True,
-        )
+        try:
+            final_entity_dict, final_keyphrase_dict = self.utils.limit_phrase_list(
+                entities_dict=final_entity_dict,
+                keyphrase_dict=final_keyphrase_dict,
+                phrase_limit=top_n,
+                entities_limit=2,
+                keyphrase_object=keyphrase_object,
+                remove_phrases=True,
+            )
+        except Exception as e:
+            logger.warning("Not removing phrases by quality", extra={"warnMsg": e})
+            final_entity_dict, final_keyphrase_dict = self.utils.limit_phrase_list(
+                entities_dict=final_entity_dict,
+                keyphrase_dict=final_keyphrase_dict,
+                phrase_limit=top_n,
+                entities_limit=2,
+                keyphrase_object=keyphrase_object,
+                remove_phrases=False,
+            )
 
         logger.debug(
             "Keyphrase and entity list after limiting",

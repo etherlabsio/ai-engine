@@ -185,8 +185,9 @@ class KnowledgeGraph(object):
 
         return g
 
-    def populate_word_graph_info(self, request, context_graph, word_graph):
+    def populate_word_graph_info(self, request, context_graph, word_graph, **kwargs):
         instance_id = request["instanceId"]
+        state = kwargs.get("state", "processing")
 
         # Add word graph as a node in the context graph
         context_graph.add_node(
@@ -194,7 +195,7 @@ class KnowledgeGraph(object):
             attribute="wordGraph",
             type="graphObject",
             graphId=word_graph.graph.get("graphId"),
-            state="processing",
+            state=state,
         )
 
         # Add edge between instanceId and word graph
