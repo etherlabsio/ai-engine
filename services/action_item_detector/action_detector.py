@@ -1,5 +1,6 @@
 import os
 import re
+import zipfile
 
 import torch
 import torch.nn as nn
@@ -13,6 +14,19 @@ import nltk
 from nltk.tokenize import sent_tokenize
 from text_utils import CandidateKPExtractor
 
+# import spacy
+# #download and unzip spacy
+# #client = boto3.client('s3')
+# s3 = boto3.client('s3')
+# bucket = os.getenv('BUCKET_NAME')
+# spacy_en_model_path = os.getenv('SPACY_MODEL_PATH')
+# spacy.util.set_data_path('/opt')
+# s3.download_file(bucket,spacy_en_model_path,"/opt")
+# #unzip the file
+# with zipfile.ZipFile("/opt/en_core_web_sm.zip","r") as zip_ref:
+#     zip_ref.extractall("/opt/")
+# nlp = spacy.load("en_core_web_sm")
+# print('Spacy NLP Loaded')
 
 logger = logging.getLogger(__name__)
 setup_server_logger(debug=True)
@@ -102,6 +116,7 @@ yet you your yours yourself yourselves
 stop_words = set(list(stop_words) + stop_words_spacy)
 stop_words = stop_words-set(['get','give','go','do','make','please'])
 stop_words = set(list(stop_words)+list(stop_words_spacy))
+action_marker_list = ["we","i","you","let's","i'll","we'll"]
 
 tokenizer = BertTokenizer('bert-base-uncased-vocab.txt')
 
@@ -151,11 +166,12 @@ def post_process_ai_check(candidate_text):  #returns is_ai flag and candidate ac
         if drop_ctr==len(candidate_ais):
             #stop_drop_list.append(ai_sent)
             candidate_ais = []
-
-    if len(candidate_ais)>=1:
-        is_ai_flag = 1
-        ret_candidate = candidate_ais[0]
-    return is_ai_flag,ret_candidate
+    
+    #check if there are any subjects and drop sentences without any of action_marker
+    if len(candidate_ais)>=1 and len(set(ai_sent.lower().split(' ')) & set(action_marker_list))>0::
+        is_ai_flag = 1 #whether the sentence is an AI candidate
+        #ret_candidate = candidate_ais[0]
+    return [is_ai_flag]#,ret_candidate
 
 
 def matcher(matchObj):
@@ -178,11 +194,35 @@ def get_ai_sentences(model, transcript_text, ai_confidence_threshold=0.5):
                 # if (sent[-1]!="?" and sent[-2]!="?"):
                 sent_ai_prob = get_ai_probability(model, sent)
                 if sent_ai_prob >= ai_confidence_threshold and post_process_ai_check(sent)[0]:
-                    #detected_ai_list.append(sent)
-                    #action_item_candidate.append(post_process_ai_check(sent)[1])
                     action_item_candidate.append(sent)
+
+def assigned_users(ai_sent_list):
+    first_person_list = ["i","we","we'll","i'll"]
+    second_person_list = ["you"]
+    combine_list = ["let's"]
+    assign_flag = 0 #default to first person
+
+    ai_assignee_list = []
+    for sent in ai_sent_list:
+        fp_list = set(sent.lower().split(' ')) & set(first_person_list)
+        sp_list = set(sent.lower().split(' ')) & set(second_person_list)
+        com_list = set(sent.lower().split(' ')) & set(combine_list)
+
+    if len(com_list)>0:
+        assign_flag = 2
+    else:
+        if len(fp_list)>0 and len(sp_list)>0:
+            assign_flag = 2
+        else:
+            if len(sp_list)>1:
+                assign_flag = 1
+
+    return assign_flag
+
+
     #map action_items to users
     # 0 - current segment speaker
     # 1 - previous segment speaker
     # 2 - current and previous user
+
     return action_item_candidate

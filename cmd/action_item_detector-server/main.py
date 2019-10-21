@@ -56,15 +56,21 @@ def handler(event, context):
         transcript_text = json_request['segments'][0]['originalText']
         # get the AI probabilities for each sentence in the transcript
         ai_sent_list = get_ai_sentences(model, transcript_text)
+        #get candidate for the action
+        assigned_users_list = get_ai_users(ai_sent_list)
+
         
         if len(ai_sent_list) > 0:
             has_action_item = 1
         else:
             has_action_item = 0
             ai_sent_list = ['NO ACTION ITEM DETECTED']
-        ai_sent_list = '| '.join(ai_sent_list)
+            assigned_users_list = [-1]
+
+        ai_dict = dict(zip(ai_sent_list,assigned_users))
+
         response = json.dumps({"has_action_item": has_action_item,
-            "action_item_text": ai_sent_list})
+            "action_assignee_dict": ai_dict})
         return {
             "statusCode": 200,
             "body" : response

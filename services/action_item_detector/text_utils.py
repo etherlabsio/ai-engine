@@ -41,7 +41,6 @@ class CandidateKPExtractor(object):
         tagged_sents = nltk.pos_tag_sents(nltk.word_tokenize(sent) for sent in nltk.sent_tokenize(text))
         all_chunks = list(itertools.chain.from_iterable(nltk.chunk.tree2conlltags(chunker.parse(tagged_sent))
                                                         for tagged_sent in tagged_sents))
-        #print(all_chunks)
         return all_chunks
 
     def lambda_unpack(self, f):
