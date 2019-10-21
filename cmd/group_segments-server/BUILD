@@ -1,13 +1,14 @@
 python_binary(
 	name="server",
 	dependencies = [
+		':group_segments-dep',
 		'pkg:common-libs',
 		'services/group_segments:group_segments-libs',
-		':group_segments-dep',
 		'services:global-services',
 	],
 	source="main.py",
     compatibility=['CPython==3.7.*'],
+    platforms=["linux-x86_64"],
 )
 
 python_library(
@@ -26,7 +27,7 @@ python_library(
 
 
 python_awslambda(
-  name='lambda_build',
+  name='group_segments_code',
   binary=':server',
   handler='main:handler',
 )
