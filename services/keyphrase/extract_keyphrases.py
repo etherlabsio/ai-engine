@@ -419,7 +419,6 @@ class KeyphraseExtractor(object):
                 )
 
             # handle the situation when word graph is removed but gets request later
-            print(meeting_word_graph.graph.get("state"))
             if meeting_word_graph.graph.get("state") == "reset":
                 # Repopulate the graphs
                 logger.info("re-populating graph since it is in reset state")
@@ -814,14 +813,25 @@ class KeyphraseExtractor(object):
             )
 
             # For chapters: Choose top-n from each segment for better diversity
-            ranked_entities_dict, ranked_keyphrase_dict = self.utils.limit_phrase_list(
-                entities_dict=ranked_entities_dict,
-                keyphrase_dict=ranked_keyphrase_dict,
-                phrase_limit=top_n,
-                entities_limit=2,
-                keyphrase_object=keyphrase_object,
-                remove_phrases=True,
-            )
+            try:
+                ranked_entities_dict, ranked_keyphrase_dict = self.utils.limit_phrase_list(
+                    entities_dict=ranked_entities_dict,
+                    keyphrase_dict=ranked_keyphrase_dict,
+                    phrase_limit=top_n,
+                    entities_limit=2,
+                    keyphrase_object=keyphrase_object,
+                    remove_phrases=True,
+                )
+            except Exception as e:
+                logger.warning("Not removing phrases by quality", extra={"warnMsg": e})
+                ranked_entities_dict, ranked_keyphrase_dict = self.utils.limit_phrase_list(
+                    entities_dict=ranked_entities_dict,
+                    keyphrase_dict=ranked_keyphrase_dict,
+                    phrase_limit=top_n,
+                    entities_limit=2,
+                    keyphrase_object=keyphrase_object,
+                    remove_phrases=False,
+                )
 
             final_keyphrase_dict = {**ranked_keyphrase_dict, **final_keyphrase_dict}
             final_entity_dict = {**ranked_entities_dict, **final_entity_dict}
@@ -848,14 +858,25 @@ class KeyphraseExtractor(object):
         )
 
         # Limit keyphrase list to top-n
-        final_entity_dict, final_keyphrase_dict = self.utils.limit_phrase_list(
-            entities_dict=final_entity_dict,
-            keyphrase_dict=final_keyphrase_dict,
-            phrase_limit=top_n,
-            entities_limit=2,
-            keyphrase_object=keyphrase_object,
-            remove_phrases=True,
-        )
+        try:
+            final_entity_dict, final_keyphrase_dict = self.utils.limit_phrase_list(
+                entities_dict=final_entity_dict,
+                keyphrase_dict=final_keyphrase_dict,
+                phrase_limit=top_n,
+                entities_limit=2,
+                keyphrase_object=keyphrase_object,
+                remove_phrases=True,
+            )
+        except Exception as e:
+            logger.warning("Not removing phrases by quality", extra={"warnMsg": e})
+            final_entity_dict, final_keyphrase_dict = self.utils.limit_phrase_list(
+                entities_dict=final_entity_dict,
+                keyphrase_dict=final_keyphrase_dict,
+                phrase_limit=top_n,
+                entities_limit=2,
+                keyphrase_object=keyphrase_object,
+                remove_phrases=False,
+            )
 
         logger.debug(
             "Keyphrase and entity list after limiting",
