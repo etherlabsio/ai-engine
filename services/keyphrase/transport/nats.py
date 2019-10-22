@@ -191,7 +191,7 @@ class NATSTransport(object):
                     "limit": limit,
                     "responseTime": end - start,
                     "segmentsReceived": segment_ids,
-                    "dynamicThreshold": len(output),
+                    "dynamicThreshold": len(output["keyphrases"]),
                 },
             )
         elif limit == 10:

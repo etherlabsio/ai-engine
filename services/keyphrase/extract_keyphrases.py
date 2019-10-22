@@ -806,15 +806,17 @@ class KeyphraseExtractor(object):
         for i, kp_dict in enumerate(keyphrase_object):
             keyphrase_dict = kp_dict[default_form]
             entity_dict = kp_dict["entities"]
-            keyphrase_quality_score = kp_dict["medianKeyphraseQuality"]
 
             try:
                 entity_quality_score = kp_dict["entitiesQuality"]
+                keyphrase_quality_score = kp_dict["medianKeyphraseQuality"]
             except KeyError as e:
                 logger.warning(
-                    "Unable to compute entities quality score", extra={"warnMsg": e}
+                    "Unable to compute entities and keyphrase quality score",
+                    extra={"warnMsg": e},
                 )
                 entity_quality_score = 0
+                keyphrase_quality_score = 0
 
             # # Sort by rank/scores
             # For chapters: Choose top-n from each segment for better diversity
@@ -851,8 +853,11 @@ class KeyphraseExtractor(object):
         if dynamic_top_n < top_n:
             dynamic_top_n = top_n
 
-        if top_n == 10:
+        if top_n == 10 or top_n == 5:
             dynamic_top_n = top_n
+
+        if dynamic_top_n >= 12:
+            dynamic_top_n = 12
 
         try:
             overall_entity_quality_score = np.mean(
@@ -889,6 +894,8 @@ class KeyphraseExtractor(object):
                 "keyphrases": list(sorted_keyphrase_dict.keys()),
                 "count": len(sorted_keyphrase_dict.keys()),
                 "threshold": dynamic_top_n,
+                "keyphraseQuality": overall_keyphrase_quality_score,
+                "entityQuality": overall_entity_quality_score,
             },
         )
 

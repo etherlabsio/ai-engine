@@ -246,6 +246,7 @@ class KeyphraseUtils(object):
                 phrase_limit=phrase_limit,
                 entities_limit=entities_limit,
             )
+
             # Combine entities and keyphrases
             final_result_dict = {**ranked_entities_dict, **ranked_keyphrase_dict}
 
@@ -291,8 +292,6 @@ class KeyphraseUtils(object):
         self, entities_dict, keyphrase_dict, phrase_limit=6, entities_limit=2
     ):
 
-        modified_entity_dict = {}
-
         word_limit = phrase_limit - entities_limit
         if len(list(entities_dict.keys())) > entities_limit:
             modified_entity_dict = dict(
@@ -304,6 +303,9 @@ class KeyphraseUtils(object):
             )
         else:
             num_of_entities = len(list(entities_dict.keys()))
+            modified_entity_dict = dict(
+                itertools.islice(entities_dict.items(), num_of_entities)
+            )
             difference = phrase_limit - num_of_entities
             limited_keyphrase_dict = dict(
                 itertools.islice(keyphrase_dict.items(), difference)
