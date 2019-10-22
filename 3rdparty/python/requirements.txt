@@ -8,7 +8,7 @@ pydgraph
 pandas
 iso8601
 sklearn
-spacy
+spacy==2.1.4
 networkx
 python-dotenv
 python_version==3.7

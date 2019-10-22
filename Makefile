@@ -43,6 +43,12 @@ deploy-production:
 	$(MAKE) deploy_ecs ARTIFACT=${ARTIFACT} CONTAINER_TAG=latest CONTAINER_IMAGE=${CONTAINER_IMAGE} \
 			ENVIRONMENT=production CLUSTER_NAME=ml-inference SERVICE_NAME=${SERVICE_NAME} AWS_PROFILE=default
 
+.PHONY: clean
+clean:
+	rm -f .version
+
+.PHONY: dependencies.pex
+
 .PHONY: update-lambda-function-scorer
 update-lambda-function-scorer:
 	aws s3 cp --profile production dist/scorer_lambda.pex s3://io.etherlabs.artifacts/${ENV}/scorer_lambda.pex

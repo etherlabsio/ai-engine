@@ -135,13 +135,9 @@ class WordGraphBuilder(object):
         sorted_entity_preference_list = self.utils.sort_by_value(
             entity_preference_list, key="preference", order="asc"
         )
-        entity_list = [item["text"] for item in sorted_entity_preference_list]
         logger.debug(
             "sorted preference for entities",
-            extra={
-                "orderedEntities": sorted_entity_preference_list,
-                "entities": entity_list,
-            },
+            extra={"orderedEntities": sorted_entity_preference_list},
         )
 
         return sorted_entity_preference_list

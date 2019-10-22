@@ -31,9 +31,9 @@ if __name__ == "__main__":
 
     # Initialize Boto session for aws services
     aws_config = Config(
-        connect_timeout=60,
+        connect_timeout=180,
         read_timeout=300,
-        retries={"max_attempts": 0},
+        retries={"max_attempts": 2},
         region_name=aws_region,
     )
     s3_client = S3Manager(bucket_name=bucket_store)
