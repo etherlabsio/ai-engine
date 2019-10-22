@@ -20,7 +20,7 @@ import json
 import logging
 from botocore.client import Config
 from dataclasses import dataclass
-from pre_process import preprocess_text
+from scorer.pre_process import preprocess_text
 
 logger = logging.getLogger()
 
