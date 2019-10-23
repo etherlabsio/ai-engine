@@ -7,7 +7,6 @@ import os
 import io
 import json
 import logging
-import uuid
 
 import boto3
 import requests
@@ -47,83 +46,26 @@ logger.info(f'Model loaded for evaluation')
 
 
 def handler(event, context):
+
     logger.info("POST request recieved", extra={"event['body']:": event['body']})
+
     if isinstance(event['body'], str):
         json_request = json.loads(event['body'])
     else:
         json_request = event['body']
     
     try:
-        #loop through json request segments and generate action item 
-        ai_sent_list = []
-        ai_user_list = []
-        segment_id_list = []
-        assignees_list = []
-        isAssigneePrevious_list = []
-        isAssigneeBoth_list = []
+        ai_detector = ad.ActionItemDetector(json_request['segments'],model)
+        action_items,decisions = ai_detector.get_action_decision_subjects_list()
 
-        for seg_object in json_request['segments']:
-
-            curr_assignees_list = []
-            curr_isAssigneePrevious_list = []
-            curr_isAssigneeBoth_list = []
-
-            transcript_text = seg_object['originalText']
-            # get the AI probabilities for each sentence in the transcript
-            curr_ai_list = ad.get_ai_sentences(model, transcript_text)
-            curr_ai_user_list = ad.get_ai_users(curr_ai_list)
-            curr_segment_id_list=[seg_object['id']]*len(curr_ai_list)
-
-            for ai_user in curr_ai_user_list:
-                if ai_user==0:
-                    curr_assignees_list+=[seg_object['spokenBy']]
-                else:
-                    curr_assignees_list+=['NA']
-                if ai_user==1:
-                    curr_isAssigneePrevious_list.append(True)
-                else:
-                    curr_isAssigneePrevious_list.append(False)
-                if ai_user==2:
-                    curr_isAssigneeBoth_list.append(True)
-                else:
-                    curr_isAssigneeBoth_list.append(False)
-
-            ai_sent_list+=curr_ai_list
-            ai_user_list+=curr_ai_user_list
-            segment_id_list+=curr_segment_id_list
-            assignees_list+=curr_assignees_list
-            isAssigneePrevious_list+=curr_isAssigneePrevious_list
-            isAssigneeBoth_list+=curr_isAssigneeBoth_list
-
-        uuid_list = []
-        for i in range(len(ai_sent_list)):
-            uuid_list.append(str(uuid.uuid1()))
-
-
-        ai_response_list = []
-        for uuid_,segment,action_item,assignee,is_prev_user,is_both in zip(uuid_list,segment_id_list,ai_sent_list,assignees_list,isAssigneePrevious_list,isAssigneeBoth_list):
-            ai_response_list.append({"id": uuid_,
-                "subject": action_item,
-                "segment_ids": [segment],
-                "assignees": assignee,
-                "is_assignee_previous": is_prev_user,
-                "is_assignee_both": is_both})
-
-        #placeholder decision list
-        decision_response_list = [{'id': str(str(uuid.uuid1())),
-                                    'segment_ids': ['seg1'],
-                                        'subject': 'decision_text1'},
-                                {'id': str(str(uuid.uuid1())),
-                                    'segment_ids': ['seg2'],
-                                        'subject': 'decision_text2'}]
-
-        response = json.dumps({"action_items": ai_response_list,
-            "decisions": decision_response_list})
+        response = json.dumps({"action_items": action_items,
+            "decisions": decisions})
         return {
             "statusCode": 200,
             "body" : response
         }
-
+        logger.info("Action and decision extraction success")
+        
     except Exception as e:
         logger.error(
             "Error processing request", extra={"err": e, "request": json_request}
