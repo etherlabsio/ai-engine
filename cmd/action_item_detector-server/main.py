@@ -13,7 +13,7 @@ import requests
 
 import torch
 from bert_utils import BertConfig
-import action_detector as ad #import get_ai_sentences, get_ai_users, BertForActionItemDetection
+import action_detector as ad
 import numpy as np
 import pickle
 from log.logger import setup_server_logger
@@ -65,7 +65,7 @@ def handler(event, context):
             "body" : response
         }
         logger.info("Action and decision extraction success")
-        
+
     except Exception as e:
         logger.error(
             "Error processing request", extra={"err": e, "request": json_request}

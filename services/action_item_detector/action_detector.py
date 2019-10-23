@@ -15,26 +15,9 @@ import nltk
 from nltk.tokenize import sent_tokenize
 from text_utils import CandidateKPExtractor
 
-# import spacy
-# #download and unzip spacy
-# #client = boto3.client('s3')
-# s3 = boto3.client('s3')
-# bucket = os.getenv('BUCKET_NAME')
-# spacy_en_model_path = os.getenv('SPACY_MODEL_PATH')
-# spacy.util.set_data_path('/opt')
-# s3.download_file(bucket,spacy_en_model_path,"/opt")
-# #unzip the file
-# with zipfile.ZipFile("/opt/en_core_web_sm.zip","r") as zip_ref:
-#     zip_ref.extractall("/opt/")
-# nlp = spacy.load("en_core_web_sm")
-# print('Spacy NLP Loaded')
-
 logger = logging.getLogger(__name__)
 setup_server_logger(debug=True)
 
-# if os.path.isdir("/tmp/nltk_data"):
-#     logger.info('Using existing nltk download files')
-# else:
 nltk.data.path.append("/tmp/nltk_data")
 logger.info('Downloading nltk data files to /tmp/nltk_data')
 nltk.download("stopwords", download_dir="/tmp/nltk_data")
