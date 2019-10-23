@@ -132,7 +132,13 @@ class KnowledgeGraph(object):
         return g
 
     def populate_keyphrase_info(
-        self, request, keyphrase_list, g=None, is_pim=True, keyphrase_attr_dict=None
+        self,
+        request,
+        keyphrase_list,
+        g=None,
+        is_pim=True,
+        keyphrase_attr_dict=None,
+        phrase_hash_dict=None,
     ):
         if g is None:
             g = nx.DiGraph()
@@ -158,27 +164,16 @@ class KnowledgeGraph(object):
         else:
             keyphrase_attr_dict.update(self.keyphrase_label)
 
-        if (
-            keyphrase_attr_dict is not None
-            and keyphrase_attr_dict.get("embedding_vector") is not None
-        ):
-            embedding_array = keyphrase_attr_dict.get("embedding_vector")
-            embedding_array = np.asarray(embedding_array)
+        # embedding_array = keyphrase_attr_dict.get("embedding_vector")
+        # embedding_array = np.asarray(embedding_array)
 
-            if len(keyphrase_list) == embedding_array.shape[0]:
-                keyphrase_vector_zip = zip(keyphrase_list, embedding_array)
-                for i, (word, word_vector) in enumerate(keyphrase_vector_zip):
-                    attr_dict = deepcopy(keyphrase_attr_dict)
-                    attr_dict["embedding_vector"] = word_vector
-                    attr_dict["word"] = word
-                    keyphrase_node_list.append((word, attr_dict))
+        for i, (hash_str, phrase) in enumerate(phrase_hash_dict):
+            attr_dict = deepcopy(keyphrase_attr_dict)
+            attr_dict["phraseId"] = hash_str
+            attr_dict["phrase"] = phrase
+            keyphrase_node_list.append((phrase, attr_dict))
 
-                g.add_nodes_from(keyphrase_node_list)
-        else:
-            keyphrase_node_list = [
-                (word, keyphrase_attr_dict) for word in keyphrase_list
-            ]
-            g.add_nodes_from(keyphrase_node_list)
+        g.add_nodes_from(keyphrase_node_list)
 
         g.add_nodes_from([(mind_id, self.mind_label)])
         g.add_edges_from([(context_id, mind_id, self.context_mind_rel)])

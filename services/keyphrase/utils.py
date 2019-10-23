@@ -3,11 +3,41 @@ import iso8601
 import itertools
 import json
 from collections import OrderedDict
+import hashlib
+from typing import List, Dict, Tuple
+import numpy as np
 
 
 class KeyphraseUtils(object):
     def __init__(self):
         pass
+
+    def hash_phrase(self, phrase: str) -> str:
+        hash_object = hashlib.md5(phrase.encode())
+        hash_str = hash_object.hexdigest()
+        return hash_str
+
+    def map_embeddings_to_phrase(
+        self, phrase_list: List, embedding_list: List
+    ) -> Tuple[Dict, Dict]:
+        phrase_hash_dict = dict(zip(map(self.hash_phrase, phrase_list), phrase_list))
+        phrase_embedding_dict = dict(
+            zip(map(self.hash_phrase, phrase_list), embedding_list)
+        )
+
+        return phrase_hash_dict, phrase_embedding_dict
+
+    def serialize_to_npz(self, embedding_dict: Dict, file_name: str):
+        np.savez(file_name, **embedding_dict)
+
+        return file_name + ".npz"
+
+    def deserialize_from_npz(self, file_name: str):
+        if file_name.split(".")[-1] != "npz":
+            file_name = file_name + ".npz"
+
+        with np.load(file_name) as npz_file:
+            return npz_file
 
     def formatTime(self, tz_time, datetime_object=False):
         isoTime = iso8601.parse_date(tz_time)

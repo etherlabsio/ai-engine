@@ -26,6 +26,7 @@ class KeyphraseExtractor(object):
         self, s3_client=None, encoder_lambda_client=None, lambda_function=None
     ):
         self.context_dir = "/context-instance-graphs/"
+        self.s3_client = s3_client
         self.kg = KnowledgeGraph()
         self.utils = KeyphraseUtils()
         self.io_util = S3IO(s3_client=s3_client, graph_utils_obj=GraphUtils())
@@ -176,6 +177,7 @@ class KeyphraseExtractor(object):
         attr_dict=None,
         is_pim=False,
         upload=False,
+        phrase_hash_dict=None,
     ):
         """
         Get keyphrases for each input segment and add it to context graph, then upload it.
@@ -208,6 +210,7 @@ class KeyphraseExtractor(object):
                 g=context_graph,
                 keyphrase_attr_dict=attr_dict,
                 is_pim=is_pim,
+                phrase_hash_dict=phrase_hash_dict,
             )
         except Exception:
             logger.debug(traceback.print_exc())
@@ -328,6 +331,9 @@ class KeyphraseExtractor(object):
         Returns:
 
         """
+        context_id = req_data["contextId"]
+        instance_id = req_data["instanceId"]
+
         if context_graph is None and meeting_word_graph is None:
             # Get graph objects
             context_graph, meeting_word_graph = self._retrieve_context_graph(
@@ -344,6 +350,7 @@ class KeyphraseExtractor(object):
         # Get segment text
         for i, kp_dict in enumerate(keyphrase_object):
             seg_text = kp_dict["segments"]
+            segment_id = kp_dict["segmentId"]
             segment_keyphrase_dict = kp_dict[default_form]
             segment_entity_dict = kp_dict["entities"]
 
@@ -364,12 +371,34 @@ class KeyphraseExtractor(object):
                 input_list=input_embedding_list, req_data=req_data
             )
 
+            segment_embedding_dict = {segment_id: np.array(segment_embedding)}
+
+            phrase_hash_dict, phrase_embedding_dict = self.utils.map_embeddings_to_phrase(
+                phrase_list=input_embedding_list, embedding_list=keyphrase_embeddings
+            )
+
+            segment_keyphrase_embeddings = {
+                **segment_embedding_dict,
+                **phrase_embedding_dict,
+            }
+
+            # Serialize the entire segment-keyphrase embedding dictionary to NPZ
+            npz_file_name = self.utils.serialize_to_npz(
+                embedding_dict=segment_keyphrase_embeddings, file_name=segment_id
+            )
+            npz_s3_path = self.io_util.upload_npz(
+                context_id=context_id,
+                instance_id=instance_id,
+                s3_dir=self.context_dir,
+                npz_file_name=npz_file_name,
+            )
+
             # Update context graph with embedding vectors
             context_graph, meeting_word_graph = self._populate_push_context_graph(
                 req_data=req_data,
                 context_graph=context_graph,
                 meeting_word_graph=meeting_word_graph,
-                attribute_dict={"embedding_vector": np.array(segment_embedding)},
+                attribute_dict={"embedding_vector_uri": npz_s3_path},
             )
 
             context_graph = self._update_context_with_keyphrases(
@@ -378,10 +407,8 @@ class KeyphraseExtractor(object):
                 context_graph=context_graph,
                 is_pim=False,
                 upload=True,
-                attr_dict={
-                    "embedding_vector": np.array(keyphrase_embeddings),
-                    "keyphraseType": "descriptive",
-                },
+                attr_dict={"keyphraseType": "descriptive"},
+                phrase_hash_dict=phrase_hash_dict,
             )
 
         logger.info("Computed embeddings and populated successfully ...")
