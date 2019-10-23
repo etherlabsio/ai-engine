@@ -205,9 +205,9 @@ class ActionItemDetector():
                             ai_subject = sent[start_idx:end_idx]
                         else:
                             ai_subject = curr_ai_subjects[0]
+                        if len(ai_subject)>0: ai_subject = ai_subject[0].upper()+ai_subject[1:]
                         action_item_subjects.append(ai_subject)
                         action_item_sentences.append(sent)
-
         return action_item_subjects,action_item_sentences
 
     def get_ai_users(self,ai_sent_list):
@@ -233,7 +233,7 @@ class ActionItemDetector():
 
     def get_action_decision_subjects_list(self):
 
-        ai_sent_list = []
+        ai_subject_list = []
         ai_user_list = []
         segment_id_list = []
         assignees_list = []
@@ -266,7 +266,7 @@ class ActionItemDetector():
                 else:
                     curr_isAssigneeBoth_list.append(False)
 
-            ai_sent_list+=curr_ai_list
+            ai_subject_list+=curr_ai_list
             ai_user_list+=curr_ai_user_list
             segment_id_list+=curr_segment_id_list
             assignees_list+=curr_assignees_list
@@ -275,10 +275,10 @@ class ActionItemDetector():
 
         uuid_list = []
         ai_response_list = []
-        for i in range(len(ai_sent_list)):
+        for i in range(len(ai_subject_list)):
             uuid_list.append(str(uuid.uuid1()))
         
-        for uuid_,segment,action_item,assignee,is_prev_user,is_both in zip(uuid_list,segment_id_list,ai_sent_list,assignees_list,isAssigneePrevious_list,isAssigneeBoth_list):
+        for uuid_,segment,action_item,assignee,is_prev_user,is_both in zip(uuid_list,segment_id_list,ai_subject_list,assignees_list,isAssigneePrevious_list,isAssigneeBoth_list):
             ai_response_list.append({"id": uuid_,
                 "subject": action_item,
                 "segment_ids": [segment],
