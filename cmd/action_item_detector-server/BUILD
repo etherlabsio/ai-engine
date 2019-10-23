@@ -20,6 +20,7 @@ python_library(
         '3rdparty/python:python-json-logger',
         '3rdparty/python:requests',
         '3rdparty/python:nltk',
+        '3rdparty/python:uuid',
         ]
 )
 

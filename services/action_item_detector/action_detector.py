@@ -168,10 +168,10 @@ def post_process_ai_check(candidate_text):  #returns is_ai flag and candidate ac
             candidate_ais = []
     
     #check if there are any subjects and drop sentences without any of action_marker
-    if len(candidate_ais)>=1 and len(set(ai_sent.lower().split(' ')) & set(action_marker_list))>0::
+    if len(candidate_ais)>=1 and (len(set(candidate_text.lower().split(' ')) & set(action_marker_list))>0):
         is_ai_flag = 1 #whether the sentence is an AI candidate
-        #ret_candidate = candidate_ais[0]
-    return [is_ai_flag]#,ret_candidate
+        ret_candidate = candidate_ais[0]
+    return [is_ai_flag],ret_candidate
 
 
 def matcher(matchObj):
@@ -194,35 +194,38 @@ def get_ai_sentences(model, transcript_text, ai_confidence_threshold=0.5):
                 # if (sent[-1]!="?" and sent[-2]!="?"):
                 sent_ai_prob = get_ai_probability(model, sent)
                 if sent_ai_prob >= ai_confidence_threshold and post_process_ai_check(sent)[0]:
-                    action_item_candidate.append(sent)
+                    action_item_candidate.append(post_process_ai_check(sent)[1])
 
-def assigned_users(ai_sent_list):
+    return action_item_candidate
+
+def get_ai_users(ai_sent_list):
     first_person_list = ["i","we","we'll","i'll"]
     second_person_list = ["you"]
     combine_list = ["let's"]
-    assign_flag = 0 #default to first person
+    
 
     ai_assignee_list = []
     for sent in ai_sent_list:
+        assign_flag = 0 #default to first person
+
         fp_list = set(sent.lower().split(' ')) & set(first_person_list)
         sp_list = set(sent.lower().split(' ')) & set(second_person_list)
         com_list = set(sent.lower().split(' ')) & set(combine_list)
 
-    if len(com_list)>0:
-        assign_flag = 2
-    else:
-        if len(fp_list)>0 and len(sp_list)>0:
+        if len(com_list)>0 and len(fp_list)==0 and len(sp_list)==0:
             assign_flag = 2
         else:
-            if len(sp_list)>1:
-                assign_flag = 1
+            if len(fp_list)>0 and len(sp_list)>0:
+                assign_flag = 2
+            else:
+                if len(sp_list)>1:
+                    assign_flag = 1
+        ai_assignee_list.append(assign_flag)
+    return ai_assignee_list
 
-    return assign_flag
+        #map action_items to users
+        # 0 - current segment speaker
+        # 1 - previous segment speaker
+        # 2 - current and previous user
 
 
-    #map action_items to users
-    # 0 - current segment speaker
-    # 1 - previous segment speaker
-    # 2 - current and previous user
-
-    return action_item_candidate
