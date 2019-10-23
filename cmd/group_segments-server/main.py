@@ -5,9 +5,9 @@ from group_segments.extra_preprocess import format_pims_output
 import sys
 import logging
 from log.logger import setup_server_logger
-
+from scorer.mind_utils import load_mind_features
 logger = logging.getLogger()
-setup_server_logger(debug=True)
+setup_server_logger(debug=False)
 
 
 def handler(event, context):
@@ -16,6 +16,9 @@ def handler(event, context):
             json_request = json.loads(event['body'])
         else:
             json_request = event['body']
+
+        mind_dict = load_mind_features(json_request['mindId'].lower())
+
         logger.info("POST request recieved", extra={"request": json_request})
         Request_obj = decode_json_request(json_request)
         mindId = str(json_request['mindId']).lower()
@@ -24,7 +27,7 @@ def handler(event, context):
             return json({"msg": "No segments to process"})
         topics = {}
         pim = {}
-        topics, pim = grouper.get_groups(Request_obj, lambda_function)
+        topics, pim = grouper.get_groups(Request_obj, lambda_function, mind_dict)
         topics['contextId'] = (json_request)['contextId']
         topics['instanceId'] = (json_request)['instanceId']
         topics['mindId'] = mindId

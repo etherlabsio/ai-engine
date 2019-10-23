@@ -158,6 +158,7 @@ class NATSTransport(object):
         start = timer()
         request = json.loads(msg.data)
         segment_object = request["segments"]
+        segment_ids = [seg_ids["id"] for seg_ids in segment_object]
         context_info = request["contextId"] + ":" + request["instanceId"]
 
         limit = request.get("limit", 10)
@@ -167,9 +168,9 @@ class NATSTransport(object):
         end = timer()
 
         deadline_time = end - start
-        if deadline_time > 5:
+        if deadline_time > 15:
             timeout_msg = "-Context deadline is exceeding: {}; {}".format(
-                deadline_time, 5
+                deadline_time, 15
             )
         else:
             timeout_msg = ""
@@ -184,10 +185,10 @@ class NATSTransport(object):
                     "numOfSegments": len(request["segments"]),
                     "limit": limit,
                     "responseTime": end - start,
-                    "requestReceived": request,
+                    "segmentsReceived": segment_ids,
                 },
             )
-        else:
+        elif limit == 10:
             logger.info(
                 "Publishing PIM keyphrases" + timeout_msg,
                 extra={
@@ -197,7 +198,20 @@ class NATSTransport(object):
                     "numOfSegments": len(request["segments"]),
                     "limit": limit,
                     "responseTime": end - start,
-                    "requestReceived": request,
+                    "segmentsReceived": segment_ids,
+                },
+            )
+        else:
+            logger.info(
+                "Publishing topic keyphrases" + timeout_msg,
+                extra={
+                    "graphId": context_info,
+                    "topicKeyphraseList": output,
+                    "instanceId": request["instanceId"],
+                    "numOfSegments": len(request["segments"]),
+                    "limit": limit,
+                    "responseTime": end - start,
+                    "segmentsReceived": segment_ids,
                 },
             )
         await self.nats_manager.conn.publish(msg.reply, json.dumps(output).encode())
@@ -212,9 +226,9 @@ class NATSTransport(object):
         end = timer()
 
         deadline_time = end - start
-        if deadline_time > 5:
+        if deadline_time > 15:
             timeout_msg = "-Context deadline is exceeding: {}; {}".format(
-                deadline_time, 5
+                deadline_time, 15
             )
         else:
             timeout_msg = ""
@@ -237,15 +251,17 @@ class NATSTransport(object):
         start = timer()
         request = json.loads(msg.data)
         context_info = request["contextId"] + ":" + request["instanceId"]
+        segment_object = request["segments"]
+        segment_ids = [seg_ids["id"] for seg_ids in segment_object]
 
         limit = request.get("limit", 10)
         output = self.keyphrase_service.get_keyphrases_with_offset(request, n_kw=limit)
         end = timer()
 
         deadline_time = end - start
-        if deadline_time > 5:
+        if deadline_time > 15:
             timeout_msg = "-Context deadline is exceeding: {}; {}".format(
-                deadline_time, 5
+                deadline_time, 15
             )
         else:
             timeout_msg = ""
@@ -259,7 +275,7 @@ class NATSTransport(object):
                 "numOfSegments": len(request["segments"]),
                 "limit": limit,
                 "responseTime": end - start,
-                "requestReceived": request,
+                "segmentsReceived": segment_ids,
             },
         )
 

@@ -2,7 +2,7 @@ import numpy as np
 import json
 import text_preprocessing.preprocess as tp
 from group_segments import extra_preprocess
-# from group_segments.extra_preprocess import format_time
+from copy import deepcopy
 import networkx as nx
 import math
 from group_segments.scorer import cosine
@@ -10,6 +10,7 @@ import community
 from datetime import datetime
 from group_segments import scorer
 import logging
+import math
 from log.logger import setup_server_logger
 logger = logging.getLogger()
 
@@ -17,46 +18,44 @@ logger = logging.getLogger()
 class community_detection():
     segments_list = []
     segments_org = []
+    segments_map = {}
+    segments_order = {}
     lambda_function = None
-
-    def __init__(self, Request, lambda_function):
+    mind_features = None
+    def __init__(self, Request, lambda_function, mind_f):
         self.segments_list = Request.segments
         self.segments_org = Request.segments_org
+        self.segments_order = Request.segments_order
+        self.segments_map = Request.segments_map
         self.lambda_function = lambda_function
-    # def compute_feature_vector(self):
-    #     graph_list = {}
-    #     fv = {}
-    #     index = 0
-    #     for segment in self.segments_list:
-    #         for sent in segment['originalText']:
-    #             if sent!='':
-    #                 graph_list[index] = (sent, segment['startTime'], segment['spokenBy'], segment['id'])
-    #                 fv[index] = getBERTFeatures(self.model1, sent, attn_head_idx=-1)
-    #                 index+=1
-    #     return fv, graph_list
+        self.mind_features = mind_f
 
-    def compute_feature_vector(self):
+    def compute_feature_vector_gpt(self):
         graph_list = {}
+        fv_mapped_score = {}
+        input_list = []
         fv = {}
         index = 0
-        all_segments = ""
         for segment in self.segments_list:
             for sent in segment['originalText']:
                 if sent != '':
-                    if sent[-1] == ".":
-                        all_segments = all_segments + " " + sent
-                    else:
-                        all_segments = all_segments + " " + sent + ". "
-        mind_input = json.dumps({"text": all_segments, "nsp": False})
-        mind_input = json.dumps({"body": mind_input})
-        transcript_score = scorer.get_feature_vector(mind_input, self.lambda_function)
+                    input_list.append(sent)
+
+        transcript_score, mind_score = scorer.get_feature_vector(input_list, self.lambda_function, self.mind_features)
         for segment in self.segments_list:
             for sent in segment['originalText']:
                 if sent != '':
                     graph_list[index] = (sent, segment['startTime'], segment['spokenBy'], segment['id'])
                     fv[index] = transcript_score[index]
+                    if segment['id'] in fv_mapped_score.keys():
+                        fv_mapped_score[segment['id']].append(mind_score[index])
+                    else:
+                        fv_mapped_score[segment['id']] = [mind_score[index]]
+                    # fv_mapped_score[index] = (segment['id'], mind_score[index])
                     index += 1
-        return fv, graph_list
+        for segi in fv_mapped_score.keys():
+            fv_mapped_score[segi] = np.mean(fv_mapped_score[segi])
+        return fv, graph_list, fv_mapped_score
 
     def construct_graph(self, fv, graph_list):
         meeting_graph = nx.Graph()
@@ -64,41 +63,24 @@ class community_detection():
         c_weight = 0
         for nodea in graph_list.keys():
             for nodeb in graph_list.keys():
-                if nodeb > nodea:
-                    c_weight = cosine(fv[nodea], fv[nodeb])
-                    meeting_graph.add_edge(nodea, nodeb, weight=c_weight)
-                    yetto_prune.append((nodea, nodeb, c_weight))
+                c_weight = cosine(fv[nodea], fv[nodeb])
+                meeting_graph.add_edge(nodea, nodeb, similarity=c_weight)
+                yetto_prune.append((nodea, nodeb, c_weight))
         return meeting_graph, yetto_prune
 
     def prune_edges_outlier(self, meeting_graph, graph_list, yetto_prune, v):
         meeting_graph_pruned = nx.Graph()
-        for nodea, nodeb, weight in meeting_graph.edges.data():
-            meeting_graph_pruned.add_nodes_from([nodea, nodeb])
-
         weights = []
         for nodea, nodeb, weight in meeting_graph.edges.data():
-            weights.append(weight["weight"])
-        # q1 = np.percentile(weights, 25)
-        # iqr = np.subtract(*np.percentile(weights, [75, 25]))
-        # outlier = q1 - 1.5 * iqr
-        q3 = np.percentile(weights, 75)
-        # logger.info("Outlier Score", extra={"outlier threshold is : ": outlier})
+            meeting_graph_pruned.add_nodes_from([nodea, nodeb])
+            weights.append(weight["similarity"])
+
+        q3 = np.percentile(weights, v)
         logger.info("Outlier Score", extra={"outlier threshold is : ": q3})
 
         for indexa, indexb, c_score in meeting_graph.edges.data():
-            if c_score["weight"]>=q3:
-                meeting_graph_pruned.add_edge(indexa, indexb, weight=c_score["weight"])
-        return meeting_graph_pruned
-
-    def prune_edges(self, meeting_graph, graph_list, yetto_prune, v):
-        yetto_prune = sorted(yetto_prune, key=lambda kv : kv[2], reverse=True)
-        meeting_graph_pruned = nx.Graph()
-        for nodea, nodeb, weight in yetto_prune:
-            meeting_graph_pruned.add_nodes_from([nodea, nodeb])
-        yetto_prune = yetto_prune[:math.ceil(len(yetto_prune) * v) + 1]
-        logger.info("pruning value", extra={"v is : ": v})
-        for indexa, indexb, c_score in yetto_prune:
-            meeting_graph_pruned.add_edge(indexa, indexb)
+            if c_score["similarity"]>=q3:
+                meeting_graph_pruned.add_edge(indexa, indexb, weight=c_score["similarity"])
         return meeting_graph_pruned
 
     def compute_louvian_community(self, meeting_graph_pruned, community_set):
@@ -155,7 +137,8 @@ class community_detection():
 
             for (index1, (sent1, time1, user1, id1)), (index2, (sent2, time2, user2, id2)) in zip(enumerate(com[0:]), enumerate(com[1:])):
                 if id1 != id2:
-                    if ((extra_preprocess.format_time(time2, True) - extra_preprocess.format_time(time1, True)).seconds <= 120):
+                    # if ((extra_preprocess.format_time(time2, True) - extra_preprocess.format_time(time1, True)).seconds <= 120):
+                    if ((self.segments_order[id2] - self.segments_order[id1]) <= 4):
                         if (not flag):
                             pims[index_pim] = {'segment' + str(index_segment): [sent1, time1, user1, id1]}
                             index_segment += 1
@@ -253,8 +236,18 @@ class community_detection():
         #            c_len += 1
         #        pims[c_len] = {"segment0": [' '.join(text for text in segment['originalText']), segment['startTime'], segment['spokenBy'], segment['id']]}
 
+        # Remove Redundent PIMs in a group and also for single segment as a topic accept it as a topic only if it has duration greater than 30 sec.
         new_pim = {}
+        track_single_seg = []
         for pim in list(pims.keys()):
+            if len(pims[pim]) == 1:
+                if self.segments_map[pims[pim]["segment0"][3]]["duration"]>30:
+                    if pims[pim]["segment0"][3] in track_single_seg:
+                        continue
+                    track_single_seg.append(pims[pim]["segment0"][3])
+                    pass
+                else:
+                    continue
             seen = []
             new_pim[pim] = {}
             index = 0
@@ -268,6 +261,100 @@ class community_detection():
                     seen.append(pims[pim][seg][3])
 
         return new_pim
+
+    def order_groups_by_score(self, pims, fv_mapped_score):
+        new_pims = {}
+        group_score_mapping = {}
+        for key in list(pims.keys()):
+            group_score = []
+            for segi in pims[key].keys():
+                group_score.append(fv_mapped_score[pims[key][segi][3]])
+            group_score_mapping[key] = np.mean(group_score)
+
+        sorted_groups = sorted(group_score_mapping.items(), key=lambda kv: kv[1], reverse=False)
+        index = 0
+        for groupid, score in sorted_groups:
+            new_pims[index] = pims[groupid]
+            # new_pims[index]['distance'] = score
+            index+=1
+        return new_pims
+
+    def h_communities(self, h_flag=True):
+        fv, graph_list, fv_mapped_score = self.compute_feature_vector_gpt()
+        meeting_graph, yetto_prune = self.construct_graph(fv, graph_list)
+        v = 25
+        meeting_graph_pruned = self.prune_edges_outlier(meeting_graph, graph_list, yetto_prune, v)
+        community_set = community.best_partition(meeting_graph_pruned)
+        community_set_sorted = sorted(community_set.items(), key=lambda kv: kv[1], reverse=False)
+        clusters = []
+        temp = []
+        prev_com = 0
+        for index,(word,cluster) in enumerate(community_set_sorted):
+            if prev_com==cluster:
+                temp.append(word)
+                if index==len(community_set_sorted)-1:
+                    clusters.append(temp)
+            else:
+                clusters.append(temp)
+                temp = []
+                prev_com = cluster
+                temp.append(word)
+        if (h_flag):
+            v = 75
+            community_set_collection = []
+            old_cluster = []
+            for cluster in clusters:
+                if len(cluster) >= 2:
+                    graph_list_pruned = deepcopy(graph_list)
+                    for k in graph_list.keys():
+                        if k not in cluster:
+                            del graph_list_pruned[k]
+
+                    meeting_graph, yetto_prune = self.construct_graph(fv, graph_list_pruned)
+                    meeting_graph_pruned = self.prune_edges_outlier(meeting_graph, graph_list_pruned, yetto_prune, v)
+                    community_set = community.best_partition(meeting_graph_pruned)
+                    community_set_sorted = sorted(community_set.items(), key=lambda kv: kv[1], reverse=False)
+                    i = 0
+                    prev_cluster = 9999999999999999
+                    for (sent, cls) in community_set_sorted:
+                        if cls not in old_cluster:
+                            community_set_collection.append((sent, cls))
+                            old_cluster.append(cls)
+                            prev_cluster = cls
+                            i = cls
+                        else:
+                            if cls == prev_cluster:
+                                community_set_collection.append((sent, i))
+                                continue
+                            while i in old_cluster:
+                                i += 1
+                            prev_cluster = cls
+                            community_set_collection.append((sent, i))
+                            old_cluster.append(i)
+                    for (sent, cls) in community_set_sorted:
+                        old_cluster.append(cls)
+                else:
+                    i = 0
+                    while i in old_cluster:
+                        i += 1
+                    community_set_collection.append((cluster[0], i))
+                    old_cluster.append(i)
+            community_set_collection = sorted(community_set_collection, key = lambda x: x[1], reverse=False)
+            community_timerange = self.refine_community(community_set_collection, graph_list)
+            # logger.info("commnity timerange", extra={"timerange": community_timerange})
+            pims = self.group_community_by_time(community_timerange)
+            pims = self.wrap_community_by_time_refined(pims)
+            logger.info("Final PIMs", extra={"PIMs": pims})
+        else:
+            community_set_collection = deepcopy(community_set_sorted)
+            community_set_collection = sorted(community_set_collection, key = lambda x: x[1], reverse=False)
+            community_timerange = self.refine_community(community_set_collection, graph_list)
+            # logger.info("commnity timerange", extra={"timerange": community_timerange})
+            pims = self.group_community_by_time(community_timerange)
+            pims = self.wrap_community_by_time_refined(pims)
+            pims = self.order_groups_by_score(pims, fv_mapped_score)
+            logger.info("Final PIMs", extra={"PIMs": pims})
+        return pims
 
     def get_communities_without_outlier(self):
         fv, graph_list = self.compute_feature_vector()
@@ -287,48 +374,6 @@ class community_detection():
             i +=1
         community_set_sorted = self.compute_louvian_community(meeting_graph_pruned, community_set)
         community_timerange = self.refine_community(community_set_sorted, graph_list)
-        pims = self.group_community_by_time(community_timerange)
-        pims = self.wrap_community_by_time_refined(pims)
-        logger.info("Final PIMs", extra={"PIMs": pims})
-        return pims
-
-    def get_communities(self):
-        # segments_data = ' '.join([sentence for segment in self.segments_list for sentence in segment['originalText']])
-        fv, graph_list = self.compute_feature_vector()
-        logger.info("No of sentences is", extra={"sentence": len(fv.keys())})
-        meeting_graph, yetto_prune = self.construct_graph(fv, graph_list)
-        max_meeting_grap_pruned = None
-        max_community_set = None
-        max_mod = 0
-        for v in [0.15, 0.1, 0.05, 0.04, 0.03, 0.02, 0.01]:
-            # flag = False
-            for count in range(5):
-                meeting_graph_pruned = self.prune_edges(meeting_graph, graph_list, yetto_prune, v)
-                community_set = community.best_partition(meeting_graph_pruned)
-                mod = community.modularity(community_set, meeting_graph_pruned)
-                logger.info("Meeting Graph results", extra={"edges before prunning": meeting_graph.number_of_edges(), "edges after prunning": meeting_graph_pruned.number_of_edges(), "modularity ": mod})
-                # if mod>0.3:
-                #     flag = True
-                #     break
-                # if mod==0:
-                #     meeting_graph_pruned = self.prune_edges(meeting_graph, graph_list, yetto_prune, 0.15)
-                #     flag = True
-                #     break
-                if mod > max_mod and mod <= 0.6:
-                    max_meeting_grap_pruned = meeting_graph_pruned
-                    max_community_set = community_set
-                    max_mod = mod
-                    # flag = True
-                    # if flag:
-                    #     break
-        meeting_graph_pruned = max_meeting_grap_pruned
-        community_set = max_community_set
-        mod = max_mod
-
-        logger.info("Meeting Graph results", extra={"edges before prunning": meeting_graph.number_of_edges(), "edges after prunning": meeting_graph_pruned.number_of_edges(), "modularity": mod})
-        community_set_sorted = self.compute_louvian_community(meeting_graph_pruned, community_set)
-        community_timerange = self.refine_community(community_set_sorted, graph_list)
-        # logger.info("commnity timerange", extra={"timerange": community_timerange})
         pims = self.group_community_by_time(community_timerange)
         pims = self.wrap_community_by_time_refined(pims)
         logger.info("Final PIMs", extra={"PIMs": pims})
