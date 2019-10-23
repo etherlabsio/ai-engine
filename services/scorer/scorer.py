@@ -87,7 +87,7 @@ def calculate_score(feature_vector,mind_dict):
             mind_vec = np.expand_dims(np.array(mind_vector),2)
             sent_vec = feature_vector[i:i+batch_size]
 
-            cluster_scores = getClusterScore(mind_vec,sent_vec)
+            cluster_scores = get_cluster_score(mind_vec,sent_vec)
 
             batch_scores = cluster_scores.max(1)
             transcript_score_list.extend(batch_scores)
