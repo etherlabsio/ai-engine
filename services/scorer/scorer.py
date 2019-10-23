@@ -49,7 +49,14 @@ def get_score(mind_id: str, mind_dict, Request: TextSegment) -> Score:
         mind_input = json.dumps({"text": pre_processed_input})
         mind_input = json.dumps({"body": mind_input})
         logger.info('sending request to mind service')
-        transcript_score = get_feature_vector(mind_input, lambda_function, mind_dict)
+        response, feature_vector = get_feature_vector(mind_input, lambda_function)
+        transcript_score = 0.00001
+        if response == 200:
+            logger.info('got {} from mind server'.format(response))
+            transcript_score = calculate_score(feature_vector,mind_dict)
+        else:
+            logger.debug('Invalid response from mind service for input: {}'.format(mind_input))
+            logger.debug('Returning default score')
     else:
         transcript_score = 0.00001
         logger.warn('processing transcript: {}'.format(transcript_text))
@@ -60,45 +67,42 @@ def get_score(mind_id: str, mind_dict, Request: TextSegment) -> Score:
     score = 1 / transcript_score
     return score
 
-def getClusterScore(mind_vec, sent_vec):
+def get_cluster_score(mind_vec, sent_vec):
     n1 = norm(mind_vec,axis=1).reshape(1,-1)
     n2 = norm(sent_vec,axis=1).reshape(-1,1)
     dotp = dot(sent_vec, mind_vec).squeeze(2)
     segment_scores = dotp/(n2*n1)
     return segment_scores
 
-def get_feature_vector(mind_input, lambda_function, mind_dict):
+def calculate_score(feature_vector,mind_dict):
+    mind_feats = list(mind_dict['feature_vector'].values())
+    mind_vector = np.array(mind_feats).reshape(len(mind_feats), -1)
+    transcript_mind_list=[]
+    transcript_score_list = []
+    if len(feature_vector) > 0:
+        # For paragraphs, uncomment below LOC
+        # feature_vector = np.mean(np.array(feature_vector),0).reshape(1,-1)
+        batch_size = min(10,feature_vector.shape[0])
+        for i in range(0,feature_vector.shape[0],batch_size):
+            mind_vec = np.expand_dims(np.array(mind_vector),2)
+            sent_vec = feature_vector[i:i+batch_size]
+
+            cluster_scores = getClusterScore(mind_vec,sent_vec)
+
+            batch_scores = cluster_scores.max(1)
+            transcript_score_list.extend(batch_scores)
+
+            minds_selected = cluster_scores.argmax(1)
+            transcript_mind_list.extend(minds_selected)
+        transcript_score = np.mean(transcript_score_list)
+        logger.info("Mind Selected is {}".format({ele:transcript_mind_list.count(ele) for ele in set(transcript_mind_list)}))
+    return transcript_score
+    
+def get_feature_vector(mind_input, lambda_function):
     invoke_response = lambda_client.invoke(FunctionName=lambda_function, InvocationType='RequestResponse', Payload=mind_input)
     out_json = invoke_response['Payload'].read().decode('utf8').replace("'", '"')
     data = json.loads(json.loads(out_json)['body'])
     response = json.loads(out_json)['statusCode']
-    feats = list(mind_dict['feature_vector'].values())
-    mind_vector = np.array(feats).reshape(len(feats), -1)
-    transcript_score = 0.00001
-    transcript_mind_list=[]
-    transcript_score_list = []
-    if response == 200:
-        logger.info('got {} from mind server'.format(response))
-        feature_vector = np.array(data['sent_feats'][0])
-        if len(feature_vector) > 0:
-            # For paragraphs, uncomment below LOC
-            # feature_vector = np.mean(np.array(feature_vector),0).reshape(1,-1)
-            batch_size = min(10,feature_vector.shape[0])
-            for i in range(0,feature_vector.shape[0],batch_size):
-                mind_vec = np.expand_dims(np.array(mind_vector),2)
-                sent_vec = feature_vector[i:i+batch_size]
+    feature_vector = np.array(data['sent_feats'][0])
 
-                cluster_scores = getClusterScore(mind_vec,sent_vec)
-
-                batch_scores = cluster_scores.max(1)
-                transcript_score_list.extend(batch_scores)
-
-                minds_selected = cluster_scores.argmax(1)
-                transcript_mind_list.extend(minds_selected)
-            transcript_score = np.mean(transcript_score_list)
-            logger.info("Mind Selected is {}".format({ele:transcript_mind_list.count(ele) for ele in set(transcript_mind_list)}))
-    else:
-        logger.debug('Invalid response from mind service for input: {}'.format(mind_input))
-        logger.debug('Returning default score')
-
-    return transcript_score
+    return response, feature_vector
