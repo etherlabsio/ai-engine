@@ -1,5 +1,7 @@
-import string, itertools
+import string
+import itertools
 import nltk
+
 
 class CandidateKPExtractor(object):
 
@@ -10,32 +12,31 @@ class CandidateKPExtractor(object):
         self.stop_words = stop_words
 
     def get_candidate_phrases(self, text, pos_search_pattern_list=[
-                                        #r"""nounverb:{<NN.*>+<.+>{0,2}<VB>+}""",
                                         r"""verbnoun:{<VB>+<.+>{0,2}<NN.*>+}"""]):
         all_chunks = []
 
         for pattern in pos_search_pattern_list:
-            all_chunks+=self.getregexChunks(text,pattern)
+            all_chunks += self.getregexChunks(text,pattern)
 
         candidates_tokens = [' '.join(word for word, pos, 
-                    chunk in group).lower() 
-                    for key, group in itertools.groupby(all_chunks, 
+                    chunk in group).lower()
+                    for key, group in itertools.groupby(all_chunks,
                     self.lambda_unpack(lambda word, pos, chunk: chunk != 'O')) if key]
         candidate_phrases = [cand for cand in candidates_tokens if cand not in self.stop_words and not all(char in self.punct for char in cand)]
 
         return candidate_phrases
 
-    def get_ai_subjects(self,text, prop_pattern=[r"""prpvb:{<PRP><MD><VB>+}"""]):
+    def get_ai_subjects(self, text, prop_pattern=[r"""prpvb:{<PRP><MD><VB>+}"""]):
         ai_candidates = self.get_candidate_phrases(text)
-        prop_candidates = self.get_candidate_phrases(text,prop_pattern)
-        if len(ai_candidates)==0 and len(prop_candidates)>0:
-            #search for ai subject with new candidates
+        prop_candidates = self.get_candidate_phrases(text, prop_pattern)
+        if len(ai_candidates) == 0 and len(prop_candidates) > 0:
+            # search for ai subject with new candidates
             ai_candidates = self.get_candidate_phrases(text, pos_search_pattern_list = [
                 r"""verbnoun:{<VB>+<.+>{0,5}<NN.*>+}"""])
             
         return ai_candidates
 
-    def getregexChunks(self,text,grammar):
+    def getregexChunks(self, text, grammar):
 
         chunker = nltk.chunk.regexp.RegexpParser(grammar)
         tagged_sents = nltk.pos_tag_sents(nltk.word_tokenize(sent) for sent in nltk.sent_tokenize(text))

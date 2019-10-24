@@ -21,8 +21,7 @@ from log.logger import setup_server_logger
 s3 = boto3.resource('s3')
 
 logger = logging.getLogger(__name__)
-setup_server_logger(debug=True)  # default False for disabling debug mode
-
+setup_server_logger(debug=False)  # default False for disabling debug mode
 
 def load_model():
     bucket = os.getenv('BUCKET_NAME')
@@ -55,7 +54,7 @@ def handler(event, context):
         json_request = event['body']
     
     try:
-        ai_detector = ad.ActionItemDetector(json_request['segments'],model)
+        ai_detector = ad.ActionItemDetector(json_request['segments'], model)
         action_items,decisions = ai_detector.get_action_decision_subjects_list()
 
         response = json.dumps({"action_items": action_items,
