@@ -571,6 +571,7 @@ class KeyphraseExtractor(object):
                         default_form=default_form,
                         rank_by=rank_by,
                         sort_by=sort_by,
+                        remove_phrases=True,
                     )
                 except Exception as e:
                     logger.warning(
@@ -584,6 +585,7 @@ class KeyphraseExtractor(object):
                         default_form=default_form,
                         rank_by="pagerank",
                         sort_by=sort_by,
+                        remove_phrases=False,
                     )
 
             if validate:
@@ -772,7 +774,7 @@ class KeyphraseExtractor(object):
             "original": {word: score},
             "descriptive": {word: score}
         }
-        where, score = list(pagerank_score, segment_relevance_score, boosted_score, location)
+        where, score = list(pagerank_score, segment_relevance_score, boosted_score, norm_boosted_score, location)
         """
         segment_entities = []
         cleaned_keyphrase_list = []
@@ -787,6 +789,7 @@ class KeyphraseExtractor(object):
 
         segment_relevance_score = 0
         boosted_score = 0
+        norm_boosted_score = 0
         keyphrase_list, descriptive_kp = self.wg.get_segment_keyphrases(
             segment_object=segment_object, word_graph=meeting_word_graph
         )
@@ -814,7 +817,13 @@ class KeyphraseExtractor(object):
                 loc = input_segment.find(word)
                 if loc > -1 and ("*" not in word or "." not in word):
                     segment_dict["original"][word] = list(
-                        (pagerank_score, segment_relevance_score, boosted_score, loc)
+                        (
+                            pagerank_score,
+                            segment_relevance_score,
+                            boosted_score,
+                            norm_boosted_score,
+                            loc,
+                        )
                     )
 
             # Get cleaned descriptive phrases
@@ -822,7 +831,13 @@ class KeyphraseExtractor(object):
                 loc = input_segment.find(word)
                 if loc > -1 and ("*" not in word or "." not in word):
                     segment_dict["descriptive"][word] = list(
-                        (pagerank_score, segment_relevance_score, boosted_score, loc)
+                        (
+                            pagerank_score,
+                            segment_relevance_score,
+                            boosted_score,
+                            norm_boosted_score,
+                            loc,
+                        )
                     )
 
             # Add entity scores in the object
@@ -843,6 +858,7 @@ class KeyphraseExtractor(object):
                             entity_pagerank_score,
                             segment_relevance_score,
                             boosted_score,
+                            norm_boosted_score,
                             preference,
                             loc,
                         )
@@ -871,16 +887,9 @@ class KeyphraseExtractor(object):
         default_form: str = "descriptive",
         rank_by: str = "pagerank",
         sort_by: str = "loc",
+        remove_phrases: bool = True,
+        phrase_threshold=3,
     ) -> Tuple[list, List[dict]]:
-
-        rank_key_dict = {
-            "pagerank": 0,
-            "segment_relevance": 1,
-            "boosted_score": 2,
-            "order": "desc",
-        }
-
-        sort_key_dict = {"loc": -1, "preference": 3, "order": "asc"}
 
         final_keyphrase_dict = OrderedDict()
         final_entity_dict = OrderedDict()
@@ -889,101 +898,96 @@ class KeyphraseExtractor(object):
             keyphrase_dict = kp_dict[default_form]
             entity_dict = kp_dict["entities"]
 
-            # Sort by rank/scores
-            ranked_keyphrase_dict = self.utils.sort_dict_by_value(
-                dict_var=keyphrase_dict,
-                key=rank_key_dict[rank_by],
-                order=rank_key_dict["order"],
-            )
-
-            # Sort Entities by preference
-            ranked_entities_dict = self.utils.sort_dict_by_value(
-                dict_var=entity_dict,
-                key=sort_key_dict["preference"],
-                order=sort_key_dict["order"],
-            )
-
-            # For chapters: Choose top-n from each segment for better diversity
             try:
-                ranked_entities_dict, ranked_keyphrase_dict = self.utils.limit_phrase_list(
-                    entities_dict=ranked_entities_dict,
-                    keyphrase_dict=ranked_keyphrase_dict,
-                    phrase_limit=top_n,
-                    entities_limit=2,
-                    keyphrase_object=keyphrase_object,
-                    remove_phrases=True,
+                entity_quality_score = kp_dict["entitiesQuality"]
+                keyphrase_quality_score = kp_dict["medianKeyphraseQuality"]
+            except KeyError as e:
+                logger.warning(
+                    "Unable to compute entities and keyphrase quality score",
+                    extra={"warnMsg": e},
                 )
-            except Exception as e:
-                logger.warning("Not removing phrases by quality", extra={"warnMsg": e})
-                ranked_entities_dict, ranked_keyphrase_dict = self.utils.limit_phrase_list(
-                    entities_dict=ranked_entities_dict,
-                    keyphrase_dict=ranked_keyphrase_dict,
-                    phrase_limit=top_n,
-                    entities_limit=2,
-                    keyphrase_object=keyphrase_object,
-                    remove_phrases=False,
-                )
+                entity_quality_score = 0
+                keyphrase_quality_score = 0
 
-            final_keyphrase_dict = {**ranked_keyphrase_dict, **final_keyphrase_dict}
-            final_entity_dict = {**ranked_entities_dict, **final_entity_dict}
+            # # Sort by rank/scores
+            # For chapters: Choose top-n from each segment for better diversity
+            ranked_entities_dict, ranked_keyphrase_dict = self.utils.limit_phrase_list(
+                entities_dict=entity_dict,
+                keyphrase_dict=keyphrase_dict,
+                phrase_limit=top_n,
+                entities_limit=2,
+                entity_quality_score=entity_quality_score,
+                keyphrase_quality_score=keyphrase_quality_score,
+                rank_by=rank_by,
+                sort_by=sort_by,
+                remove_phrases=remove_phrases,
+            )
 
-        # Sort once again if order got changed while insertion
-        final_keyphrase_dict = self.utils.sort_dict_by_value(
-            dict_var=final_keyphrase_dict,
-            key=rank_key_dict[rank_by],
-            order=rank_key_dict["order"],
-        )
-
-        final_entity_dict = self.utils.sort_dict_by_value(
-            dict_var=final_entity_dict,
-            key=sort_key_dict["preference"],
-            order=sort_key_dict["order"],
-        )
+            final_keyphrase_dict = {**final_keyphrase_dict, **ranked_keyphrase_dict}
+            final_entity_dict = {**final_entity_dict, **ranked_entities_dict}
 
         logger.debug(
             "Keyphrase and entity list before limiting",
             extra={
                 "entities": list(final_entity_dict.keys()),
                 "keyphrases": list(final_keyphrase_dict.keys()),
+                "count": len(final_entity_dict.keys())
+                + len(final_keyphrase_dict.keys()),
             },
         )
 
-        # Limit keyphrase list to top-n
+        # Set a dynamic threshold for top-n number
+        total_phrase_count = len(final_entity_dict.keys()) + len(
+            final_keyphrase_dict.keys()
+        )
+        dynamic_top_n = int(total_phrase_count / phrase_threshold)
+        if dynamic_top_n < top_n:
+            dynamic_top_n = top_n
+
+        if top_n == 10 or top_n == 5:
+            dynamic_top_n = top_n
+
+        if dynamic_top_n >= 12:
+            dynamic_top_n = 12
+
         try:
-            final_entity_dict, final_keyphrase_dict = self.utils.limit_phrase_list(
-                entities_dict=final_entity_dict,
-                keyphrase_dict=final_keyphrase_dict,
-                phrase_limit=top_n,
-                entities_limit=2,
-                keyphrase_object=keyphrase_object,
-                remove_phrases=True,
+            overall_entity_quality_score = np.mean(
+                [scores[3] for entity, scores in final_entity_dict.items()]
+            )
+            overall_keyphrase_quality_score = np.mean(
+                [scores[3] for phrase, scores in final_keyphrase_dict.items()]
             )
         except Exception as e:
-            logger.warning("Not removing phrases by quality", extra={"warnMsg": e})
-            final_entity_dict, final_keyphrase_dict = self.utils.limit_phrase_list(
-                entities_dict=final_entity_dict,
-                keyphrase_dict=final_keyphrase_dict,
-                phrase_limit=top_n,
-                entities_limit=2,
-                keyphrase_object=keyphrase_object,
-                remove_phrases=False,
+            logger.warning(
+                "Unable to compute overall quality scores", extra={"warnMsg": e}
             )
+
+            overall_entity_quality_score = 0
+            overall_keyphrase_quality_score = 0
+
+        # Limit keyphrase list to top-n
+        sorted_keyphrase_dict = self.utils.limit_phrase_list(
+            entities_dict=final_entity_dict,
+            keyphrase_dict=final_keyphrase_dict,
+            phrase_limit=dynamic_top_n,
+            entities_limit=2,
+            entity_quality_score=overall_entity_quality_score,
+            keyphrase_quality_score=overall_keyphrase_quality_score,
+            rank_by=rank_by,
+            sort_by=sort_by,
+            remove_phrases=remove_phrases,
+            final_sort=True,
+        )
 
         logger.debug(
             "Keyphrase and entity list after limiting",
             extra={
-                "entities": list(final_entity_dict.keys()),
-                "keyphrases": list(final_keyphrase_dict.keys()),
+                "keyphrases": list(sorted_keyphrase_dict.keys()),
+                "count": len(sorted_keyphrase_dict.keys()),
+                "threshold": dynamic_top_n,
+                "keyphraseQuality": overall_keyphrase_quality_score,
+                "entityQuality": overall_entity_quality_score,
             },
-        )
-
-        # Combine entities and keyphrases
-        final_result_dict = {**final_entity_dict, **final_keyphrase_dict}
-
-        sorted_keyphrase_dict = self.utils.sort_dict_by_value(
-            dict_var=final_result_dict,
-            key=sort_key_dict[sort_by],
-            order=sort_key_dict["order"],
         )
 
         keyphrase = [phrases for phrases, scores in sorted_keyphrase_dict.items()]

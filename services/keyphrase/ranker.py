@@ -4,6 +4,7 @@ from scipy.spatial.distance import cosine
 import numpy as np
 from copy import deepcopy
 import json
+from nltk.tokenize import sent_tokenize
 
 logger = logging.getLogger(__name__)
 
@@ -181,6 +182,9 @@ class KeyphraseRanker(object):
                 kp_dict["entitiesQuality"] = entity_confidence_score
                 kp_dict["medianEntitiesQuality"] = entity_median_score
 
+        keyphrase_object = self.compute_normalized_boosted_rank(
+            keyphrase_object, dict_key=dict_key
+        )
         logger.info("Computed segment relevance score")
 
         return keyphrase_object
@@ -195,6 +199,39 @@ class KeyphraseRanker(object):
             ranked_keyphrase_dict[phrase][2] = boosted_score
 
         return ranked_keyphrase_dict
+
+    def compute_normalized_boosted_rank(self, keyphrase_object, dict_key="descriptive"):
+
+        if dict_key == "descriptive":
+            total_keyphrase_quality = [
+                kp_dict["medianKeyphraseQuality"] for kp_dict in keyphrase_object
+            ]
+            total_quality_score = np.sum(total_keyphrase_quality)
+        else:
+            total_entities_quality = [
+                kp_dict["entitiesQuality"] for kp_dict in keyphrase_object
+            ]
+            total_quality_score = np.sum(total_entities_quality)
+
+        for i, kp_dict in enumerate(keyphrase_object):
+            keyphrase_ent_dict = kp_dict[dict_key]
+            segment = kp_dict["segments"]
+            segment_sentence_len = len(sent_tokenize(segment))
+
+            if dict_key == "entities":
+                quality_score = kp_dict["entitiesQuality"]
+            else:
+                quality_score = kp_dict["medianKeyphraseQuality"]
+
+            for phrase, scores in keyphrase_ent_dict.items():
+                boosted_score = scores[2]
+
+                norm_boosted_score = (
+                    boosted_score * quality_score * segment_sentence_len
+                ) / (total_quality_score)
+                keyphrase_ent_dict[phrase][3] = norm_boosted_score
+
+        return keyphrase_object
 
     def _get_segment_phrase_embedding(self, context_graph, segment_id):
 
