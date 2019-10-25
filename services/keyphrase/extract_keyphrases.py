@@ -590,8 +590,13 @@ class KeyphraseExtractor(object):
 
             if validate:
                 validation_file_name = self.utils.write_to_json(keyphrase_object)
-                validation_file_name = instance_id + validation_file_name
-                s3_path = context_id + self.context_dir + validation_file_name
+                s3_path = (
+                    context_id
+                    + self.context_dir
+                    + instance_id
+                    + "/"
+                    + validation_file_name
+                )
                 self.s3_client.upload_to_s3(
                     file_name=validation_file_name, object_name=s3_path
                 )

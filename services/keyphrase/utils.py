@@ -102,7 +102,7 @@ class KeyphraseUtils(object):
         return OrderedDict(sorted_list)
 
     def write_to_json(self, data, file_name="keyphrase_validation.json"):
-        with open(file_name, "w", encoding="utf-8") as f_:
+        with open(file_name, "a", encoding="utf-8") as f_:
             json.dump(data, f_, ensure_ascii=False, indent=4)
 
         return file_name
