@@ -180,8 +180,8 @@ class ActionItemDetector():
                         print(sent)
                         if len(curr_ai_subjects) > 1:
                             # merge action items
-                            start_idx = sent.find(curr_ai_subjects[0])
-                            end_idx = sent.find(curr_ai_subjects[-1])+len(curr_ai_subjects[-1])
+                            start_idx = sent.lower().find(curr_ai_subjects[0].lower())
+                            end_idx = sent.lower().find(curr_ai_subjects[-1].lower())+len(curr_ai_subjects[-1].lower())
                             ai_subject = sent[start_idx:end_idx]
                         else:
                             ai_subject = curr_ai_subjects[0]
