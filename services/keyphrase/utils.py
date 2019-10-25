@@ -105,6 +105,8 @@ class KeyphraseUtils(object):
         with open(file_name, "w", encoding="utf-8") as f_:
             json.dump(data, f_, ensure_ascii=False, indent=4)
 
+        return file_name
+
     def read_segments(self, segment_object):
 
         segment_list = []

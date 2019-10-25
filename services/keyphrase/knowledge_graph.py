@@ -50,12 +50,11 @@ class KnowledgeGraph(object):
 
         return g
 
-    def populate_instance_info(self, instance_id, segment_object, g=None, attribute_dict=None):
+    def populate_instance_info(
+        self, instance_id, segment_object, g=None, attribute_dict=None
+    ):
         if g is None:
             g = nx.DiGraph()
-
-        # instance_id = request["instanceId"]
-        # segment_list = request["segments"]
 
         segment_attrs_list = []
         user_list = []
@@ -97,9 +96,7 @@ class KnowledgeGraph(object):
         recording_list.append((recording_node, self.recording_label))
 
         # Create edge tuple list
-        segment_user_edge_list.append(
-            (segment_node, user_node, self.segment_user_rel)
-        )
+        segment_user_edge_list.append((segment_node, user_node, self.segment_user_rel))
         segment_transcriber_edge_list.append(
             (segment_node, transcriber_node, self.segment_transcriber_rel)
         )
@@ -149,7 +146,6 @@ class KnowledgeGraph(object):
         # TODO Might need this when it is a separate service
         # for segment in segment_list:
         segment_node = segment_object["id"]
-        print(segment_node)
         segment_keyphrase_edge_list = [
             (segment_node, words, self.segment_keyphrase_rel)
             for words in keyphrase_list

@@ -122,11 +122,9 @@ class KeyphraseRanker(object):
 
         for i, kp_dict in enumerate(keyphrase_object):
             segment_id = kp_dict["segmentId"]
-            print(segment_id)
-            npz_file = self._get_segment_phrase_embedding(context_graph=context_graph, segment_id=segment_id)
-            logger.debug("files in the npz", extra={
-                "npzFiles": npz_file.files
-            })
+            npz_file = self._get_segment_phrase_embedding(
+                context_graph=context_graph, segment_id=segment_id
+            )
             segment_embedding = npz_file[segment_id]
             keyphrase_dict = kp_dict[dict_key]
 
@@ -204,7 +202,6 @@ class KeyphraseRanker(object):
         for node, nattr in context_graph.nodes(data=True):
             if nattr.get("attribute") == "segmentId" and node == segment_id:
                 embedding_uri = nattr.get("embedding_vector_uri")
-                print(embedding_uri)
 
                 # Download embedding file and deserialize it
                 npz_file = self.io_util.download_npz(npz_file_path=embedding_uri)

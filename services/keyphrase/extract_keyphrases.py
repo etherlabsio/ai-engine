@@ -29,14 +29,16 @@ class KeyphraseExtractor(object):
         self.s3_client = s3_client
         self.kg = KnowledgeGraph()
         self.utils = KeyphraseUtils()
-        self.io_util = S3IO(s3_client=s3_client, graph_utils_obj=GraphUtils(), utils=KeyphraseUtils())
+        self.io_util = S3IO(
+            s3_client=s3_client, graph_utils_obj=GraphUtils(), utils=KeyphraseUtils()
+        )
         self.ranker = KeyphraseRanker(
             encoder_lambda_client=encoder_lambda_client,
             lambda_function=lambda_function,
             s3_io_util=self.io_util,
             context_dir=self.context_dir,
             knowledge_graph_object=self.kg,
-            utils=KeyphraseUtils()
+            utils=KeyphraseUtils(),
         )
         self.wg = WordGraphBuilder(
             graphrank_obj=GraphRank(),
@@ -151,7 +153,10 @@ class KeyphraseExtractor(object):
 
         # Populate meeting-level knowledge graph
         context_graph = self.kg.populate_instance_info(
-            instance_id=instance_id, segment_object=segment_object, g=context_graph, attribute_dict=attribute_dict
+            instance_id=instance_id,
+            segment_object=segment_object,
+            g=context_graph,
+            attribute_dict=attribute_dict,
         )
 
         # Write back the graph object to S3
@@ -429,7 +434,7 @@ class KeyphraseExtractor(object):
             # Update context graph with embedding vectors
             segment_attr_dict = {
                 "embedding_vector_uri": npz_s3_path,
-                "embedding_model": "use v1"
+                "embedding_model": "use v1",
             }
             context_graph = self._populate_push_context_graph(
                 req_data=req_data,
@@ -449,9 +454,10 @@ class KeyphraseExtractor(object):
                 phrase_hash_dict=phrase_hash_dict,
             )
 
-            logger.info("features embeddings computed and stored", extra={
-                "embeddingUri": npz_s3_path
-            })
+            logger.info(
+                "features embeddings computed and stored",
+                extra={"embeddingUri": npz_s3_path},
+            )
 
         return context_graph, meeting_word_graph
 
@@ -506,13 +512,18 @@ class KeyphraseExtractor(object):
 
                 context_graph, meeting_word_graph = self.populate_word_graph(req_data)
 
-                # Compute embeddings for segments and keyphrases
-                context_graph, meeting_word_graph = self.populate_context_embeddings(
-                    req_data=req_data,
-                    segment_object=segment_object,
-                    context_graph=context_graph,
-                    meeting_word_graph=meeting_word_graph,
+                # Check if the segments are already present in the context graph
+                status = self.check_for_segment_id(
+                    segment_object=segment_object, context_graph=context_graph
                 )
+                if status is not True:
+                    # Compute embeddings for segments and keyphrases
+                    context_graph, meeting_word_graph = self.populate_context_embeddings(
+                        req_data=req_data,
+                        segment_object=segment_object,
+                        context_graph=context_graph,
+                        meeting_word_graph=meeting_word_graph,
+                    )
 
             # Check if the segments are already present in the context graph
             status = self.check_for_segment_id(
@@ -576,7 +587,12 @@ class KeyphraseExtractor(object):
                     )
 
             if validate:
-                self.utils.write_to_json(keyphrase_object)
+                validation_file_name = self.utils.write_to_json(keyphrase_object)
+                validation_file_name = instance_id + validation_file_name
+                s3_path = context_id + self.context_dir + validation_file_name
+                self.s3_client.upload_to_s3(
+                    file_name=validation_file_name, object_name=s3_path
+                )
 
             logger.debug(
                 "keyphrases extracted successfully",
@@ -587,15 +603,21 @@ class KeyphraseExtractor(object):
             # Populate PIM keyphrases to context graph
             if n_kw == 10:
                 original_pim_keyphrases = list(keyphrase_object[0]["original"].keys())
-                pim_keyphrases_hash = dict(zip(map(self.utils.hash_phrase, original_pim_keyphrases), original_pim_keyphrases))
+                pim_keyphrases_hash = dict(
+                    zip(
+                        map(self.utils.hash_phrase, original_pim_keyphrases),
+                        original_pim_keyphrases,
+                    )
+                )
                 self._update_context_with_keyphrases(
                     req_data=req_data,
                     segment_keyphrases=original_pim_keyphrases,
+                    segment_object=segment_object[0],
                     context_graph=context_graph,
                     is_pim=True,
                     upload=True,
                     attr_dict={"keyphraseType": "original"},
-                    phrase_hash_dict=pim_keyphrases_hash
+                    phrase_hash_dict=pim_keyphrases_hash,
                 )
                 logger.info("Updated context graph with PIM keyphrases")
 

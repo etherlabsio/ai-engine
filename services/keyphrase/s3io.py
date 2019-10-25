@@ -69,10 +69,6 @@ class S3IO(object):
 
         # Once uploading is successful, check if NPZ exists on disk and delete it
         local_npz_path = Path(npz_file_name).absolute()
-        logger.debug("local path", extra={
-            "npz_local_path": local_npz_path,
-            "npz_s3_path": s3_path
-        })
         if os.path.exists(local_npz_path):
             os.remove(local_npz_path)
 
