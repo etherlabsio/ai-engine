@@ -158,12 +158,17 @@ class NATSTransport(object):
         start = timer()
         request = json.loads(msg.data)
         segment_object = request["segments"]
+        validation = request.get("validate", "False")
+        if validation == "True":
+            validation = True
+        else:
+            validation = False
         segment_ids = [seg_ids["id"] for seg_ids in segment_object]
         context_info = request["contextId"] + ":" + request["instanceId"]
 
         limit = request.get("limit", 10)
         output = self.keyphrase_service.get_keyphrases(
-            request, segment_object=segment_object, n_kw=limit, validate=False
+            request, segment_object=segment_object, n_kw=limit, validate=validation
         )
         end = timer()
 
@@ -186,6 +191,7 @@ class NATSTransport(object):
                     "limit": limit,
                     "responseTime": end - start,
                     "segmentsReceived": segment_ids,
+                    "dynamicThreshold": len(output["keyphrases"]),
                 },
             )
         elif limit == 10:

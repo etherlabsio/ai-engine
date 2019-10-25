@@ -3,6 +3,7 @@ import iso8601
 import itertools
 import json
 from collections import OrderedDict
+import numpy as np
 
 
 class KeyphraseUtils(object):
@@ -176,50 +177,138 @@ class KeyphraseUtils(object):
         keyphrase_dict,
         phrase_limit=6,
         entities_limit=2,
-        word_limit=3,
-        keyphrase_object=None,
+        entity_quality_score=0,
+        keyphrase_quality_score=0,
         remove_phrases=False,
+        rank_by="pagerank",
+        sort_by="loc",
+        final_sort=False,
     ):
         modified_entity_dict = {}
         modified_keyphrase_dict = {}
+
+        rank_key_dict = {
+            "pagerank": 0,
+            "segment_relevance": 1,
+            "boosted_score": 2,
+            "norm_boosted_score": 3,
+            "order": "desc",
+        }
+
+        sort_key_dict = {"loc": -1, "preference": 4, "order": "asc"}
+
         if remove_phrases:
-            for i, kp_dict in enumerate(keyphrase_object):
-                entity_quality_score = kp_dict["entitiesQuality"]
-                keyphrase_quality_score = kp_dict["medianKeyphraseQuality"]
+            for entity, scores in entities_dict.items():
+                preference_value = scores[sort_key_dict.get("preference")]
+                boosted_score = scores[rank_key_dict.get("boosted_score")]
+                norm_boosted_score = scores[rank_key_dict.get("norm_boosted_score")]
 
-                for entity, scores in entities_dict.items():
-                    boosted_score = scores[2]
-                    preference_value = scores[3]
+                entity_score = boosted_score
+                if final_sort:
+                    entity_score = norm_boosted_score
 
-                    # Check for relevance scores if the entity type is other than Organization or Product
-                    if preference_value > 2:
-                        if boosted_score >= entity_quality_score:
-                            modified_entity_dict[entity] = scores
-                    else:
+                # Check for relevance scores if the entity type is other than Organization or Product
+                if preference_value > 2:
+                    if entity_score >= entity_quality_score:
+                        modified_entity_dict[entity] = scores
+                else:
+                    if entity_score > 0:
                         modified_entity_dict[entity] = scores
 
-                for phrase, scores in keyphrase_dict.items():
-                    segment_score = scores[1]
-                    if segment_score > keyphrase_quality_score:
-                        modified_keyphrase_dict[phrase] = scores
+            for phrase, scores in keyphrase_dict.items():
+                boosted_score = scores[rank_key_dict.get("boosted_score")]
+                norm_boosted_score = scores[rank_key_dict.get("norm_boosted_score")]
+
+                keyphrase_score = boosted_score
+                if final_sort:
+                    keyphrase_score = norm_boosted_score
+
+                if keyphrase_score > keyphrase_quality_score:
+                    modified_keyphrase_dict[phrase] = scores
 
         else:
             modified_keyphrase_dict = keyphrase_dict
             modified_entity_dict = entities_dict
 
-        if len(list(modified_entity_dict.keys())) > entities_limit:
+        ranked_entities_dict, ranked_keyphrase_dict = self._sort_phrase_dict(
+            keyphrase_dict=modified_keyphrase_dict,
+            entity_dict=modified_entity_dict,
+            rank_by=rank_by,
+            sort_by=sort_by,
+            rank_key_dict=rank_key_dict,
+            sort_key_dict=sort_key_dict,
+        )
+
+        if final_sort:
+            ranked_entities_dict, ranked_keyphrase_dict = self._slice_phrase_dict(
+                entities_dict=ranked_entities_dict,
+                keyphrase_dict=ranked_keyphrase_dict,
+                phrase_limit=phrase_limit,
+                entities_limit=entities_limit,
+            )
+
+            # Combine entities and keyphrases
+            final_result_dict = {**ranked_entities_dict, **ranked_keyphrase_dict}
+
+            # Sort chronologically
+            sorted_keyphrase_dict = self.sort_dict_by_value(
+                dict_var=final_result_dict,
+                key=sort_key_dict[sort_by],
+                order=sort_key_dict["order"],
+            )
+
+            return sorted_keyphrase_dict
+
+        else:
+            return ranked_entities_dict, ranked_keyphrase_dict
+
+    def _sort_phrase_dict(
+        self,
+        keyphrase_dict,
+        entity_dict,
+        rank_key_dict,
+        sort_key_dict,
+        rank_by,
+        sort_by,
+    ):
+
+        # Sort by rank/scores
+        ranked_keyphrase_dict = self.sort_dict_by_value(
+            dict_var=keyphrase_dict,
+            key=rank_key_dict[rank_by],
+            order=rank_key_dict["order"],
+        )
+
+        # Sort Entities by preference
+        ranked_entities_dict = self.sort_dict_by_value(
+            dict_var=entity_dict,
+            key=rank_key_dict["norm_boosted_score"],
+            order=rank_key_dict["order"],
+        )
+
+        return ranked_entities_dict, ranked_keyphrase_dict
+
+    def _slice_phrase_dict(
+        self, entities_dict, keyphrase_dict, phrase_limit=6, entities_limit=2
+    ):
+
+        word_limit = phrase_limit - entities_limit
+        if len(list(entities_dict.keys())) > entities_limit:
             modified_entity_dict = dict(
-                itertools.islice(modified_entity_dict.items(), entities_limit)
+                itertools.islice(entities_dict.items(), entities_limit)
             )
 
             limited_keyphrase_dict = dict(
-                itertools.islice(modified_keyphrase_dict.items(), word_limit)
+                itertools.islice(keyphrase_dict.items(), word_limit)
             )
         else:
-            num_of_entities = len(list(modified_entity_dict.keys()))
+            num_of_entities = len(list(entities_dict.keys()))
+            modified_entity_dict = dict(
+                itertools.islice(entities_dict.items(), num_of_entities)
+            )
             difference = phrase_limit - num_of_entities
             limited_keyphrase_dict = dict(
-                itertools.islice(modified_keyphrase_dict.items(), difference)
+                itertools.islice(keyphrase_dict.items(), difference)
             )
 
         return modified_entity_dict, limited_keyphrase_dict
