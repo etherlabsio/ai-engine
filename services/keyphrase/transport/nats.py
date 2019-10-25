@@ -163,7 +163,7 @@ class NATSTransport(object):
 
         limit = request.get("limit", 10)
         output = self.keyphrase_service.get_keyphrases(
-            request, segment_object=segment_object, n_kw=limit, validate=False
+            request, segment_object=segment_object, n_kw=limit, validate=True
         )
         end = timer()
 

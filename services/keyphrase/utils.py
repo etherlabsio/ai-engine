@@ -4,8 +4,9 @@ import itertools
 import json
 from collections import OrderedDict
 import hashlib
-from typing import List, Dict, Tuple
+from typing import List, Dict, Tuple, Union
 import numpy as np
+from io import BytesIO
 
 
 class KeyphraseUtils(object):
@@ -32,12 +33,13 @@ class KeyphraseUtils(object):
 
         return file_name + ".npz"
 
-    def deserialize_from_npz(self, file_name: str):
-        if file_name.split(".")[-1] != "npz":
-            file_name = file_name + ".npz"
+    def deserialize_from_npz(self, file_name: Union[str, bytes]):
+        if isinstance(file_name, bytes):
+            file_name = BytesIO(file_name)
 
-        with np.load(file_name) as npz_file:
-            return npz_file
+        npz_file = np.load(file_name)
+
+        return npz_file
 
     def formatTime(self, tz_time, datetime_object=False):
         isoTime = iso8601.parse_date(tz_time)
