@@ -17,6 +17,20 @@ lambda_client = boto3_client('lambda', config=config)
 def cosine(vec1, vec2):
     return dot(vec1, vec2) / (norm(vec1) * norm(vec2))
 
+def get_mind_score(segment_fv, mind_dict):
+    feats = list(mind_dict['feature_vector'].values())
+    mind_vector = np.array(feats).reshape(len(feats), -1)
+    temp_vector = np.array(segment_fv)
+    mind_score = []
+    batch_size = min(10, temp_vector.shape[0])
+    for i in range(0, temp_vector.shape[0],batch_size):
+        mind_vec = np.expand_dims(np.array(mind_vector),2)
+        sent_vec = temp_vector[i:i+batch_size]
+        cluster_scores = getClusterScore(mind_vec,sent_vec)
+        batch_scores = cluster_scores.max(1)
+        mind_score.extend(batch_scores)
+
+    return mind_score
 
 def get_feature_vector(input_list, lambda_function, mind_f):
     # logger.info("computing feature vector", extra={"msg": "getting feature vector from mind service"})

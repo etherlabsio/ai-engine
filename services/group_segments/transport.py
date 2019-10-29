@@ -4,11 +4,14 @@ from typing import List
 import logging
 import text_preprocessing.preprocess as tp
 from copy import deepcopy
-from extra_preprocess import preprocess_text
+from group_segments.extra_preprocess import preprocess_text
 
 
 @dataclass
 class Request:
+    mind_id: str
+    instance_id: str
+    context_id: str
     segments: list
     segments_org: list
     segments_map: dict
@@ -40,4 +43,4 @@ def decode_json_request(req) -> Request:
     segments_org = deepcopy(req)
     segments = decode_segments(segments_org)
 
-    return Request(segments, segments_org, segments_map, segments_order)
+    return Request(req['mindId'],req['instanceId'],req['contextId'],segments, segments_org, segments_map, segments_order)

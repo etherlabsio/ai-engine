@@ -1,3 +1,4 @@
+import pickle
 import numpy as np
 import json
 import text_preprocessing.preprocess as tp
@@ -11,6 +12,9 @@ from datetime import datetime
 from group_segments import scorer
 import logging
 import math
+import os
+from s3client.s3 import S3Manager
+from group_segments import scorer
 from log.logger import setup_server_logger
 logger = logging.getLogger()
 
@@ -22,13 +26,22 @@ class community_detection():
     segments_order = {}
     lambda_function = None
     mind_features = None
-    def __init__(self, Request, lambda_function, mind_f):
+    mind_id = None
+    context_id = None
+    instance_id = None
+    compute_fv = True
+
+    def __init__(self, Request, lambda_function, mind_f, compute_fv):
         self.segments_list = Request.segments
         self.segments_org = Request.segments_org
         self.segments_order = Request.segments_order
         self.segments_map = Request.segments_map
         self.lambda_function = lambda_function
         self.mind_features = mind_f
+        self.compute_fv = compute_fv
+        self.mind_id = Request.mind_id
+        self.context_id = Request.context_id
+        self.instance_id = Request.instance_id
 
     def compute_feature_vector_gpt(self):
         graph_list = {}
@@ -53,6 +66,33 @@ class community_detection():
                         fv_mapped_score[segment['id']] = [mind_score[index]]
                     # fv_mapped_score[index] = (segment['id'], mind_score[index])
                     index += 1
+        for segi in fv_mapped_score.keys():
+            fv_mapped_score[segi] = np.mean(fv_mapped_score[segi])
+        return fv, graph_list, fv_mapped_score
+
+    def get_computed_feature_vector_gpt(self):
+        graph_list = {}
+        fv_mapped_score = {}
+        input_list = []
+        fv = {}
+        index = 0
+        bucket =  'io.etherlabs.' + os.getenv('ACTIVE_ENV', 'staging2') + '.contexts'
+        s3_obj = S3Manager(bucket_name=bucket)
+        for segment in self.segments_list:
+            if segment['originalText'] != []:
+                s3_path = self.context_id + '/feature_vectors/' + self.instance_id + '/' +  segment['id'] + '.pkl'
+                bytestream = (s3_obj.download_file(file_name = s3_path))['Body'].read()
+                segment_fv = pickle.loads(bytestream)
+                #with open("/tmp/" + s3_path, "rb") as f:
+                #    segment_fv = pickle.load(f)
+                mind_score = scorer.get_mind_score(segment_fv, self.mind_features)
+                assert(len(mind_score) == len(segment_fv))
+                for ind, sent in enumerate(segment['originalText']):
+                    if sent != '':
+                        graph_list[index] = (sent, segment['startTime'], segment['spokenBy'], segment['id'])
+                        fv[index] = segment_fv[ind]
+                        fv_mapped_score[segment['id']] = mind_score[ind]
+                        index += 1
         for segi in fv_mapped_score.keys():
             fv_mapped_score[segi] = np.mean(fv_mapped_score[segi])
         return fv, graph_list, fv_mapped_score
@@ -280,7 +320,10 @@ class community_detection():
         return new_pims
 
     def h_communities(self, h_flag=True):
-        fv, graph_list, fv_mapped_score = self.compute_feature_vector_gpt()
+        if self.compute_fv:
+            fv, graph_list, fv_mapped_score = self.compute_feature_vector_gpt()
+        else:
+            fv, graph_list, fv_mapped_score = self.get_computed_feature_vector_gpt()
         meeting_graph, yetto_prune = self.construct_graph(fv, graph_list)
         v = 25
         meeting_graph_pruned = self.prune_edges_outlier(meeting_graph, graph_list, yetto_prune, v)

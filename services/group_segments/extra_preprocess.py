@@ -42,6 +42,9 @@ def format_pims_output(pim, req, segmentsmap, mindId):
         tmp_seg = []
         for seg in pim[no].keys():
             tmp_seg.append(segmentsmap[pim[no][seg][-1]])
+            # uncomment the below to print the computed sentences instead of the original.
+            # tmp_seg[-1]["analyzedText"] = pim[no][seg][0]
+            tmp_seg[-1]["analyzedText"] = tmp_seg[-1]["originalText"]
         pims["group"][no] = tmp_seg
     pims['contextId'] = (req)['contextId']
     pims['instanceId'] = (req)['instanceId']

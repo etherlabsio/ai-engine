@@ -21,7 +21,9 @@ import logging
 from botocore.client import Config
 from dataclasses import dataclass
 from scorer.pre_process import preprocess_text
-
+from s3client.s3 import S3Manager
+import os
+import pickle
 logger = logging.getLogger()
 
 config = Config(connect_timeout=60, read_timeout=240, retries={'max_attempts': 0}, )
@@ -39,8 +41,19 @@ class TextSegment:
 class Score(TextSegment):
     score: float
 
+def upload_fv(fv_list, Request, context_id, instance_id):
+    try:
+        bucket =  'io.etherlabs.' + os.getenv('ACTIVE_ENV', 'staging2') + '.contexts'
+        s3_path = context_id + '/feature_vectors/' + instance_id + '/' +  Request.id + '.pkl'
+        logger.info ("The path used for s3.", extra={"S3": s3_path, "bucket": bucket})
+        s3_obj = S3Manager(bucket_name=bucket)
+        s3_obj.upload_object(pickle.dumps(fv_list), s3_path)
+    except Exception as e:
+        logger.info("Uploading failed ", extra={"exception:" : e})
+        return False
+    return True
 
-def get_score(mind_id: str, mind_dict, Request: TextSegment) -> Score:
+def get_score(mind_id: str, mind_dict, Request: TextSegment, context_id, instance_id, for_pims=False) -> Score:
     score = []
     pre_processed_input = preprocess_text(Request.text)
     lambda_function = "mind-" + mind_id
@@ -49,8 +62,16 @@ def get_score(mind_id: str, mind_dict, Request: TextSegment) -> Score:
         mind_input = json.dumps({"text": pre_processed_input})
         mind_input = json.dumps({"body": mind_input})
         logger.info('sending request to mind service')
-        transcript_score = get_feature_vector(mind_input, lambda_function, mind_dict)
+        if for_pims is False:
+            transcript_score = get_feature_vector(mind_input, lambda_function, mind_dict, Request, context_id, instance_id)
+        else:
+            response = get_feature_vector(mind_input, lambda_function, mind_dict, Request, context_id, instance_id, store_features = True)
+            if response is True:
+                return True
+            else:
+                return False
     else:
+        return True
         transcript_score = 0.00001
         logger.warn('processing transcript: {}'.format(transcript_text))
         logger.warn('transcript too small to process. Returning default score')
@@ -67,11 +88,17 @@ def getClusterScore(mind_vec, sent_vec):
     segment_scores = dotp/(n2*n1)
     return segment_scores
 
-def get_feature_vector(mind_input, lambda_function, mind_dict):
+def get_feature_vector(mind_input, lambda_function, mind_dict, Request, context_id, instance_id, store_features = False):
     invoke_response = lambda_client.invoke(FunctionName=lambda_function, InvocationType='RequestResponse', Payload=mind_input)
     out_json = invoke_response['Payload'].read().decode('utf8').replace("'", '"')
     data = json.loads(json.loads(out_json)['body'])
     response = json.loads(out_json)['statusCode']
+    if store_features is True:
+        vector_list = data['sent_feats'][0]
+        upload_fv(vector_list, Request, context_id, instance_id)
+        return True
+
+
     feats = list(mind_dict['feature_vector'].values())
     mind_vector = np.array(feats).reshape(len(feats), -1)
     transcript_score = 0.00001

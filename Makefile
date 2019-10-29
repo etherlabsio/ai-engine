@@ -63,3 +63,18 @@ update-lambda-function-gs:
 test-gs:
 	aws s3 cp --profile staging2 dist/group_segments_code.pex s3://io.etherlabs.staging2.contexts/topics/group_segments_code.pex
 	aws lambda update-function-code --function-name pex_test --s3-bucket io.etherlabs.staging2.contexts --s3-key topics/group_segments_code.pex --region=us-east-1
+
+.PHONY: test-sa
+test-sa:
+	aws s3 cp --profile staging2 dist/segment_analyzer_lambda.pex s3://io.etherlabs.staging2.contexts/topics/segment_analyzer_lambda.pex
+	aws lambda update-function-code --function-name pex_test --s3-bucket io.etherlabs.staging2.contexts --s3-key topics/segment_analyzer_lambda.pex --region=us-east-1
+
+.PHONY: new-service
+new-service:
+	@mkdir services/${app}
+	@mkdir cmd/${app}-server
+	@touch cmd/${app}-server/main.py
+	@cp .template/BUILD.cmd cmd/${app}-server/BUILD
+	@cp .template/BUILD.services services/${app}/BUILD
+	@echo -e '\n\n Added cmd/${app}-server with BUILD & main file \n Added services/${app} with BUILD file'
+	@echo -e '\nNote: Kindly go into the Build files present in the 'services/${app}/' and 'cmd/${app}-server/'. \n Change the service name from Keyphrase to your respective service name and, \n add/remove the dependencies mentioned in the cmd/${app}-server/BUILD file '

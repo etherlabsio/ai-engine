@@ -13,6 +13,7 @@ if os.path.isdir(os.path.join(os.getcwd(), "vendor/nltk_data")):
     nltk.data.path.append(os.path.join(os.getcwd(), "vendor/nltk_data"))
     try:
         nltk.data.find("wordnet")
+        nltk.data.find("stopwords")
     except LookupError:
         nltk.download("wordnet")
         nltk.download("stopwords")
@@ -22,12 +23,14 @@ else:
         nltk.data.path.append("/tmp/nltk_data")
         try:
             nltk.data.find("wordnet")
+            nltk.data.find("stopwords")
         except LookupError:
             nltk.download("wordnet", download_dir="/tmp/nltk_data")
             nltk.download("stopwords", download_dir="/tmp/nltk_data")
     else:
         nltk.download("wordnet", download_dir="/tmp/nltk_data")
         nltk.download("stopwords", download_dir="/tmp/nltk_data")
+        nltk.data.path.append("/tmp/nltk_data")
 stop_words_nltk = stopwords.words("english")
 
 stop_words_spacy = list(
