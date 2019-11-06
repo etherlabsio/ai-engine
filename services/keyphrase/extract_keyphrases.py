@@ -26,6 +26,7 @@ class KeyphraseExtractor(object):
         self, s3_client=None, encoder_lambda_client=None, lambda_function=None
     ):
         self.context_dir = "/context-instance-graphs/"
+        self.feature_dir = "/sessions/"
         self.s3_client = s3_client
         self.kg = KnowledgeGraph()
         self.utils = KeyphraseUtils()
@@ -427,14 +428,14 @@ class KeyphraseExtractor(object):
             npz_s3_path = self.io_util.upload_npz(
                 context_id=context_id,
                 instance_id=instance_id,
-                s3_dir=self.context_dir,
+                feature_dir=self.feature_dir,
                 npz_file_name=npz_file_name,
             )
 
             # Update context graph with embedding vectors
             segment_attr_dict = {
                 "embedding_vector_uri": npz_s3_path,
-                "embedding_model": "use v1",
+                "embedding_model": "use_v1",
             }
             context_graph = self._populate_push_context_graph(
                 req_data=req_data,

@@ -63,8 +63,14 @@ class S3IO(object):
 
         return graph_obj
 
-    def upload_npz(self, context_id, instance_id, s3_dir, npz_file_name):
-        s3_path = context_id + s3_dir + instance_id + "/" + npz_file_name
+    def upload_npz(self, context_id, instance_id, feature_dir, npz_file_name):
+        s3_path = (
+            context_id
+            + feature_dir
+            + instance_id
+            + "/features/segments/"
+            + npz_file_name
+        )
         self.s3_client.upload_to_s3(file_name=npz_file_name, object_name=s3_path)
 
         # Once uploading is successful, check if NPZ exists on disk and delete it
