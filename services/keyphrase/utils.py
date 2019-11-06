@@ -29,7 +29,7 @@ class KeyphraseUtils(object):
         return phrase_hash_dict, phrase_embedding_dict
 
     def serialize_to_npz(self, embedding_dict: Dict, file_name: str):
-        np.savez(file_name, **embedding_dict)
+        np.savez_compressed(file_name, **embedding_dict)
 
         return file_name + ".npz"
 
