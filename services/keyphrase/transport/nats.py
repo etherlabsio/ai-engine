@@ -158,7 +158,7 @@ class NATSTransport(object):
         start = timer()
         request = json.loads(msg.data)
         segment_object = request["segments"]
-        validation = request.get("validate", "False")
+        validation = request.get("validate", "True")
         if validation == "True":
             validation = True
         else:

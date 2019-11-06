@@ -3,12 +3,43 @@ import iso8601
 import itertools
 import json
 from collections import OrderedDict
+import hashlib
+from typing import List, Dict, Tuple, Union
 import numpy as np
+from io import BytesIO
 
 
 class KeyphraseUtils(object):
     def __init__(self):
         pass
+
+    def hash_phrase(self, phrase: str) -> str:
+        hash_object = hashlib.md5(phrase.encode())
+        hash_str = hash_object.hexdigest()
+        return hash_str
+
+    def map_embeddings_to_phrase(
+        self, phrase_list: List, embedding_list: List
+    ) -> Tuple[Dict, Dict]:
+        phrase_hash_dict = dict(zip(map(self.hash_phrase, phrase_list), phrase_list))
+        phrase_embedding_dict = dict(
+            zip(map(self.hash_phrase, phrase_list), embedding_list)
+        )
+
+        return phrase_hash_dict, phrase_embedding_dict
+
+    def serialize_to_npz(self, embedding_dict: Dict, file_name: str):
+        np.savez_compressed(file_name, **embedding_dict)
+
+        return file_name + ".npz"
+
+    def deserialize_from_npz(self, file_name: Union[str, bytes]):
+        if isinstance(file_name, bytes):
+            file_name = BytesIO(file_name)
+
+        npz_file = np.load(file_name)
+
+        return npz_file
 
     def formatTime(self, tz_time, datetime_object=False):
         isoTime = iso8601.parse_date(tz_time)
@@ -71,8 +102,10 @@ class KeyphraseUtils(object):
         return OrderedDict(sorted_list)
 
     def write_to_json(self, data, file_name="keyphrase_validation.json"):
-        with open(file_name, "w", encoding="utf-8") as f_:
+        with open(file_name, "a", encoding="utf-8") as f_:
             json.dump(data, f_, ensure_ascii=False, indent=4)
+
+        return file_name
 
     def read_segments(self, segment_object):
 

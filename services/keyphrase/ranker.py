@@ -13,6 +13,7 @@ class KeyphraseRanker(object):
     def __init__(
         self,
         s3_io_util,
+        utils,
         context_dir,
         knowledge_graph_object,
         encoder_lambda_client,
@@ -23,6 +24,7 @@ class KeyphraseRanker(object):
         self.kg = knowledge_graph_object
         self.context_dir = context_dir
         self.io_util = s3_io_util
+        self.utils = utils
 
     def _get_pairwise_embedding_distance(self, embedding_array):
 
@@ -119,17 +121,12 @@ class KeyphraseRanker(object):
         norm_limit: int = 4,
     ):
 
-        segment_embedding_list = self._query_segment_phrase_embeddings(
-            context_graph=context_graph,
-            keyphrase_object=keyphrase_object,
-            dict_key=dict_key,
-        )
         for i, kp_dict in enumerate(keyphrase_object):
-            segment_embedding = segment_embedding_list[i].get("segment_embedding")
-            segment_keyphrase_embedding_dict = segment_embedding_list[i].get(
-                "keyphrase_embedding"
+            segment_id = kp_dict["segmentId"]
+            npz_file = self._get_segment_phrase_embedding(
+                context_graph=context_graph, segment_id=segment_id
             )
-
+            segment_embedding = npz_file[segment_id]
             keyphrase_dict = kp_dict[dict_key]
 
             segment_relevance_score_list = []
@@ -138,7 +135,8 @@ class KeyphraseRanker(object):
                 phrase_len = len(phrase.split())
 
                 try:
-                    keyphrase_embedding = segment_keyphrase_embedding_dict[phrase]
+                    phrase_id = self.utils.hash_phrase(phrase)
+                    keyphrase_embedding = npz_file[phrase_id]
                     seg_score = 1 - cosine(segment_embedding, keyphrase_embedding)
                 except KeyError:
                     logger.warning(
@@ -235,46 +233,15 @@ class KeyphraseRanker(object):
 
         return keyphrase_object
 
-    def _query_segment_phrase_embeddings(
-        self, context_graph, keyphrase_object, dict_key="descriptive"
-    ):
-        """
+    def _get_segment_phrase_embedding(self, context_graph, segment_id):
 
-        Args:
-            context_graph:
-            keyphrase_object:
-            dict_key:
+        # Get segment embedding vector from context graph
+        for node, nattr in context_graph.nodes(data=True):
+            if nattr.get("attribute") == "segmentId" and node == segment_id:
+                embedding_uri = nattr.get("embedding_vector_uri")
 
-        Returns:
-            segment_embedding_list (list[Dict]): Returns list[Dict{"segmentId": str, "original": {}, "descriptive": {}, "keyphrase_embedding": {phrase: phrase_vector}}]
-        """
-
-        embedding_dict = {
-            "segmentId": str,
-            "original": {},
-            "descriptive": {},
-            "keyphrase_embedding": {},
-        }
-        segment_embedding_list = []
-        for i, kp_dict in enumerate(keyphrase_object):
-            embedding_dict_copy = deepcopy(embedding_dict)
-            segment_id = kp_dict["segmentId"]
-            embedding_dict_copy["segmentId"] = segment_id
-
-            # Get segment embedding vector from context graph
-            for node, nattr in context_graph.nodes(data=True):
-                if nattr.get("attribute") == "segmentId" and node == segment_id:
-                    segment_vector = nattr.get("embedding_vector")
-                    embedding_dict_copy["segment_embedding"] = segment_vector
-
-                    for neighbour_nodes, values in dict(context_graph[node]).items():
-                        if values.get("relation") == "hasKeywords":
-                            embedding_dict_copy["keyphrase_embedding"][
-                                neighbour_nodes
-                            ] = context_graph.nodes[neighbour_nodes].get(
-                                "embedding_vector"
-                            )
-
-                    segment_embedding_list.append(embedding_dict_copy)
-
-        return segment_embedding_list
+                # Download embedding file and deserialize it
+                npz_file = self.io_util.download_npz(npz_file_path=embedding_uri)
+                return npz_file
+            else:
+                continue
