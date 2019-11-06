@@ -26,15 +26,20 @@ class KeyphraseExtractor(object):
         self, s3_client=None, encoder_lambda_client=None, lambda_function=None
     ):
         self.context_dir = "/context-instance-graphs/"
+        self.feature_dir = "/sessions/"
+        self.s3_client = s3_client
         self.kg = KnowledgeGraph()
         self.utils = KeyphraseUtils()
-        self.io_util = S3IO(s3_client=s3_client, graph_utils_obj=GraphUtils())
+        self.io_util = S3IO(
+            s3_client=s3_client, graph_utils_obj=GraphUtils(), utils=KeyphraseUtils()
+        )
         self.ranker = KeyphraseRanker(
             encoder_lambda_client=encoder_lambda_client,
             lambda_function=lambda_function,
             s3_io_util=self.io_util,
             context_dir=self.context_dir,
             knowledge_graph_object=self.kg,
+            utils=KeyphraseUtils(),
         )
         self.wg = WordGraphBuilder(
             graphrank_obj=GraphRank(),
@@ -131,8 +136,45 @@ class KeyphraseExtractor(object):
         self,
         req_data: SegmentType,
         context_graph: nx.DiGraph,
-        meeting_word_graph: nx.Graph,
+        segment_object: SegmentType,
         attribute_dict=None,
+    ) -> nx.DiGraph:
+        """
+        Populate instance information, add meeting word graph to context graph and upload the context graph
+        Args:
+            req_data:
+            context_graph::
+
+        Returns:
+
+        """
+
+        context_id = req_data["contextId"]
+        instance_id = req_data["instanceId"]
+
+        # Populate meeting-level knowledge graph
+        context_graph = self.kg.populate_instance_info(
+            instance_id=instance_id,
+            segment_object=segment_object,
+            g=context_graph,
+            attribute_dict=attribute_dict,
+        )
+
+        # Write back the graph object to S3
+        self.io_util.upload_s3(
+            graph_obj=context_graph,
+            context_id=context_id,
+            instance_id=instance_id,
+            s3_dir=self.context_dir,
+        )
+
+        return context_graph
+
+    def _update_context_with_word_graph(
+        self,
+        req_data: SegmentType,
+        context_graph: nx.DiGraph,
+        meeting_word_graph: nx.Graph,
     ) -> Tuple[nx.DiGraph, nx.Graph]:
         """
         Populate instance information, add meeting word graph to context graph and upload the context graph
@@ -147,11 +189,6 @@ class KeyphraseExtractor(object):
 
         context_id = req_data["contextId"]
         instance_id = req_data["instanceId"]
-
-        # Populate meeting-level knowledge graph
-        context_graph = self.kg.populate_instance_info(
-            request=req_data, g=context_graph, attribute_dict=attribute_dict
-        )
 
         # Add word graph object to context graph to reduce population time in next requests
         context_graph = self.kg.populate_word_graph_info(
@@ -172,11 +209,13 @@ class KeyphraseExtractor(object):
         self,
         req_data: SegmentType,
         segment_keyphrases: list,
+        segment_object: SegmentType,
         context_graph: nx.DiGraph = None,
         attr_dict=None,
         is_pim=False,
         upload=False,
-    ):
+        phrase_hash_dict=None,
+    ) -> nx.DiGraph:
         """
         Get keyphrases for each input segment and add it to context graph, then upload it.
         Args:
@@ -205,9 +244,11 @@ class KeyphraseExtractor(object):
             context_graph = self.kg.populate_keyphrase_info(
                 request=req_data,
                 keyphrase_list=segment_keyphrases,
+                segment_object=segment_object,
                 g=context_graph,
                 keyphrase_attr_dict=attr_dict,
                 is_pim=is_pim,
+                phrase_hash_dict=phrase_hash_dict,
             )
         except Exception:
             logger.debug(traceback.print_exc())
@@ -299,7 +340,7 @@ class KeyphraseExtractor(object):
             )
 
         # Populate instance info and push context graphs
-        context_graph, meeting_word_graph = self._populate_push_context_graph(
+        context_graph, meeting_word_graph = self._update_context_with_word_graph(
             req_data=req_data,
             context_graph=context_graph,
             meeting_word_graph=meeting_word_graph,
@@ -328,6 +369,9 @@ class KeyphraseExtractor(object):
         Returns:
 
         """
+        context_id = req_data["contextId"]
+        instance_id = req_data["instanceId"]
+
         if context_graph is None and meeting_word_graph is None:
             # Get graph objects
             context_graph, meeting_word_graph = self._retrieve_context_graph(
@@ -344,47 +388,77 @@ class KeyphraseExtractor(object):
         # Get segment text
         for i, kp_dict in enumerate(keyphrase_object):
             seg_text = kp_dict["segments"]
+            segment_id = kp_dict["segmentId"]
             segment_keyphrase_dict = kp_dict[default_form]
             segment_entity_dict = kp_dict["entities"]
 
             keyphrase_list = list(segment_keyphrase_dict.keys())
             entities_list = list(segment_entity_dict.keys())
 
-            input_embedding_list = []
-            input_embedding_list.extend(entities_list)
-            input_embedding_list.extend(keyphrase_list)
+            input_phrases_list = []
+            input_phrases_list.extend(entities_list)
+            input_phrases_list.extend(keyphrase_list)
 
-            # Compute segment embedding vector and store it
+            # Compute segment embedding vector
             segment_embedding = self.ranker.get_embeddings(
                 input_list=[seg_text], req_data=req_data
             )
 
-            # Compute keyphrase embedding vectors and store it
+            # Compute keyphrase embedding vectors
             keyphrase_embeddings = self.ranker.get_embeddings(
-                input_list=input_embedding_list, req_data=req_data
+                input_list=input_phrases_list, req_data=req_data
+            )
+
+            # Combine segment and keyphrase embeddings and serialize them
+            segment_embedding_dict = {segment_id: np.array(segment_embedding)}
+
+            phrase_hash_dict, phrase_embedding_dict = self.utils.map_embeddings_to_phrase(
+                phrase_list=input_phrases_list, embedding_list=keyphrase_embeddings
+            )
+
+            segment_keyphrase_embeddings = {
+                **segment_embedding_dict,
+                **phrase_embedding_dict,
+            }
+
+            # Serialize the entire segment-keyphrase embedding dictionary to NPZ
+            npz_file_name = self.utils.serialize_to_npz(
+                embedding_dict=segment_keyphrase_embeddings, file_name=segment_id
+            )
+            npz_s3_path = self.io_util.upload_npz(
+                context_id=context_id,
+                instance_id=instance_id,
+                feature_dir=self.feature_dir,
+                npz_file_name=npz_file_name,
             )
 
             # Update context graph with embedding vectors
-            context_graph, meeting_word_graph = self._populate_push_context_graph(
+            segment_attr_dict = {
+                "embedding_vector_uri": npz_s3_path,
+                "embedding_model": "use_v1",
+            }
+            context_graph = self._populate_push_context_graph(
                 req_data=req_data,
                 context_graph=context_graph,
-                meeting_word_graph=meeting_word_graph,
-                attribute_dict={"embedding_vector": np.array(segment_embedding)},
+                segment_object=segment_object[i],
+                attribute_dict=segment_attr_dict,
             )
 
             context_graph = self._update_context_with_keyphrases(
                 req_data=req_data,
-                segment_keyphrases=input_embedding_list,
+                segment_keyphrases=input_phrases_list,
+                segment_object=segment_object[i],
                 context_graph=context_graph,
                 is_pim=False,
                 upload=True,
-                attr_dict={
-                    "embedding_vector": np.array(keyphrase_embeddings),
-                    "keyphraseType": "descriptive",
-                },
+                attr_dict={"keyphraseType": "descriptive"},
+                phrase_hash_dict=phrase_hash_dict,
             )
 
-        logger.info("Computed embeddings and populated successfully ...")
+            logger.info(
+                "features embeddings computed and stored",
+                extra={"embeddingUri": npz_s3_path},
+            )
 
         return context_graph, meeting_word_graph
 
@@ -439,13 +513,18 @@ class KeyphraseExtractor(object):
 
                 context_graph, meeting_word_graph = self.populate_word_graph(req_data)
 
-                # Compute embeddings for segments and keyphrases
-                context_graph, meeting_word_graph = self.populate_context_embeddings(
-                    req_data=req_data,
-                    segment_object=segment_object,
-                    context_graph=context_graph,
-                    meeting_word_graph=meeting_word_graph,
+                # Check if the segments are already present in the context graph
+                status = self.check_for_segment_id(
+                    segment_object=segment_object, context_graph=context_graph
                 )
+                if status is not True:
+                    # Compute embeddings for segments and keyphrases
+                    context_graph, meeting_word_graph = self.populate_context_embeddings(
+                        req_data=req_data,
+                        segment_object=segment_object,
+                        context_graph=context_graph,
+                        meeting_word_graph=meeting_word_graph,
+                    )
 
             # Check if the segments are already present in the context graph
             status = self.check_for_segment_id(
@@ -493,6 +572,7 @@ class KeyphraseExtractor(object):
                         default_form=default_form,
                         rank_by=rank_by,
                         sort_by=sort_by,
+                        remove_phrases=True,
                     )
                 except Exception as e:
                     logger.warning(
@@ -506,10 +586,21 @@ class KeyphraseExtractor(object):
                         default_form=default_form,
                         rank_by="pagerank",
                         sort_by=sort_by,
+                        remove_phrases=False,
                     )
 
             if validate:
-                self.utils.write_to_json(keyphrase_object)
+                validation_file_name = self.utils.write_to_json(keyphrase_object)
+                s3_path = (
+                    context_id
+                    + self.context_dir
+                    + instance_id
+                    + "/"
+                    + validation_file_name
+                )
+                self.s3_client.upload_to_s3(
+                    file_name=validation_file_name, object_name=s3_path
+                )
 
             logger.debug(
                 "keyphrases extracted successfully",
@@ -520,13 +611,21 @@ class KeyphraseExtractor(object):
             # Populate PIM keyphrases to context graph
             if n_kw == 10:
                 original_pim_keyphrases = list(keyphrase_object[0]["original"].keys())
+                pim_keyphrases_hash = dict(
+                    zip(
+                        map(self.utils.hash_phrase, original_pim_keyphrases),
+                        original_pim_keyphrases,
+                    )
+                )
                 self._update_context_with_keyphrases(
                     req_data=req_data,
                     segment_keyphrases=original_pim_keyphrases,
+                    segment_object=segment_object[0],
                     context_graph=context_graph,
                     is_pim=True,
                     upload=True,
                     attr_dict={"keyphraseType": "original"},
+                    phrase_hash_dict=pim_keyphrases_hash,
                 )
                 logger.info("Updated context graph with PIM keyphrases")
 
@@ -681,7 +780,7 @@ class KeyphraseExtractor(object):
             "original": {word: score},
             "descriptive": {word: score}
         }
-        where, score = list(pagerank_score, segment_relevance_score, boosted_score, location)
+        where, score = list(pagerank_score, segment_relevance_score, boosted_score, norm_boosted_score, location)
         """
         segment_entities = []
         cleaned_keyphrase_list = []
@@ -696,6 +795,7 @@ class KeyphraseExtractor(object):
 
         segment_relevance_score = 0
         boosted_score = 0
+        norm_boosted_score = 0
         keyphrase_list, descriptive_kp = self.wg.get_segment_keyphrases(
             segment_object=segment_object, word_graph=meeting_word_graph
         )
@@ -723,7 +823,13 @@ class KeyphraseExtractor(object):
                 loc = input_segment.find(word)
                 if loc > -1 and ("*" not in word or "." not in word):
                     segment_dict["original"][word] = list(
-                        (pagerank_score, segment_relevance_score, boosted_score, loc)
+                        (
+                            pagerank_score,
+                            segment_relevance_score,
+                            boosted_score,
+                            norm_boosted_score,
+                            loc,
+                        )
                     )
 
             # Get cleaned descriptive phrases
@@ -731,7 +837,13 @@ class KeyphraseExtractor(object):
                 loc = input_segment.find(word)
                 if loc > -1 and ("*" not in word or "." not in word):
                     segment_dict["descriptive"][word] = list(
-                        (pagerank_score, segment_relevance_score, boosted_score, loc)
+                        (
+                            pagerank_score,
+                            segment_relevance_score,
+                            boosted_score,
+                            norm_boosted_score,
+                            loc,
+                        )
                     )
 
             # Add entity scores in the object
@@ -752,6 +864,7 @@ class KeyphraseExtractor(object):
                             entity_pagerank_score,
                             segment_relevance_score,
                             boosted_score,
+                            norm_boosted_score,
                             preference,
                             loc,
                         )
@@ -780,16 +893,9 @@ class KeyphraseExtractor(object):
         default_form: str = "descriptive",
         rank_by: str = "pagerank",
         sort_by: str = "loc",
+        remove_phrases: bool = True,
+        phrase_threshold=3,
     ) -> Tuple[list, List[dict]]:
-
-        rank_key_dict = {
-            "pagerank": 0,
-            "segment_relevance": 1,
-            "boosted_score": 2,
-            "order": "desc",
-        }
-
-        sort_key_dict = {"loc": -1, "preference": 3, "order": "asc"}
 
         final_keyphrase_dict = OrderedDict()
         final_entity_dict = OrderedDict()
@@ -798,101 +904,96 @@ class KeyphraseExtractor(object):
             keyphrase_dict = kp_dict[default_form]
             entity_dict = kp_dict["entities"]
 
-            # Sort by rank/scores
-            ranked_keyphrase_dict = self.utils.sort_dict_by_value(
-                dict_var=keyphrase_dict,
-                key=rank_key_dict[rank_by],
-                order=rank_key_dict["order"],
-            )
-
-            # Sort Entities by preference
-            ranked_entities_dict = self.utils.sort_dict_by_value(
-                dict_var=entity_dict,
-                key=sort_key_dict["preference"],
-                order=sort_key_dict["order"],
-            )
-
-            # For chapters: Choose top-n from each segment for better diversity
             try:
-                ranked_entities_dict, ranked_keyphrase_dict = self.utils.limit_phrase_list(
-                    entities_dict=ranked_entities_dict,
-                    keyphrase_dict=ranked_keyphrase_dict,
-                    phrase_limit=top_n,
-                    entities_limit=2,
-                    keyphrase_object=keyphrase_object,
-                    remove_phrases=True,
+                entity_quality_score = kp_dict["entitiesQuality"]
+                keyphrase_quality_score = kp_dict["medianKeyphraseQuality"]
+            except KeyError as e:
+                logger.warning(
+                    "Unable to compute entities and keyphrase quality score",
+                    extra={"warnMsg": e},
                 )
-            except Exception as e:
-                logger.warning("Not removing phrases by quality", extra={"warnMsg": e})
-                ranked_entities_dict, ranked_keyphrase_dict = self.utils.limit_phrase_list(
-                    entities_dict=ranked_entities_dict,
-                    keyphrase_dict=ranked_keyphrase_dict,
-                    phrase_limit=top_n,
-                    entities_limit=2,
-                    keyphrase_object=keyphrase_object,
-                    remove_phrases=False,
-                )
+                entity_quality_score = 0
+                keyphrase_quality_score = 0
 
-            final_keyphrase_dict = {**ranked_keyphrase_dict, **final_keyphrase_dict}
-            final_entity_dict = {**ranked_entities_dict, **final_entity_dict}
+            # # Sort by rank/scores
+            # For chapters: Choose top-n from each segment for better diversity
+            ranked_entities_dict, ranked_keyphrase_dict = self.utils.limit_phrase_list(
+                entities_dict=entity_dict,
+                keyphrase_dict=keyphrase_dict,
+                phrase_limit=top_n,
+                entities_limit=2,
+                entity_quality_score=entity_quality_score,
+                keyphrase_quality_score=keyphrase_quality_score,
+                rank_by=rank_by,
+                sort_by=sort_by,
+                remove_phrases=remove_phrases,
+            )
 
-        # Sort once again if order got changed while insertion
-        final_keyphrase_dict = self.utils.sort_dict_by_value(
-            dict_var=final_keyphrase_dict,
-            key=rank_key_dict[rank_by],
-            order=rank_key_dict["order"],
-        )
-
-        final_entity_dict = self.utils.sort_dict_by_value(
-            dict_var=final_entity_dict,
-            key=sort_key_dict["preference"],
-            order=sort_key_dict["order"],
-        )
+            final_keyphrase_dict = {**final_keyphrase_dict, **ranked_keyphrase_dict}
+            final_entity_dict = {**final_entity_dict, **ranked_entities_dict}
 
         logger.debug(
             "Keyphrase and entity list before limiting",
             extra={
                 "entities": list(final_entity_dict.keys()),
                 "keyphrases": list(final_keyphrase_dict.keys()),
+                "count": len(final_entity_dict.keys())
+                + len(final_keyphrase_dict.keys()),
             },
         )
 
-        # Limit keyphrase list to top-n
+        # Set a dynamic threshold for top-n number
+        total_phrase_count = len(final_entity_dict.keys()) + len(
+            final_keyphrase_dict.keys()
+        )
+        dynamic_top_n = int(total_phrase_count / phrase_threshold)
+        if dynamic_top_n < top_n:
+            dynamic_top_n = top_n
+
+        if top_n == 10 or top_n == 5:
+            dynamic_top_n = top_n
+
+        if dynamic_top_n >= 12:
+            dynamic_top_n = 12
+
         try:
-            final_entity_dict, final_keyphrase_dict = self.utils.limit_phrase_list(
-                entities_dict=final_entity_dict,
-                keyphrase_dict=final_keyphrase_dict,
-                phrase_limit=top_n,
-                entities_limit=2,
-                keyphrase_object=keyphrase_object,
-                remove_phrases=True,
+            overall_entity_quality_score = np.mean(
+                [scores[3] for entity, scores in final_entity_dict.items()]
+            )
+            overall_keyphrase_quality_score = np.mean(
+                [scores[3] for phrase, scores in final_keyphrase_dict.items()]
             )
         except Exception as e:
-            logger.warning("Not removing phrases by quality", extra={"warnMsg": e})
-            final_entity_dict, final_keyphrase_dict = self.utils.limit_phrase_list(
-                entities_dict=final_entity_dict,
-                keyphrase_dict=final_keyphrase_dict,
-                phrase_limit=top_n,
-                entities_limit=2,
-                keyphrase_object=keyphrase_object,
-                remove_phrases=False,
+            logger.warning(
+                "Unable to compute overall quality scores", extra={"warnMsg": e}
             )
+
+            overall_entity_quality_score = 0
+            overall_keyphrase_quality_score = 0
+
+        # Limit keyphrase list to top-n
+        sorted_keyphrase_dict = self.utils.limit_phrase_list(
+            entities_dict=final_entity_dict,
+            keyphrase_dict=final_keyphrase_dict,
+            phrase_limit=dynamic_top_n,
+            entities_limit=2,
+            entity_quality_score=overall_entity_quality_score,
+            keyphrase_quality_score=overall_keyphrase_quality_score,
+            rank_by=rank_by,
+            sort_by=sort_by,
+            remove_phrases=remove_phrases,
+            final_sort=True,
+        )
 
         logger.debug(
             "Keyphrase and entity list after limiting",
             extra={
-                "entities": list(final_entity_dict.keys()),
-                "keyphrases": list(final_keyphrase_dict.keys()),
+                "keyphrases": list(sorted_keyphrase_dict.keys()),
+                "count": len(sorted_keyphrase_dict.keys()),
+                "threshold": dynamic_top_n,
+                "keyphraseQuality": overall_keyphrase_quality_score,
+                "entityQuality": overall_entity_quality_score,
             },
-        )
-
-        # Combine entities and keyphrases
-        final_result_dict = {**final_entity_dict, **final_keyphrase_dict}
-
-        sorted_keyphrase_dict = self.utils.sort_dict_by_value(
-            dict_var=final_result_dict,
-            key=sort_key_dict[sort_by],
-            order=sort_key_dict["order"],
         )
 
         keyphrase = [phrases for phrases, scores in sorted_keyphrase_dict.items()]
@@ -927,8 +1028,8 @@ class KeyphraseExtractor(object):
         context_graph.remove_node(word_graph)
 
         # Remove the embedding features from the context graph
-        context_graph = self.kg.query_for_embedded_nodes(context_graph)
-        context_graph = self.kg.query_for_embedded_segments(context_graph)
+        # context_graph = self.kg.query_for_embedded_nodes(context_graph)
+        # context_graph = self.kg.query_for_embedded_segments(context_graph)
 
         word_graph_id = word_graph.graph.get("graphId")
 
