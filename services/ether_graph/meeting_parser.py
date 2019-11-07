@@ -34,15 +34,15 @@ class ParseMeetingInfo(object):
         self.keyword_node = ["importKeywords"]
         self.schema_type = {
             "contextId": "Context",
-            "instanceId": "Instance",
-            "segmentId": "Segment",
+            "instanceId": "ContextSession",
+            "segmentId": "TranscriptionSegment",
             "userId": "User",
             "mindId": "Mind",
             "workspaceId": "Workspace",
             "channelId": "Channel",
             "sourceId": "Source",
-            "segmentProvider": "Provider",
-            "importantKeywords": "Keyword",
+            "segmentProvider": "TranscriptionProvider",
+            "importantKeywords": "Keyphrase",
         }
 
     def to_json(self, data, filename):
@@ -68,13 +68,13 @@ class ParseMeetingInfo(object):
             attribute: string
         }
         
-        type Instance {
+        type ContextSession {
             xid: string
             attribute: string
             hasSegment: [Segment]
         }
         
-        type Segment {
+        type TranscriptionSegment {
             xid: string
             attribute: string
             text: string
@@ -101,13 +101,13 @@ class ParseMeetingInfo(object):
             type: string
         }
         
-        type Provider {
+        type TranscriptionProvider {
             name: string
             attribute: string
         }
         
-        type Keyword {
-            keyphrase: string
+        type Keyphrase {
+            value: string
             attribute: string
             important: bool
             type: string
