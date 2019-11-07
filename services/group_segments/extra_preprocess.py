@@ -22,6 +22,9 @@ def preprocess_text(text):
             continue
 
         mod_texts.append(sent)
+
+    if len(mod_texts)==1:
+        return ""
     return mod_texts
 
 

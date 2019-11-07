@@ -4,6 +4,7 @@ from group_segments import grouper
 from group_segments.extra_preprocess import format_pims_output
 import sys
 import logging
+from copy import deepcopy
 from log.logger import setup_server_logger
 from scorer.mind_utils import load_mind_features
 logger = logging.getLogger()

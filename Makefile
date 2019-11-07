@@ -64,10 +64,11 @@ test-gs:
 	aws s3 cp --profile staging2 dist/group_segments_code.pex s3://io.etherlabs.staging2.contexts/topics/group_segments_code.pex
 	aws lambda update-function-code --function-name pex_test --s3-bucket io.etherlabs.staging2.contexts --s3-key topics/group_segments_code.pex --region=us-east-1
 
-.PHONY: test-sa
-test-sa:
-	aws s3 cp --profile staging2 dist/segment_analyzer_lambda.pex s3://io.etherlabs.staging2.contexts/topics/segment_analyzer_lambda.pex
-	aws lambda update-function-code --function-name pex_test --s3-bucket io.etherlabs.staging2.contexts --s3-key topics/segment_analyzer_lambda.pex --region=us-east-1
+.PHONY: deploy-sa
+deploy-sa:
+	./pants bundle cmd/segment_analyzer-server:segment_analyser_lambda
+	aws s3 cp --profile ${ENV} dist/segment_analyser_lambda.pex s3://io.etherlabs.artifacts/${ENV}/segment_analyser_lambda.pex
+	aws lambda update-function-code --function-name segment-analyser --s3-bucket io.etherlabs.artifacts --s3-key ${ENV}/segment_analyser_lambda.pex
 
 .PHONY: new-service
 new-service:

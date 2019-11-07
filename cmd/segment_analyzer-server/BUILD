@@ -27,7 +27,7 @@ python_library(
 )
 
 python_awslambda(
-    name='segment_analyzer_lambda',
+    name='segment_analyser_lambda',
     binary=':server',
     handler='main:handler',
 )   
