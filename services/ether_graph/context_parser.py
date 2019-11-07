@@ -1,11 +1,10 @@
 import json as js
 import logging
-from copy import deepcopy
 
 logger = logging.getLogger(__name__)
 
 
-class ParseMeetingInfo(object):
+class ContextSessionParser(object):
     def __init__(self):
         self.context_label = {"attribute": "contextId"}
         self.instance_label = {"attribute": "instanceId"}
@@ -305,7 +304,7 @@ class ParseMeetingInfo(object):
 
 
 if __name__ == "__main__":
-    parser = ParseMeetingInfo()
+    parser = ContextSessionParser()
     test_json = parser.read_json("meeting_test.json")
 
     parser.parse_context_info(req_data=test_json)
