@@ -117,19 +117,28 @@ class ContextSessionParser(object):
         return meeting_def
 
     def parse_context_info(self, req_data, **kwargs):
-        instance_node = self.parse_instance_segment_info(req_data=req_data, **kwargs)
-        self._context_instance_info(req_data=req_data, instance_node=instance_node)
+        context_id = req_data["contextId"]
+        mind_id = req_data["mindId"]
+        instance_id = req_data["instanceId"]
+
+        context_node = self._context_instance_info(
+            context_id=context_id, mind_id=mind_id, instance_id=instance_id, **kwargs
+        )
+        return context_node
 
     def parse_instance_segment_info(self, req_data, **kwargs):
         instance_id = req_data["instanceId"]
-        segment_node = self.parse_segment_info(req_data=req_data, **kwargs)
-        instance_node = self._instance_segment_info(
-            instance_id=instance_id, segment_node=segment_node
-        )
+        segment_object = req_data["segments"]
 
-        return instance_node
+        segment_node = self.parse_segment_info(segment_object=segment_object, **kwargs)
+        instance_node = self._instance_info(instance_id=instance_id)
 
-    def parse_segment_info(self, req_data, **kwargs):
+        instance_segment_relation = self.instance_segment_rel.get("relation")
+
+        # return individual nodes for population using upsert operation
+        return instance_node, instance_segment_relation, segment_node
+
+    def parse_segment_info(self, segment_object, **kwargs):
         external_segment_attr = kwargs.get("segment_attr", dict())
         external_user_attr = kwargs.get("user_attr", dict())
         external_provider_attr = kwargs.get("provider_attr", dict())
@@ -147,7 +156,6 @@ class ContextSessionParser(object):
             "tenantId",
         ]
 
-        segment_object = req_data["segments"]
         segment_node = {}
 
         for i, segment in enumerate(segment_object):
@@ -175,13 +183,10 @@ class ContextSessionParser(object):
 
         return segment_node
 
-    def _context_instance_info(self, req_data, **kwargs):
+    def _context_instance_info(self, context_id, mind_id, instance_id, **kwargs):
         context_attr = kwargs.get("context_attr", dict())
+        instance_attr = kwargs.get("instance_attr", dict())
         mind_attr = kwargs.get("mind_attr", dict())
-        instance_node = kwargs.get("instance_node")
-
-        context_id = req_data["contextId"]
-        mind_id = req_data["mindId"]
 
         # Update context info
         self.context_label.update(context_attr)
@@ -201,22 +206,6 @@ class ContextSessionParser(object):
             **self.mind_label,
         }
 
-        # Define Context relations
-        context_relations = {
-            self.context_mind_rel.get("relation"): mind_node,
-            self.context_instance_rel.get("relation"): instance_node,
-        }
-
-        # Join Context node and relations
-        context_node.update(context_relations)
-
-        self.to_json(context_node, "context_info")
-        return context_node
-
-    def _instance_segment_info(self, instance_id, **kwargs):
-        instance_attr = kwargs.get("instance_attr", dict())
-        segment_node = kwargs.get("segment_node")
-
         # Update instance info
         self.instance_label.update(instance_attr)
         instance_node = {
@@ -226,11 +215,28 @@ class ContextSessionParser(object):
             **self.instance_label,
         }
 
-        # Define Instance relations
-        instance_relations = {self.instance_segment_rel.get("relation"): segment_node}
+        # Define Context relations
+        context_relations = {
+            self.context_mind_rel.get("relation"): mind_node,
+            self.context_instance_rel.get("relation"): instance_node,
+        }
 
-        # Join Instance node and relations
-        instance_node.update(instance_relations)
+        # Join Context node and relations
+        context_node.update(context_relations)
+
+        return context_node
+
+    def _instance_info(self, instance_id, **kwargs):
+        instance_attr = kwargs.get("instance_attr", dict())
+
+        # Update instance info
+        self.instance_label.update(instance_attr)
+        instance_node = {
+            "uid": "_:" + instance_id,
+            "xid": instance_id,
+            "dgraph.type": self.schema_type[self.instance_label.get("attribute")],
+            **self.instance_label,
+        }
 
         return instance_node
 
@@ -301,10 +307,3 @@ class ContextSessionParser(object):
         }
 
         return recorder_node
-
-
-if __name__ == "__main__":
-    parser = ContextSessionParser()
-    test_json = parser.read_json("meeting_test.json")
-
-    parser.parse_context_info(req_data=test_json)

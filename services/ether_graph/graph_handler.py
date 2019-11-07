@@ -1,4 +1,5 @@
 import logging
+import json as js
 
 from .context_parser import ContextSessionParser
 
@@ -10,11 +11,27 @@ class GraphHandler(object):
         self.dgraph = dgraph_client
         self.context_parser = ContextSessionParser()
 
-    def populate_context_info(self, req_data):
-        pass
+    # For testing purposes
+    def to_json(self, data, filename):
+        with open(filename + ".json", "w", encoding="utf-8") as f_:
+            js.dump(data, f_, ensure_ascii=False, indent=4)
 
-    def populate_segment_info(self, req_data):
-        pass
+    def read_json(self, json_file):
+        with open(json_file) as f_:
+            meeting = js.load(f_)
+        return meeting
+
+    def populate_context_info(self, req_data, **kwargs):
+        context_node = self.context_parser.parse_context_info(req_data=req_data)
+        self.to_json(context_node, "context")
+
+    def populate_segment_info(self, req_data, **kwargs):
+        instance_node, instance_segment_relation, segment_node = self.context_parser.parse_instance_segment_info(
+            req_data=req_data
+        )
+
+        instance_node.update({instance_segment_relation: segment_node})
+        self.to_json(instance_node, "instance_seg")
 
     def populate_keyphrase_info(self, req_data):
         pass

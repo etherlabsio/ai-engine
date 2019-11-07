@@ -61,7 +61,10 @@ class NATSTransport(object):
 
     async def context_start_handler(self, msg):
         msg_data = json.loads(msg.data)
-        self.eg_service.populate_context_info(req_data=msg_data)
+        try:
+            self.eg_service.populate_context_info(req_data=msg_data)
+        except Exception:
+            raise
 
     async def context_end_handler(self, msg):
         pass
@@ -84,3 +87,4 @@ class NATSTransport(object):
                     "responseTime": end - start,
                 },
             )
+            raise

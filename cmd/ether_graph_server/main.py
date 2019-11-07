@@ -11,7 +11,6 @@ from dgraph.connector import Connector
 from nats.manager import Manager
 
 from ether_graph.transport.nats import NATSTransport
-from ether_graph.context_parser import ContextSessionParser
 from ether_graph.graph_handler import GraphHandler
 
 
@@ -47,6 +46,7 @@ if __name__ == "__main__":
     def shutdown():
         logger.info("received interrupt; shutting down")
         loop.create_task(connector.close_client())
+        loop.create_task(nats_manager.close())
 
     loop.run_until_complete(nats_manager.connect())
     loop.run_until_complete(nats_transport.subscribe_context())

@@ -18,13 +18,9 @@ class Connector(object):
     def create_client(self):
         client = pydgraph.DgraphClient(self.client_stub)
 
-        try:
-            logger.info("Created client...")
-            return client
-        finally:
-            logger.info("Client stub connection is closed.")
-            self.client_stub.close()
+        logger.info("Created client...")
+        return client
 
-    def close_client(self):
+    async def close_client(self):
         logger.info("Client stub connection is closed.")
         self.client_stub.close()
