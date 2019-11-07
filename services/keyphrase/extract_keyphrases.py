@@ -6,6 +6,7 @@ from typing import List, Dict, Tuple
 from collections import OrderedDict
 from copy import deepcopy
 import numpy as np
+import uuid
 
 from graphrank.core import GraphRank
 from graphrank.utils import TextPreprocess, GraphUtils
@@ -374,6 +375,7 @@ class KeyphraseExtractor(object):
         instance_id = req_data["instanceId"]
 
         populate_graph = kwargs.get("populate_graph", True)
+        group_id = kwargs.get("group_id", "")
 
         if context_graph is None and meeting_word_graph is None:
             # Get graph objects
@@ -415,7 +417,7 @@ class KeyphraseExtractor(object):
             # Combine segment and keyphrase embeddings and serialize them
             f_name = segment_id
             if populate_graph is not True:
-                f_name = segment_id + "_group"
+                f_name = segment_id + "_" + group_id
 
             segment_embedding_dict = {f_name: np.array(segment_embedding)}
 
@@ -455,6 +457,7 @@ class KeyphraseExtractor(object):
                 segment_attr_dict = {
                     "analyzedText": segment_object[i]["originalText"],
                     "embedding_vector_group_uri": npz_s3_path,
+                    "groupId": group_id,
                     "embedding_model": "use_v1",
                 }
 
@@ -616,7 +619,11 @@ class KeyphraseExtractor(object):
                     )
 
             if validate:
-                validation_file_name = self.utils.write_to_json(keyphrase_object)
+                validation_id = uuid.uuid1()
+                validation_id = str(validation_id)[:5]
+                validation_file_name = self.utils.write_to_json(
+                    keyphrase_object, file_name="keyphrase_validation_" + validation_id
+                )
                 s3_path = (
                     context_id
                     + self.context_dir
@@ -685,6 +692,7 @@ class KeyphraseExtractor(object):
         sort_by="loc",
         validate: bool = False,
         populate_graph=True,
+        group_id="",
     ):
         start = timer()
 
@@ -726,6 +734,7 @@ class KeyphraseExtractor(object):
                     context_graph=context_graph,
                     meeting_word_graph=meeting_word_graph,
                     populate_graph=populate_graph,
+                    group_id=group_id,
                 )
 
             else:
@@ -740,6 +749,7 @@ class KeyphraseExtractor(object):
                     context_graph=context_graph,
                     meeting_word_graph=meeting_word_graph,
                     populate_graph=populate_graph,
+                    group_id=group_id,
                 )
 
             keyphrase_object = self.extract_keywords(
@@ -756,6 +766,7 @@ class KeyphraseExtractor(object):
                         context_graph=context_graph,
                         normalize=False,
                         populate_graph=populate_graph,
+                        group_id=group_id,
                     )
 
                     # Compute the relevance of entities
@@ -765,6 +776,7 @@ class KeyphraseExtractor(object):
                         normalize=False,
                         dict_key="entities",
                         populate_graph=populate_graph,
+                        group_id=group_id,
                     )
 
                     keyphrases, keyphrase_object = self.prepare_keyphrase_output(
@@ -791,7 +803,11 @@ class KeyphraseExtractor(object):
                     )
 
             if validate:
-                validation_file_name = self.utils.write_to_json(keyphrase_object)
+                validation_id = uuid.uuid1()
+                validation_id = str(validation_id)[:5]
+                validation_file_name = self.utils.write_to_json(
+                    keyphrase_object, file_name="keyphrase_validation_" + validation_id
+                )
                 s3_path = (
                     context_id
                     + self.context_dir

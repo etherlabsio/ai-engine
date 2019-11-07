@@ -120,6 +120,7 @@ class KeyphraseRanker(object):
         normalize: bool = False,
         norm_limit: int = 4,
         populate_graph=True,
+        group_id="",
     ):
 
         for i, kp_dict in enumerate(keyphrase_object):
@@ -131,7 +132,7 @@ class KeyphraseRanker(object):
             )
 
             if populate_graph is not True:
-                segment_embedding = npz_file[segment_id + "_group"]
+                segment_embedding = npz_file[segment_id + "_" + group_id]
             else:
                 segment_embedding = npz_file[segment_id]
 

@@ -2,6 +2,7 @@ import json
 import logging
 from timeit import default_timer as timer
 import traceback
+import uuid
 
 logger = logging.getLogger(__name__)
 
@@ -171,12 +172,15 @@ class NATSTransport(object):
                 request, segment_object=segment_object, n_kw=limit, validate=validation
             )
         else:
+            group_id = uuid.uuid1()
+            group_id = str(group_id)[:5]
             output = self.keyphrase_service.get_summary_chapter_keyphrases(
                 request,
                 segment_object=segment_object,
                 n_kw=limit,
                 validate=validation,
                 populate_graph=populate_graph,
+                group_id=group_id,
             )
 
         end = timer()
