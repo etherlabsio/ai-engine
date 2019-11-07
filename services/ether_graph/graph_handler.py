@@ -1,14 +1,14 @@
-import json as js
-import datetime
 import logging
+
+from .context_parser import ContextSessionParser
 
 logger = logging.getLogger(__name__)
 
 
 class GraphHandler(object):
-    def __init__(self, dgraph_client, parser):
+    def __init__(self, dgraph_client):
         self.dgraph = dgraph_client
-        self.parser = parser
+        self.context_parser = ContextSessionParser()
 
     def populate_context_info(self, req_data):
         pass
