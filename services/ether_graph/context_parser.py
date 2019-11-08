@@ -5,32 +5,21 @@ logger = logging.getLogger(__name__)
 
 
 class ContextSessionParser(object):
+    """
+    Parse meeting events and send nodes only as JSON objects. Relations are attached before populating to graph
+    """
+
     def __init__(self):
         self.context_label = {"attribute": "contextId"}
         self.instance_label = {"attribute": "instanceId"}
-        self.context_instance_rel = {"relation": "hasMeeting"}
-
-        self.instance_segment_rel = {"relation": "hasSegment"}
-
         self.segment_label = {"attribute": "segmentId"}
         self.user_label = {"attribute": "userId"}
         self.transcriber_label = {"attribute": "segmentProvider"}
-
-        self.segment_user_rel = {"relation": "authoredBy"}
-        self.segment_transcriber_rel = {"relation": "providedBy"}
-
         self.recording_label = {"attribute": "sourceId", "type": "recording"}
-        self.segment_recording_rel = {"relation": "hasSource"}
-
         self.pim_keyphrase_label = {"attribute": "importantKeywords"}
         self.keyphrase_label = {"attribute": "segmentKeywords"}
-        self.segment_keyphrase_rel = {"relation": "hasKeywords"}
-
         self.mind_label = {"attribute": "mindId"}
-        self.context_mind_rel = {"relation": "associatedMind"}
 
-        self.list_type_edges = ["hasMeeting", "hasSegment", "hasKeywords"]
-        self.keyword_node = ["importKeywords"]
         self.schema_type = {
             "contextId": "Context",
             "instanceId": "ContextSession",
@@ -42,101 +31,30 @@ class ContextSessionParser(object):
             "sourceId": "Source",
             "segmentProvider": "TranscriptionProvider",
             "importantKeywords": "Keyphrase",
+            "segmentKeywords": "Keyphrase",
         }
-
-    def to_json(self, data, filename):
-        with open(filename + ".json", "w", encoding="utf-8") as f_:
-            js.dump(data, f_, ensure_ascii=False, indent=4)
-
-    def read_json(self, json_file):
-        with open(json_file) as f_:
-            meeting = js.load(f_)
-        return meeting
-
-    def meeting_definition(self):
-        meeting_def = """
-        type Context {
-            xid: string
-            attribute: string
-            hasMeeting: [Instance]
-            associatedMind: Mind
-        }
-                
-        type Mind {
-            xid: string
-            attribute: string
-        }
-        
-        type ContextSession {
-            xid: string
-            attribute: string
-            hasSegment: [Segment]
-        }
-        
-        type TranscriptionSegment {
-            xid: string
-            attribute: string
-            text: string
-            analyzedText: string
-            confidence: float
-            language: string
-            startTime: datetime
-            endTime: datetime
-            duration: int
-            authoredBy: [User]
-            hasKeywords: [Keyword]
-            hasSource: [Source]
-            providedBy: [Provider]    
-        }
-        
-        type User {
-            xid: string
-            attribute: string
-        }
-        
-        type Source {
-            xid: string
-            attribute: string
-            type: string
-        }
-        
-        type TranscriptionProvider {
-            name: string
-            attribute: string
-        }
-        
-        type Keyphrase {
-            value: string
-            attribute: string
-            important: bool
-            type: string
-            origin: string
-        }
-        """
-
-        return meeting_def
 
     def parse_context_info(self, req_data, **kwargs):
         context_id = req_data["contextId"]
         mind_id = req_data["mindId"]
         instance_id = req_data["instanceId"]
 
-        context_node = self._context_instance_info(
+        context_node, instance_node, mind_node = self._context_instance_info(
             context_id=context_id, mind_id=mind_id, instance_id=instance_id, **kwargs
         )
-        return context_node
+        return context_node, instance_node, mind_node
 
     def parse_instance_segment_info(self, req_data, **kwargs):
         instance_id = req_data["instanceId"]
         segment_object = req_data["segments"]
 
-        segment_node = self.parse_segment_info(segment_object=segment_object, **kwargs)
+        segment_node, user_node, provider_node, recorder_node = self.parse_segment_info(
+            segment_object=segment_object, **kwargs
+        )
         instance_node = self._instance_info(instance_id=instance_id)
 
-        instance_segment_relation = self.instance_segment_rel.get("relation")
-
         # return individual nodes for population using upsert operation
-        return instance_node, instance_segment_relation, segment_node
+        return instance_node, segment_node
 
     def parse_segment_info(self, segment_object, **kwargs):
         external_segment_attr = kwargs.get("segment_attr", dict())
@@ -157,6 +75,9 @@ class ContextSessionParser(object):
         ]
 
         segment_node = {}
+        user_node = {}
+        provider_node = {}
+        recoder_node = {}
 
         for i, segment in enumerate(segment_object):
             user_node = self._user_info(segment=segment, user_attr=external_user_attr)
@@ -181,7 +102,19 @@ class ContextSessionParser(object):
                 recorder_node=recoder_node,
             )
 
-        return segment_node
+        return segment_node, user_node, provider_node, recoder_node
+
+    def keyphrase_info(self):
+        pass
+
+    def parse_topic_marker(self):
+        pass
+
+    def parse_action_marker(self):
+        pass
+
+    def parse_decision_marker(self):
+        pass
 
     def _context_instance_info(self, context_id, mind_id, instance_id, **kwargs):
         context_attr = kwargs.get("context_attr", dict())
@@ -215,16 +148,7 @@ class ContextSessionParser(object):
             **self.instance_label,
         }
 
-        # Define Context relations
-        context_relations = {
-            self.context_mind_rel.get("relation"): mind_node,
-            self.context_instance_rel.get("relation"): instance_node,
-        }
-
-        # Join Context node and relations
-        context_node.update(context_relations)
-
-        return context_node
+        return context_node, instance_node, mind_node
 
     def _instance_info(self, instance_id, **kwargs):
         instance_attr = kwargs.get("instance_attr", dict())
@@ -242,9 +166,6 @@ class ContextSessionParser(object):
 
     def _segment_info(self, segment, **kwargs):
         segment_attr = kwargs.get("segment_attr")
-        user_node = kwargs.get("user_node")
-        provider_node = kwargs.get("provider_node")
-        recorder_node = kwargs.get("recorder_node")
 
         # Update segment info
         self.segment_label.update(segment_attr)
@@ -254,16 +175,6 @@ class ContextSessionParser(object):
             "dgraph.type": self.schema_type[self.segment_label.get("attribute")],
             **self.segment_label,
         }
-
-        # Define Segment relations
-        segment_relations = {
-            self.segment_user_rel.get("relation"): user_node,
-            self.segment_transcriber_rel.get("relation"): provider_node,
-            self.segment_recording_rel.get("relation"): recorder_node,
-        }
-
-        # Join Segment node and relations
-        segment_node.update(segment_relations)
 
         return segment_node
 
