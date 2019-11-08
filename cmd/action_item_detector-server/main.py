@@ -57,7 +57,7 @@ def handler(event, context):
         ai_detector = ad.ActionItemDetector(json_request['segments'], model)
         action_items,decisions = ai_detector.get_action_decision_subjects_list()
 
-        response = json.dumps({"action_items": action_items,
+        response = json.dumps({"actions": action_items,
             "decisions": decisions})
         return {
             "statusCode": 200,
@@ -69,7 +69,7 @@ def handler(event, context):
         logger.error(
             "Error processing request", extra={"err": e, "request": json_request}
         )
-        response = json.dumps({"action_items": []})
+        response = json.dumps({"actions": []})
         return {
             "statusCode": 404,
             "body" : response

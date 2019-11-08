@@ -236,7 +236,7 @@ class ActionItemDetector():
                 if ai_user == 0:
                     curr_assignees_list += [seg_object['spokenBy']]
                 else:
-                    curr_assignees_list += ['NA']
+                    curr_assignees_list += []
                 if ai_user == 1:
                     curr_isAssigneePrevious_list.append(True)
                 else:
@@ -261,7 +261,7 @@ class ActionItemDetector():
             ai_response_list.append({"id": uuid_,
                                     "subject": action_item,
                                     "segment_ids": [segment],
-                                    "assignees": assignee,
+                                    "assignees": [assignee],
                                     "is_assignee_previous": is_prev_user,
                                     "is_assignee_both": is_both})
 
