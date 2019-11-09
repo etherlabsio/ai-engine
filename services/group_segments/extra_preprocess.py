@@ -10,20 +10,20 @@ def preprocess_text(text):
     mod_texts = []
 
     for index, sent in enumerate(mod_texts_unfiltered):
-        if len(sent.split(' ')) > 250:
-            length = len(sent.split(' '))
-            split1 = ' '.join([i for i in sent.split(' ')[:round(length / 2)]])
-            split2 = ' '.join([i for i in sent.split(' ')[round(length / 2):]])
+        if len(sent.split(" ")) > 250:
+            length = len(sent.split(" "))
+            split1 = " ".join([i for i in sent.split(" ")[: round(length / 2)]])
+            split2 = " ".join([i for i in sent.split(" ")[round(length / 2) :]])
             mod_texts.append(split1)
             mod_texts.append(split2)
             continue
 
-        if len(sent.split(' ')) <= 6:
+        if len(sent.split(" ")) <= 6:
             continue
 
         mod_texts.append(sent)
 
-    if len(mod_texts)==1:
+    if len(mod_texts) <= 1:
         return ""
     return mod_texts
 
@@ -49,11 +49,11 @@ def format_pims_output(pim, req, segmentsmap, mindId):
             # tmp_seg[-1]["analyzedText"] = pim[no][seg][0]
             tmp_seg[-1]["analyzedText"] = tmp_seg[-1]["originalText"]
         pims["group"][no] = tmp_seg
-    pims['contextId'] = (req)['contextId']
-    pims['instanceId'] = (req)['instanceId']
-    pims['mindId'] = mindId
+    pims["contextId"] = (req)["contextId"]
+    pims["instanceId"] = (req)["instanceId"]
+    pims["mindId"] = mindId
     response_output = {}
-    response_output['statusCode'] = 200
-    response_output['headers'] = {"Content-Type": "application/json"}
-    response_output['body'] = json.dumps(pims)
+    response_output["statusCode"] = 200
+    response_output["headers"] = {"Content-Type": "application/json"}
+    response_output["body"] = json.dumps(pims)
     return response_output
