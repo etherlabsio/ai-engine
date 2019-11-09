@@ -214,7 +214,7 @@ class community_detection:
                 meeting_graph_pruned.add_edge(indexa, indexb, weight=c_score["weight"])
         return meeting_graph_pruned
 
-    def compute_louvain_community(self, meeting_graph_pruned, community_set):
+    def compute_louvain_community(self, meeting_graph_pruned):
         community_set = community.best_partition(meeting_graph_pruned)
         # modularity_score = community.modularity(community_set, meeting_graph_pruned)
         # logger.info("Community results", extra={"modularity score":modularity_score})

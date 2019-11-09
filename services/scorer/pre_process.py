@@ -13,7 +13,7 @@ def preprocess_text(text: str) -> List[str]:
     mod_texts = []
     if len(mod_texts_unfiltered) >=1:
         for sentence in mod_texts_unfiltered:
-            if len(sentence.split(' ')) > 3:
+            if len(sentence.split(' ')) > 0:
                 if sentence[-1] not in [".","?","!"]:
                     sentence += "."
                 sentence = sentence.replace("?.","?")
