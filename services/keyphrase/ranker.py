@@ -119,14 +119,23 @@ class KeyphraseRanker(object):
         dict_key="descriptive",
         normalize: bool = False,
         norm_limit: int = 4,
+        populate_graph=True,
+        group_id="",
     ):
 
         for i, kp_dict in enumerate(keyphrase_object):
             segment_id = kp_dict["segmentId"]
             npz_file = self._get_segment_phrase_embedding(
-                context_graph=context_graph, segment_id=segment_id
+                context_graph=context_graph,
+                segment_id=segment_id,
+                populate_graph=populate_graph,
             )
-            segment_embedding = npz_file[segment_id]
+
+            if populate_graph is not True:
+                segment_embedding = npz_file[segment_id + "_" + group_id]
+            else:
+                segment_embedding = npz_file[segment_id]
+
             keyphrase_dict = kp_dict[dict_key]
 
             segment_relevance_score_list = []
@@ -233,12 +242,16 @@ class KeyphraseRanker(object):
 
         return keyphrase_object
 
-    def _get_segment_phrase_embedding(self, context_graph, segment_id):
+    def _get_segment_phrase_embedding(
+        self, context_graph, segment_id, populate_graph=True
+    ):
 
         # Get segment embedding vector from context graph
         for node, nattr in context_graph.nodes(data=True):
             if nattr.get("attribute") == "segmentId" and node == segment_id:
                 embedding_uri = nattr.get("embedding_vector_uri")
+                if populate_graph is not True:
+                    embedding_uri = nattr.get("embedding_vector_group_uri")
 
                 # Download embedding file and deserialize it
                 npz_file = self.io_util.download_npz(npz_file_path=embedding_uri)

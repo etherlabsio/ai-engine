@@ -188,10 +188,12 @@ class ActionItemDetector:
                     # if (sent[-1]!="?" and sent[-2]!="?"):
                     sent_ai_prob = self.get_ai_probability(sent)
 
+
                     if (
                         sent_ai_prob >= ai_confidence_threshold
                         and self.post_process_ai_check(sent)[0]
                     ):
+
                         curr_ai_subjects = self.post_process_ai_check(sent)[1]
                         if len(curr_ai_subjects) > 1:
                             # merge action items
@@ -274,6 +276,7 @@ class ActionItemDetector:
         ai_response_list = []
         for i in range(len(ai_subject_list)):
             uuid_list.append(str(uuid.uuid1()))
+
         for uuid_, segment, action_item, assignee, is_prev_user, is_both in zip(
             uuid_list,
             segment_id_list,
