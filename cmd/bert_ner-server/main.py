@@ -13,7 +13,7 @@ import requests
 
 import torch
 from bert_utils import BertConfig
-import bert_ner as ner
+import bert_ner.bert_ner_utils as ner
 import numpy as np
 import pickle
 
