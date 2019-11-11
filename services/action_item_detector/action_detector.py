@@ -135,6 +135,8 @@ class ActionItemDetector():
         self.combine_list = ["let's"]
 
     def get_ai_probability(self, input_sent):
+        if input_sent[-1]=='.' or input_sent[-1]=='?':
+            input_sent = input_sent[:-1] #inline with training data
         input_ids = torch.tensor(self.tokenizer.encode(input_sent))
         input_ids = input_ids.unsqueeze(0)
         ai_scores = self.model(input_ids)
@@ -177,7 +179,6 @@ class ActionItemDetector():
 
                     if sent_ai_prob >= ai_confidence_threshold and self.post_process_ai_check(sent)[0]:
                         curr_ai_subjects = self.post_process_ai_check(sent)[1]
-                        print(sent)
                         if len(curr_ai_subjects) > 1:
                             # merge action items
                             start_idx = sent.lower().find(curr_ai_subjects[0].lower())
