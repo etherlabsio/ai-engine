@@ -135,6 +135,8 @@ class ActionItemDetector():
         self.combine_list = ["let's"]
 
     def get_ai_probability(self, input_sent):
+        if input_sent[-1]=='.' or input_sent[-1]=='?':
+            input_sent = input_sent[:-1] #inline with training data
         input_ids = torch.tensor(self.tokenizer.encode(input_sent))
         input_ids = input_ids.unsqueeze(0)
         ai_scores = self.model(input_ids)
@@ -177,7 +179,6 @@ class ActionItemDetector():
 
                     if sent_ai_prob >= ai_confidence_threshold and self.post_process_ai_check(sent)[0]:
                         curr_ai_subjects = self.post_process_ai_check(sent)[1]
-                        print(sent)
                         if len(curr_ai_subjects) > 1:
                             # merge action items
                             start_idx = sent.lower().find(curr_ai_subjects[0].lower())
@@ -258,12 +259,13 @@ class ActionItemDetector():
         for i in range(len(ai_subject_list)):
             uuid_list.append(str(uuid.uuid1()))
         for uuid_, segment, action_item, assignee, is_prev_user, is_both in zip(uuid_list, segment_id_list, ai_subject_list, assignees_list, isAssigneePrevious_list, isAssigneeBoth_list):
-            ai_response_list.append({"id": uuid_,
-                                    "subject": action_item,
-                                    "segment_ids": [segment],
-                                    "assignees": [assignee],
-                                    "is_assignee_previous": is_prev_user,
-                                    "is_assignee_both": is_both})
+            if len(action_item)>3:
+                ai_response_list.append({"id": uuid_,
+                                        "subject": action_item,
+                                        "segment_ids": [segment],
+                                        "assignees": [assignee],
+                                        "is_assignee_previous": is_prev_user,
+                                        "is_assignee_both": is_both})
 
         # placeholder decision list
         decision_response_list = [{'id': str(str(uuid.uuid1())),
