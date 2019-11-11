@@ -176,6 +176,7 @@ class KeyphraseExtractor(object):
         req_data: SegmentType,
         context_graph: nx.DiGraph,
         meeting_word_graph: nx.Graph,
+        **kwargs,
     ) -> Tuple[nx.DiGraph, nx.Graph]:
         """
         Populate instance information, add meeting word graph to context graph and upload the context graph
@@ -193,7 +194,10 @@ class KeyphraseExtractor(object):
 
         # Add word graph object to context graph to reduce population time in next requests
         context_graph = self.kg.populate_word_graph_info(
-            context_graph=context_graph, word_graph=meeting_word_graph, request=req_data
+            context_graph=context_graph,
+            word_graph=meeting_word_graph,
+            request=req_data,
+            **kwargs,
         )
 
         # Write back the graph object to S3
@@ -496,6 +500,40 @@ class KeyphraseExtractor(object):
 
         return word_graph
 
+    def _compute_relevant_phrases(self, **kwargs):
+        keyphrase_object = kwargs.get("keyphrase_object")
+        context_graph = kwargs.get("context_graph")
+        n_kw = kwargs.get("n_kw")
+        default_form = kwargs.get("default_form")
+        rank_by = kwargs.get("rank_by")
+        sort_by = kwargs.get("sort_by")
+        remove_phrases = kwargs.get("remove_phrases")
+
+        keyphrase_object = self.ranker.compute_local_relevance(
+            keyphrase_object=keyphrase_object,
+            context_graph=context_graph,
+            normalize=False,
+        )
+
+        # Compute the relevance of entities
+        keyphrase_object = self.ranker.compute_local_relevance(
+            keyphrase_object=keyphrase_object,
+            context_graph=context_graph,
+            normalize=False,
+            dict_key="entities",
+        )
+
+        keyphrases, keyphrase_object = self.prepare_keyphrase_output(
+            keyphrase_object=keyphrase_object,
+            top_n=n_kw,
+            default_form=default_form,
+            rank_by=rank_by,
+            sort_by=sort_by,
+            remove_phrases=remove_phrases,
+        )
+
+        return keyphrases, keyphrase_object
+
     def get_keyphrases(
         self,
         req_data,
@@ -525,19 +563,11 @@ class KeyphraseExtractor(object):
             if meeting_word_graph.graph.get("state") == "reset":
                 # Repopulate the graphs
                 logger.info("re-populating graph since it is in reset state")
-                context_graph = self.kg.populate_word_graph_info(
-                    request=req_data,
+                context_graph, meeting_word_graph = self._update_context_with_word_graph(
+                    req_data=req_data,
                     context_graph=context_graph,
-                    word_graph=meeting_word_graph,
+                    meeting_word_graph=meeting_word_graph,
                     state="reset",
-                )
-
-                # Write it back to s3
-                self.io_util.upload_s3(
-                    graph_obj=context_graph,
-                    s3_dir=self.context_dir,
-                    context_id=context_id,
-                    instance_id=instance_id,
                 )
 
                 context_graph, meeting_word_graph = self.populate_word_graph(req_data)
@@ -581,23 +611,10 @@ class KeyphraseExtractor(object):
 
             if rank:
                 try:
-                    keyphrase_object = self.ranker.compute_local_relevance(
+                    keyphrases, keyphrase_object = self._compute_relevant_phrases(
                         keyphrase_object=keyphrase_object,
                         context_graph=context_graph,
-                        normalize=False,
-                    )
-
-                    # Compute the relevance of entities
-                    keyphrase_object = self.ranker.compute_local_relevance(
-                        keyphrase_object=keyphrase_object,
-                        context_graph=context_graph,
-                        normalize=False,
-                        dict_key="entities",
-                    )
-
-                    keyphrases, keyphrase_object = self.prepare_keyphrase_output(
-                        keyphrase_object=keyphrase_object,
-                        top_n=n_kw,
+                        n_kw=n_kw,
                         default_form=default_form,
                         rank_by=rank_by,
                         sort_by=sort_by,
@@ -619,20 +636,15 @@ class KeyphraseExtractor(object):
                     )
 
             if validate:
-                validation_id = uuid.uuid1()
-                validation_id = str(validation_id)[:5]
+                validation_id = self.utils.hash_sha_object()
                 validation_file_name = self.utils.write_to_json(
                     keyphrase_object, file_name="keyphrase_validation_" + validation_id
                 )
-                s3_path = (
-                    context_id
-                    + self.context_dir
-                    + instance_id
-                    + "/"
-                    + validation_file_name
-                )
-                self.s3_client.upload_to_s3(
-                    file_name=validation_file_name, object_name=s3_path
+                self.io_util.upload_validation(
+                    context_id=context_id,
+                    feature_dir=self.feature_dir,
+                    instance_id=instance_id,
+                    validation_file_name=validation_file_name,
                 )
 
             logger.debug(
@@ -710,19 +722,11 @@ class KeyphraseExtractor(object):
             if meeting_word_graph.graph.get("state") == "reset":
                 # Repopulate the graphs
                 logger.info("re-populating graph since it is in reset state")
-                context_graph = self.kg.populate_word_graph_info(
-                    request=req_data,
+                context_graph, meeting_word_graph = self._update_context_with_word_graph(
+                    req_data=req_data,
                     context_graph=context_graph,
-                    word_graph=meeting_word_graph,
+                    meeting_word_graph=meeting_word_graph,
                     state="reset",
-                )
-
-                # Write it back to s3
-                self.io_util.upload_s3(
-                    graph_obj=context_graph,
-                    s3_dir=self.context_dir,
-                    context_id=context_id,
-                    instance_id=instance_id,
                 )
 
                 context_graph, meeting_word_graph = self.populate_word_graph(req_data)
@@ -761,27 +765,10 @@ class KeyphraseExtractor(object):
 
             if rank:
                 try:
-                    keyphrase_object = self.ranker.compute_local_relevance(
+                    keyphrases, keyphrase_object = self._compute_relevant_phrases(
                         keyphrase_object=keyphrase_object,
                         context_graph=context_graph,
-                        normalize=False,
-                        populate_graph=populate_graph,
-                        group_id=group_id,
-                    )
-
-                    # Compute the relevance of entities
-                    keyphrase_object = self.ranker.compute_local_relevance(
-                        keyphrase_object=keyphrase_object,
-                        context_graph=context_graph,
-                        normalize=False,
-                        dict_key="entities",
-                        populate_graph=populate_graph,
-                        group_id=group_id,
-                    )
-
-                    keyphrases, keyphrase_object = self.prepare_keyphrase_output(
-                        keyphrase_object=keyphrase_object,
-                        top_n=n_kw,
+                        n_kw=n_kw,
                         default_form=default_form,
                         rank_by=rank_by,
                         sort_by=sort_by,
@@ -803,20 +790,15 @@ class KeyphraseExtractor(object):
                     )
 
             if validate:
-                validation_id = uuid.uuid1()
-                validation_id = str(validation_id)[:5]
+                validation_id = self.utils.hash_sha_object()
                 validation_file_name = self.utils.write_to_json(
                     keyphrase_object, file_name="keyphrase_validation_" + validation_id
                 )
-                s3_path = (
-                    context_id
-                    + self.context_dir
-                    + instance_id
-                    + "/"
-                    + validation_file_name
-                )
-                self.s3_client.upload_to_s3(
-                    file_name=validation_file_name, object_name=s3_path
+                self.io_util.upload_validation(
+                    context_id=context_id,
+                    feature_dir=self.feature_dir,
+                    instance_id=instance_id,
+                    validation_file_name=validation_file_name,
                 )
 
             logger.debug(

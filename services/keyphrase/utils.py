@@ -7,6 +7,7 @@ import hashlib
 from typing import List, Dict, Tuple, Union
 import numpy as np
 from io import BytesIO
+import uuid
 
 
 class KeyphraseUtils(object):
@@ -15,6 +16,13 @@ class KeyphraseUtils(object):
 
     def hash_phrase(self, phrase: str) -> str:
         hash_object = hashlib.md5(phrase.encode())
+        hash_str = hash_object.hexdigest()
+        return hash_str
+
+    def hash_sha_object(self) -> str:
+        uid = uuid.uuid4()
+        uid = str(uid)
+        hash_object = hashlib.sha1(uid.encode())
         hash_str = hash_object.hexdigest()
         return hash_str
 
@@ -105,7 +113,7 @@ class KeyphraseUtils(object):
         with open(file_name + ".json", "w", encoding="utf-8") as f_:
             json.dump(data, f_, ensure_ascii=False, indent=4)
 
-        return file_name
+        return file_name + ".json"
 
     def read_segments(self, segment_object):
 

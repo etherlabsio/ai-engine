@@ -80,6 +80,25 @@ class S3IO(object):
 
         return s3_path
 
+    def upload_validation(
+        self, context_id, instance_id, feature_dir, validation_file_name
+    ):
+        s3_path = (
+            context_id
+            + feature_dir
+            + instance_id
+            + "/validation/"
+            + validation_file_name
+        )
+        self.s3_client.upload_to_s3(file_name=validation_file_name, object_name=s3_path)
+
+        # Once uploading is successful, check if NPZ exists on disk and delete it
+        local_path = Path(validation_file_name).absolute()
+        if os.path.exists(local_path):
+            os.remove(local_path)
+
+        return s3_path
+
     def download_npz(self, npz_file_path):
         npz_file_obj = self.s3_client.download_file(file_name=npz_file_path)
         npz_file_string = npz_file_obj["Body"].read()
