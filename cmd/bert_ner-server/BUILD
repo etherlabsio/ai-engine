@@ -4,11 +4,13 @@ python_binary(
 		'pkg:common-libs',
 		'services/bert_ner:bert_ner-libs',
 		':bert_ner-dep',
-		'vendor:vendor-libs',
+		'services:bert_ner',
 	],
 	source="main.py",
 
     compatibility=['CPython==3.7.*'],
+
+    platforms=["linux-x86_64"]
 )
 
 python_library(
@@ -22,4 +24,10 @@ python_library(
         '3rdparty/python:nltk',
 	],
 
+)
+
+python_awslambda(
+name='ner_lambda',
+binary=':server',
+handler='main:handler',
 )

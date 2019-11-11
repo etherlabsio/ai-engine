@@ -119,9 +119,12 @@ class GraphHandler(object):
 
     def populate_segment_info(self, req_data, **kwargs):
         segment_object = req_data["segments"]
-        segment_node, user_node, provider_node, recorder_node = self.context_parser.parse_segment_info(
-            segment_object=segment_object
-        )
+        (
+            segment_node,
+            user_node,
+            provider_node,
+            recorder_node,
+        ) = self.context_parser.parse_segment_info(segment_object=segment_object)
 
         segment_id = segment_node["xid"]
         user_id = user_node["xid"]

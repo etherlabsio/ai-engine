@@ -11,10 +11,10 @@ setup_server_logger(debug=True)
 
 def handler(event, context):
     try:
-        if isinstance(event['body'], str):
-            json_request = json.loads(event['body'])
+        if isinstance(event["body"], str):
+            json_request = json.loads(event["body"])
         else:
-            json_request = event['body']
+            json_request = event["body"]
         logger.info("POST request recieved", extra={"request": json_request})
         request_obj = decode_json_request(json_request)
         lambda_function = "mind-" + mindId
@@ -22,8 +22,10 @@ def handler(event, context):
         # output_pims = format_pims_output(pim, json_request, Request_obj.segments_map, mindId)
     except Exception as e:
         logger.warning("Unable to extract topic", extra={"exception": e})
-        output_pims = {"statusCode": 200,
-                       "headers": {"Content-Type": "application/json"},
-                       "body": json.dumps({"err": "Unable to extract topics " + str(e)})}
+        output_pims = {
+            "statusCode": 200,
+            "headers": {"Content-Type": "application/json"},
+            "body": json.dumps({"err": "Unable to extract topics " + str(e)}),
+        }
     # pim['extracted_topics'] = topics
     return output_pims

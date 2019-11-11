@@ -13,8 +13,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 """Tokenization classes for OpenAI GPT."""
-from __future__ import (absolute_import, division, print_function,
-                        unicode_literals)
+from __future__ import absolute_import, division, print_function, unicode_literals
 
 import logging
 import os
@@ -26,8 +25,8 @@ from .file_utils import cached_path
 
 logger = logging.getLogger(__name__)
 
-SPECIAL_TOKENS_MAP_FILE = 'special_tokens_map.json'
-ADDED_TOKENS_FILE = 'added_tokens.json'
+SPECIAL_TOKENS_MAP_FILE = "special_tokens_map.json"
+ADDED_TOKENS_FILE = "added_tokens.json"
 
 
 class PreTrainedTokenizer(object):
@@ -40,13 +39,21 @@ class PreTrainedTokenizer(object):
         We defined an added_tokens_encoder to add new tokens to the vocabulary without having to handle the
             specific vocabulary augmentation methods of the various underlying dictionnary structures (BPE, sentencepiece...).
     """
+
     vocab_files_names = {}
     pretrained_vocab_files_map = {}
     max_model_input_sizes = {}
 
-    SPECIAL_TOKENS_ATTRIBUTES = ["bos_token", "eos_token", "unk_token", "sep_token",
-                                 "pad_token", "cls_token", "mask_token",
-                                 "additional_special_tokens"]
+    SPECIAL_TOKENS_ATTRIBUTES = [
+        "bos_token",
+        "eos_token",
+        "unk_token",
+        "sep_token",
+        "pad_token",
+        "cls_token",
+        "mask_token",
+        "additional_special_tokens",
+    ]
 
     @property
     def bos_token(self):
@@ -151,7 +158,9 @@ class PreTrainedTokenizer(object):
         return cls._from_pretrained(*inputs, **kwargs)
 
     @classmethod
-    def _from_pretrained(cls, pretrained_model_name_or_path, cache_dir=None, *inputs, **kwargs):
+    def _from_pretrained(
+        cls, pretrained_model_name_or_path, cache_dir=None, *inputs, **kwargs
+    ):
         """
         Instantiate a PreTrainedTokenizer from pre-trained vocabulary files.
         Download and cache the vocabulary files if needed.
@@ -165,18 +174,27 @@ class PreTrainedTokenizer(object):
             logger.info(
                 "Model name '{}' not found in model shortcut name list ({}). "
                 "Assuming '{}' is a path or url to a directory containing tokenizer files.".format(
-                    pretrained_model_name_or_path, ', '.join(s3_models),
-                    pretrained_model_name_or_path))
-            all_vocab_files_names = {'added_tokens_file': ADDED_TOKENS_FILE,
-                                     'special_tokens_map_file': SPECIAL_TOKENS_MAP_FILE}
+                    pretrained_model_name_or_path,
+                    ", ".join(s3_models),
+                    pretrained_model_name_or_path,
+                )
+            )
+            all_vocab_files_names = {
+                "added_tokens_file": ADDED_TOKENS_FILE,
+                "special_tokens_map_file": SPECIAL_TOKENS_MAP_FILE,
+            }
             all_vocab_files_names.update(cls.vocab_files_names)
             for file_id, file_name in all_vocab_files_names.items():
                 if os.path.isdir(pretrained_model_name_or_path):
-                    full_file_name = os.path.join(pretrained_model_name_or_path, file_name)
+                    full_file_name = os.path.join(
+                        pretrained_model_name_or_path, file_name
+                    )
                 else:
                     full_file_name = pretrained_model_name_or_path
                 if not os.path.exists(full_file_name):
-                    logger.info("Didn't find file {}. We won't load it.".format(full_file_name))
+                    logger.info(
+                        "Didn't find file {}. We won't load it.".format(full_file_name)
+                    )
                     full_file_name = None
                 vocab_files[file_id] = full_file_name
             if all(full_file_name is None for full_file_name in vocab_files.values()):
@@ -184,8 +202,11 @@ class PreTrainedTokenizer(object):
                     "Model name '{}' was not found in model name list ({}). "
                     "We assumed '{}' was a path or url but couldn't find tokenizer files"
                     "at this path or url.".format(
-                        pretrained_model_name_or_path, ', '.join(s3_models),
-                        pretrained_model_name_or_path, ))
+                        pretrained_model_name_or_path,
+                        ", ".join(s3_models),
+                        pretrained_model_name_or_path,
+                    )
+                )
                 return None
 
         # Get files from url, cache, or disk depending on the case
@@ -195,7 +216,9 @@ class PreTrainedTokenizer(object):
                 if file_path is None:
                     resolved_vocab_files[file_id] = None
                 else:
-                    resolved_vocab_files[file_id] = cached_path(file_path, cache_dir=cache_dir)
+                    resolved_vocab_files[file_id] = cached_path(
+                        file_path, cache_dir=cache_dir
+                    )
         except EnvironmentError:
             if pretrained_model_name_or_path in s3_models:
                 logger.error("Couldn't reach server to download vocabulary.")
@@ -204,16 +227,23 @@ class PreTrainedTokenizer(object):
                     "Model name '{}' was not found in model name list ({}). "
                     "We assumed '{}' was a path or url but couldn't find files {} "
                     "at this path or url.".format(
-                        pretrained_model_name_or_path, ', '.join(s3_models),
-                        pretrained_model_name_or_path, str(vocab_files.keys())))
+                        pretrained_model_name_or_path,
+                        ", ".join(s3_models),
+                        pretrained_model_name_or_path,
+                        str(vocab_files.keys()),
+                    )
+                )
             return None
 
         for file_id, file_path in vocab_files.items():
             if file_path == resolved_vocab_files[file_id]:
                 logger.info("loading file {}".format(file_path))
             else:
-                logger.info("loading file {} from cache at {}".format(
-                    file_path, resolved_vocab_files[file_id]))
+                logger.info(
+                    "loading file {} from cache at {}".format(
+                        file_path, resolved_vocab_files[file_id]
+                    )
+                )
 
         # Set max length if needed
         if pretrained_model_name_or_path in cls.max_model_input_sizes:
@@ -221,16 +251,20 @@ class PreTrainedTokenizer(object):
             # wont index sequences longer than the number of positional embeddings
             max_len = cls.max_model_input_sizes[pretrained_model_name_or_path]
             if max_len is not None and isinstance(max_len, (int, float)):
-                kwargs['max_len'] = min(kwargs.get('max_len', int(1e12)), max_len)
+                kwargs["max_len"] = min(kwargs.get("max_len", int(1e12)), max_len)
 
         # Merge resolved_vocab_files arguments in kwargs.
-        added_tokens_file = resolved_vocab_files.pop('added_tokens_file', None)
-        special_tokens_map_file = resolved_vocab_files.pop('special_tokens_map_file', None)
+        added_tokens_file = resolved_vocab_files.pop("added_tokens_file", None)
+        special_tokens_map_file = resolved_vocab_files.pop(
+            "special_tokens_map_file", None
+        )
         for args_name, file_path in resolved_vocab_files.items():
             if args_name not in kwargs:
                 kwargs[args_name] = file_path
         if special_tokens_map_file is not None:
-            special_tokens_map = json.load(open(special_tokens_map_file, encoding="utf-8"))
+            special_tokens_map = json.load(
+                open(special_tokens_map_file, encoding="utf-8")
+            )
             for key, value in special_tokens_map.items():
                 if key not in kwargs:
                     kwargs[key] = value
@@ -253,20 +287,22 @@ class PreTrainedTokenizer(object):
             can be re-loaded using the `from_pretrained(save_directory)` class method.
         """
         if not os.path.isdir(save_directory):
-            logger.error("Saving directory ({}) should be a directory".format(save_directory))
+            logger.error(
+                "Saving directory ({}) should be a directory".format(save_directory)
+            )
             return
 
         special_tokens_map_file = os.path.join(save_directory, SPECIAL_TOKENS_MAP_FILE)
         added_tokens_file = os.path.join(save_directory, ADDED_TOKENS_FILE)
 
-        with open(special_tokens_map_file, 'w', encoding='utf-8') as f:
+        with open(special_tokens_map_file, "w", encoding="utf-8") as f:
             f.write(json.dumps(self.special_tokens_map, ensure_ascii=False))
 
-        with open(added_tokens_file, 'w', encoding='utf-8') as f:
+        with open(added_tokens_file, "w", encoding="utf-8") as f:
             if self.added_tokens_encoder:
                 out_str = json.dumps(self.added_tokens_decoder, ensure_ascii=False)
             else:
-                out_str = u"{}"
+                out_str = "{}"
             f.write(out_str)
 
         vocab_files = self.save_vocabulary(save_directory)
@@ -301,11 +337,15 @@ class PreTrainedTokenizer(object):
 
         to_add_tokens = []
         for token in new_tokens:
-            if self.convert_tokens_to_ids(token) == self.convert_tokens_to_ids(self.unk_token):
+            if self.convert_tokens_to_ids(token) == self.convert_tokens_to_ids(
+                self.unk_token
+            ):
                 to_add_tokens.append(token)
                 logger.info("Adding %s to the vocabulary", token)
 
-        added_tok_encoder = dict((tok, len(self) + i) for i, tok in enumerate(to_add_tokens))
+        added_tok_encoder = dict(
+            (tok, len(self) + i) for i, tok in enumerate(to_add_tokens)
+        )
         added_tok_decoder = {v: k for k, v in added_tok_encoder.items()}
         self.added_tokens_encoder.update(added_tok_encoder)
         self.added_tokens_decoder.update(added_tok_decoder)
@@ -338,6 +378,7 @@ class PreTrainedTokenizer(object):
 
             Take care of added tokens.
         """
+
         def split_on_tokens(tok_list, text):
             if not text:
                 return []
@@ -345,8 +386,13 @@ class PreTrainedTokenizer(object):
                 return self._tokenize(text, **kwargs)
             tok = tok_list[0]
             split_text = text.split(tok)
-            return sum((split_on_tokens(tok_list[1:], sub_text.strip()) + [tok] \
-                        for sub_text in split_text), [])[:-1]
+            return sum(
+                (
+                    split_on_tokens(tok_list[1:], sub_text.strip()) + [tok]
+                    for sub_text in split_text
+                ),
+                [],
+            )[:-1]
 
         added_tokens = list(self.added_tokens_encoder.keys()) + self.all_special_tokens
         tokenized_text = split_on_tokens(added_tokens, text)
@@ -372,9 +418,11 @@ class PreTrainedTokenizer(object):
         for token in tokens:
             ids.append(self._convert_token_to_id_with_added_voc(token))
         if len(ids) > self.max_len:
-            logger.warning("Token indices sequence length is longer than the specified maximum sequence length "
-                           "for this model ({} > {}). Running this sequence through the model will result in "
-                           "indexing errors".format(len(ids), self.max_len))
+            logger.warning(
+                "Token indices sequence length is longer than the specified maximum sequence length "
+                "for this model ({} > {}). Running this sequence through the model will result in "
+                "indexing errors".format(len(ids), self.max_len)
+            )
         return ids
 
     def _convert_token_to_id_with_added_voc(self, token):
@@ -421,13 +469,17 @@ class PreTrainedTokenizer(object):
             The most simple way to do it is ' '.join(self.convert_ids_to_tokens(token_ids))
             but we often want to remove sub-word tokenization artifacts at the same time.
         """
-        return ' '.join(self.convert_ids_to_tokens(tokens))
+        return " ".join(self.convert_ids_to_tokens(tokens))
 
-    def decode(self, token_ids, skip_special_tokens=False, clean_up_tokenization_spaces=True):
+    def decode(
+        self, token_ids, skip_special_tokens=False, clean_up_tokenization_spaces=True
+    ):
         """ Converts a sequence of ids (integer) in a string, using the tokenizer and vocabulary
             with options to remove special tokens and clean up tokenization spaces.
         """
-        filtered_tokens = self.convert_ids_to_tokens(token_ids, skip_special_tokens=skip_special_tokens)
+        filtered_tokens = self.convert_ids_to_tokens(
+            token_ids, skip_special_tokens=skip_special_tokens
+        )
         text = self.convert_tokens_to_string(filtered_tokens)
         if clean_up_tokenization_spaces:
             text = clean_up_tokenization(text)
@@ -453,7 +505,9 @@ class PreTrainedTokenizer(object):
         all_toks = []
         set_attr = self.special_tokens_map
         for attr_value in set_attr.values():
-            all_toks = all_toks + (attr_value if isinstance(attr_value, (list, tuple)) else [attr_value])
+            all_toks = all_toks + (
+                attr_value if isinstance(attr_value, (list, tuple)) else [attr_value]
+            )
         all_toks = list(set(all_toks))
         return all_toks
 
@@ -468,7 +522,17 @@ class PreTrainedTokenizer(object):
 
 
 def clean_up_tokenization(out_string):
-    out_string = out_string.replace(' .', '.').replace(' ?', '?').replace(' !', '!').replace(' ,', ','
-                    ).replace(" ' ", "'").replace(" n't", "n't").replace(" 'm", "'m").replace(" do not", " don't"
-                    ).replace(" 's", "'s").replace(" 've", "'ve").replace(" 're", "'re")
+    out_string = (
+        out_string.replace(" .", ".")
+        .replace(" ?", "?")
+        .replace(" !", "!")
+        .replace(" ,", ",")
+        .replace(" ' ", "'")
+        .replace(" n't", "n't")
+        .replace(" 'm", "'m")
+        .replace(" do not", " don't")
+        .replace(" 's", "'s")
+        .replace(" 've", "'ve")
+        .replace(" 're", "'re")
+    )
     return out_string

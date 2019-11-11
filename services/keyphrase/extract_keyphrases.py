@@ -412,7 +412,10 @@ class KeyphraseExtractor(object):
             # Combine segment and keyphrase embeddings and serialize them
             segment_embedding_dict = {segment_id: np.array(segment_embedding)}
 
-            phrase_hash_dict, phrase_embedding_dict = self.utils.map_embeddings_to_phrase(
+            (
+                phrase_hash_dict,
+                phrase_embedding_dict,
+            ) = self.utils.map_embeddings_to_phrase(
                 phrase_list=input_phrases_list, embedding_list=keyphrase_embeddings
             )
 
@@ -519,7 +522,10 @@ class KeyphraseExtractor(object):
                 )
                 if status is not True:
                     # Compute embeddings for segments and keyphrases
-                    context_graph, meeting_word_graph = self.populate_context_embeddings(
+                    (
+                        context_graph,
+                        meeting_word_graph,
+                    ) = self.populate_context_embeddings(
                         req_data=req_data,
                         segment_object=segment_object,
                         context_graph=context_graph,

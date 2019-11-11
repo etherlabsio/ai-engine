@@ -19,19 +19,19 @@ class Response:
 
 def decode_json_request(body) -> Request:
     req = body
-    if isinstance(body['body'], str):
-        req = json.loads(body['body'])
+    if isinstance(body["body"], str):
+        req = json.loads(body["body"])
     else:
-        req = body['body']
+        req = body["body"]
 
     def decode_segments(seg):
-        seg_id = seg['id']
+        seg_id = seg["id"]
         text = seg["originalText"]
         speaker = seg["spokenBy"]
         return TextSegment(seg_id, text, speaker)
 
-    mind_id = str(req['mindId']).lower()
-    segments = list(map(lambda x: decode_segments(x), req['segments']))
+    mind_id = str(req["mindId"]).lower()
+    segments = list(map(lambda x: decode_segments(x), req["segments"]))
     return Request(mind_id, list(segments))
 
 
@@ -40,8 +40,6 @@ class AWSLambdaTransport:
     def encode_response(body: Response):
         return {
             "statusCode": 200,
-            "headers": {
-                "Content-Type": "application/json"
-            },
-            "body": json.dumps(body)
+            "headers": {"Content-Type": "application/json"},
+            "body": json.dumps(body),
         }
