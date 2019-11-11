@@ -71,7 +71,7 @@ class KnowledgeGraph(object):
 
         segment_node_attrs = {
             "attribute": "segmentId",
-            "text": segment_object["originalText"],
+            # "text": segment_object["originalText"],
             "confidence": segment_object["confidence"],
             "startTime": segment_object["startTime"],
             "endTime": segment_object["endTime"],
