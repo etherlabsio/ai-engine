@@ -176,7 +176,6 @@ class ActionItemDetector():
                 if len(sent.split(' ')) > 2:
                     # if (sent[-1]!="?" and sent[-2]!="?"):
                     sent_ai_prob = self.get_ai_probability(sent)
-
                     if sent_ai_prob >= ai_confidence_threshold and self.post_process_ai_check(sent)[0]:
                         curr_ai_subjects = self.post_process_ai_check(sent)[1]
                         if len(curr_ai_subjects) > 1:
@@ -259,8 +258,19 @@ class ActionItemDetector():
         for i in range(len(ai_subject_list)):
             uuid_list.append(str(uuid.uuid1()))
         for uuid_, segment, action_item, assignee, is_prev_user, is_both in zip(uuid_list, segment_id_list, ai_subject_list, assignees_list, isAssigneePrevious_list, isAssigneeBoth_list):
-            if len(action_item)>3:
+
+            #fix to check if the noun is good enough for the bare grammar pattern
+            filtered_ai = [ele for ele in action_item.split(' ') if ele not in stop_words]
+            if len(filtered_ai)>4:
                 ai_response_list.append({"id": uuid_,
+                                        "subject": action_item,
+                                        "segment_ids": [segment],
+                                        "assignees": [assignee],
+                                        "is_assignee_previous": is_prev_user,
+                                        "is_assignee_both": is_both})
+            else:
+                if len(action_item.split(' ')[-1])>4: # minimum noun length
+                    ai_response_list.append({"id": uuid_,
                                         "subject": action_item,
                                         "segment_ids": [segment],
                                         "assignees": [assignee],
