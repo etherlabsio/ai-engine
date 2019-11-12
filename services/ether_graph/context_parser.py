@@ -221,3 +221,6 @@ class ContextSessionParser(object):
         }
 
         return recorder_node
+
+    def _keyphrase_info(self, segment, **kwargs):
+        keyphrase_attr = kwargs.get("keyphrase_attr", dict())
