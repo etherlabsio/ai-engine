@@ -51,11 +51,25 @@ class NATSTransport(object):
             handler=self.populate_segments,
             queued=True,
         )
+        await self.nats_manager.subscribe(
+            topic="ether_graph_service.populate_segments",
+            handler=self.populate_segment_keyphrase,
+            queued=True,
+        )
+        await self.nats_manager.subscribe(
+            topic="ether_graph_service.perform_query",
+            handler=self.perform_query,
+            queued=True,
+        )
 
     async def unsubscribe_lifecycle_events(self):
         await self.nats_manager.unsubscribe(topic="context.instance.started")
         await self.nats_manager.unsubscribe(topic="context.instance.ended")
         await self.nats_manager.unsubscribe(topic="context.instance.add_segments")
+        await self.nats_manager.unsubscribe(
+            topic="ether_graph_service.populate_segments"
+        )
+        await self.nats_manager.unsubscribe(topic="ether_graph_service.perform_query")
 
     # NATS context handlers
 
@@ -88,3 +102,12 @@ class NATSTransport(object):
                 },
             )
             raise
+
+    async def populate_segment_keyphrase(self, msg):
+        request = json.loads(msg.data)
+
+        print(request)
+
+    async def perform_query(self, msg):
+        request = json.loads(msg.data)
+        return request

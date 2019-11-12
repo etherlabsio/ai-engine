@@ -79,17 +79,7 @@ class KeyphraseExtractor(object):
         context_id = req_data["contextId"]
         instance_id = req_data["instanceId"]
 
-        context_graph = nx.DiGraph(graphId=graph_id)
         meeting_word_graph = nx.Graph(graphId=graph_id)
-
-        # Populate context information into meeting-knowledge-graph
-        context_graph = self.kg.populate_context_info(request=req_data, g=context_graph)
-        context_graph = self.kg.populate_word_graph_info(
-            request=req_data,
-            context_graph=context_graph,
-            word_graph=meeting_word_graph,
-            state="processing",
-        )
 
         logger.info(
             "Meeting word graph intialized",
@@ -97,7 +87,7 @@ class KeyphraseExtractor(object):
         )
         logger.info("Uploading serialized graph object")
         self.io_util.upload_s3(
-            graph_obj=context_graph,
+            graph_obj=meeting_word_graph,
             context_id=context_id,
             instance_id=instance_id,
             s3_dir=self.context_dir,
@@ -106,11 +96,9 @@ class KeyphraseExtractor(object):
         # Start the encoder lambda to avoid cold start problem
         self.wake_up_lambda(req_data=req_data)
 
-    def _retrieve_context_graph(
-        self, req_data: SegmentType
-    ) -> Tuple[nx.DiGraph, nx.Graph]:
+    def _retrieve_word_graph(self, req_data: SegmentType) -> nx.Graph:
         """
-        Download context graph and meeting word graph from s3
+        Download meeting word graph from s3
         Args:
             req_data:
 
@@ -122,62 +110,15 @@ class KeyphraseExtractor(object):
         instance_id = req_data["instanceId"]
 
         # Get graph object from S3
-        context_graph = self.io_util.download_s3(
+        meeting_word_graph = self.io_util.download_s3(
             context_id=context_id, instance_id=instance_id, s3_dir=self.context_dir
         )
 
-        # Get meeting word graph object from the context graph
-        meeting_word_graph = self.kg.query_word_graph_object(
-            context_graph=context_graph
-        )
+        return meeting_word_graph
 
-        return context_graph, meeting_word_graph
-
-    def _populate_push_context_graph(
-        self,
-        req_data: SegmentType,
-        context_graph: nx.DiGraph,
-        segment_object: SegmentType,
-        attribute_dict=None,
-    ) -> nx.DiGraph:
-        """
-        Populate instance information, add meeting word graph to context graph and upload the context graph
-        Args:
-            req_data:
-            context_graph::
-
-        Returns:
-
-        """
-
-        context_id = req_data["contextId"]
-        instance_id = req_data["instanceId"]
-
-        # Populate meeting-level knowledge graph
-        context_graph = self.kg.populate_instance_info(
-            instance_id=instance_id,
-            segment_object=segment_object,
-            g=context_graph,
-            attribute_dict=attribute_dict,
-        )
-
-        # Write back the graph object to S3
-        self.io_util.upload_s3(
-            graph_obj=context_graph,
-            context_id=context_id,
-            instance_id=instance_id,
-            s3_dir=self.context_dir,
-        )
-
-        return context_graph
-
-    def _update_context_with_word_graph(
-        self,
-        req_data: SegmentType,
-        context_graph: nx.DiGraph,
-        meeting_word_graph: nx.Graph,
-        **kwargs,
-    ) -> Tuple[nx.DiGraph, nx.Graph]:
+    def _update_word_graph(
+        self, req_data: SegmentType, meeting_word_graph: nx.Graph, **kwargs
+    ) -> nx.Graph:
         """
         Populate instance information, add meeting word graph to context graph and upload the context graph
         Args:
@@ -192,124 +133,20 @@ class KeyphraseExtractor(object):
         context_id = req_data["contextId"]
         instance_id = req_data["instanceId"]
 
-        # Add word graph object to context graph to reduce population time in next requests
-        context_graph = self.kg.populate_word_graph_info(
-            context_graph=context_graph,
-            word_graph=meeting_word_graph,
-            request=req_data,
-            **kwargs,
-        )
-
         # Write back the graph object to S3
         self.io_util.upload_s3(
-            graph_obj=context_graph,
+            graph_obj=meeting_word_graph,
             context_id=context_id,
             instance_id=instance_id,
             s3_dir=self.context_dir,
         )
 
-        return context_graph, meeting_word_graph
-
-    def _update_context_with_keyphrases(
-        self,
-        req_data: SegmentType,
-        segment_keyphrases: list,
-        segment_object: SegmentType,
-        context_graph: nx.DiGraph = None,
-        attr_dict=None,
-        is_pim=False,
-        upload=False,
-        phrase_hash_dict=None,
-    ) -> nx.DiGraph:
-        """
-        Get keyphrases for each input segment and add it to context graph, then upload it.
-        Args:
-            req_data:
-            segment_keyphrases:
-            context_graph:
-            attr_dict:
-            is_pim:
-            upload:
-
-        Returns:
-
-        """
-        start = timer()
-        context_id = req_data["contextId"]
-        instance_id = req_data["instanceId"]
-
-        if context_graph is None:
-            # Download KG from s3
-            context_graph = self.io_util.download_s3(
-                context_id=context_id, instance_id=instance_id, s3_dir=self.context_dir
-            )
-
-        try:
-            # Populate keyphrases in KG
-            context_graph = self.kg.populate_keyphrase_info(
-                request=req_data,
-                keyphrase_list=segment_keyphrases,
-                segment_object=segment_object,
-                g=context_graph,
-                keyphrase_attr_dict=attr_dict,
-                is_pim=is_pim,
-                phrase_hash_dict=phrase_hash_dict,
-            )
-        except Exception:
-            logger.debug(traceback.print_exc())
-
-        if upload:
-            # Write it back to s3
-            self.io_util.upload_s3(
-                graph_obj=context_graph,
-                s3_dir=self.context_dir,
-                context_id=context_id,
-                instance_id=instance_id,
-            )
-
-        end = timer()
-        logger.info(
-            "meeting knowledge graph updated with keywords",
-            extra={
-                "graphId": context_graph.graph.get("graphId"),
-                "kgNodes": context_graph.number_of_nodes(),
-                "kgEdges": context_graph.number_of_edges(),
-                "instanceId": req_data["instanceId"],
-                "responseTime": end - start,
-            },
-        )
-
-        return context_graph
-
-    def check_for_segment_id(self, segment_object, context_graph):
-        # Check if segment_id already exists in context graph before populating
-
-        check_status = 0
-        context_segment_id_list = []
-        for node, attr in context_graph.nodes.data("attribute"):
-            if attr == "segmentId":
-                context_segment_id_list.append(node)
-
-        for i in range(len(segment_object)):
-            if segment_object[i].get("id") in context_segment_id_list:
-                # Re-populate graph in case google transcripts are present
-                check_status += 1
-            else:
-                continue
-
-        if check_status == len(segment_object):
-            logger.debug("Segment ID already present in the context graph ...")
-            return True
-        else:
-            logger.debug("Segment not found in existing context graph")
-            return False
+        return meeting_word_graph
 
     def populate_word_graph(self, req_data):
         start = timer()
         # Get graph objects
-        context_graph, meeting_word_graph = self._retrieve_context_graph(
-            req_data=req_data
-        )
+        meeting_word_graph = self._retrieve_word_graph(req_data=req_data)
         segment_object = req_data["segments"]
 
         # Populate word graph for the current instance
@@ -326,8 +163,6 @@ class KeyphraseExtractor(object):
                     "graphId": meeting_word_graph.graph.get("graphId"),
                     "nodes": meeting_word_graph.number_of_nodes(),
                     "edges": meeting_word_graph.number_of_edges(),
-                    "kgNodes": context_graph.number_of_nodes(),
-                    "kgEdges": context_graph.number_of_edges(),
                     "instanceId": req_data["instanceId"],
                     "responseTime": end - start,
                 },
@@ -344,20 +179,17 @@ class KeyphraseExtractor(object):
                 },
             )
 
-        # Populate instance info and push context graphs
-        context_graph, meeting_word_graph = self._update_context_with_word_graph(
-            req_data=req_data,
-            context_graph=context_graph,
-            meeting_word_graph=meeting_word_graph,
+        # Push updated meeting graph
+        meeting_word_graph = self._update_word_graph(
+            req_data=req_data, meeting_word_graph=meeting_word_graph
         )
 
-        return context_graph, meeting_word_graph
+        return meeting_word_graph
 
-    def populate_context_embeddings(
+    def populate_embeddings(
         self,
         req_data,
         segment_object,
-        context_graph=None,
         meeting_word_graph=None,
         default_form="descriptive",
         **kwargs,
@@ -369,7 +201,6 @@ class KeyphraseExtractor(object):
             default_form:
             segment_object:
             meeting_word_graph:
-            context_graph:
             req_data:
 
         Returns:
@@ -380,16 +211,14 @@ class KeyphraseExtractor(object):
 
         populate_graph = kwargs.get("populate_graph", True)
         group_id = kwargs.get("group_id", "")
+        keyphrase_attr = kwargs.get("keyphrase_attr")
 
-        if context_graph is None and meeting_word_graph is None:
+        if meeting_word_graph is None:
             # Get graph objects
-            context_graph, meeting_word_graph = self._retrieve_context_graph(
-                req_data=req_data
-            )
+            meeting_word_graph = self._retrieve_word_graph(req_data=req_data)
 
         keyphrase_object = self.extract_keywords(
             segment_object=segment_object,
-            context_graph=context_graph,
             meeting_word_graph=meeting_word_graph,
             default_form=default_form,
         )
@@ -404,8 +233,7 @@ class KeyphraseExtractor(object):
             keyphrase_list = list(segment_keyphrase_dict.keys())
             entities_list = list(segment_entity_dict.keys())
 
-            input_phrases_list = []
-            input_phrases_list.extend(entities_list)
+            input_phrases_list = entities_list
             input_phrases_list.extend(keyphrase_list)
 
             # Compute segment embedding vector
@@ -446,18 +274,12 @@ class KeyphraseExtractor(object):
             )
 
             # Update context graph with embedding vectors
-            if populate_graph:
-                segment_attr_dict = {
-                    "text": segment_object[i]["originalText"],
-                    "embedding_vector_uri": npz_s3_path,
-                    "embedding_model": "use_v1",
-                }
-
-                keyphrase_attr_dict = {
-                    "keyphraseType": "descriptive",
-                    "keyphraseOrigin": "meetingSummary",
-                }
-            else:
+            segment_attr_dict = {
+                "text": segment_object[i]["originalText"],
+                "embedding_vector_uri": npz_s3_path,
+                "embedding_model": "use_v1",
+            }
+            if not populate_graph:
                 segment_attr_dict = {
                     "analyzedText": segment_object[i]["originalText"],
                     "embedding_vector_group_uri": npz_s3_path,
@@ -465,35 +287,56 @@ class KeyphraseExtractor(object):
                     "embedding_model": "use_v1",
                 }
 
-                keyphrase_attr_dict = {
-                    "keyphraseType": "descriptive",
-                    "keyphraseOrigin": "groupSummary",
-                }
-
-            context_graph = self._populate_push_context_graph(
-                req_data=req_data,
-                context_graph=context_graph,
-                segment_object=segment_object[i],
-                attribute_dict=segment_attr_dict,
+            attributed_segment_obj = self._form_segment_attr_object(
+                segment=segment_object[i], segment_attr=segment_attr_dict
             )
 
-            context_graph = self._update_context_with_keyphrases(
-                req_data=req_data,
-                segment_keyphrases=input_phrases_list,
-                segment_object=segment_object[i],
-                context_graph=context_graph,
-                is_pim=False,
-                upload=True,
-                attr_dict=keyphrase_attr_dict,
-                phrase_hash_dict=phrase_hash_dict,
+            attributed_segment_obj = self._form_keyphrase_attr_object(
+                segment=attributed_segment_obj,
+                keyphrase_attr=keyphrase_attr,
+                keyphrase_list=input_phrases_list,
             )
+
+            req_data["segments"][i] = attributed_segment_obj
+
+            self.utils.write_to_json(req_data, file_name="segment_attr")
 
             logger.info(
                 "features embeddings computed and stored",
                 extra={"embeddingUri": npz_s3_path},
             )
 
-        return context_graph, meeting_word_graph
+        modified_request_object = req_data
+
+        return modified_request_object
+
+    def populate_and_embed_graph(self, req_data, segment_object, **kwargs):
+        meeting_word_graph = self.populate_word_graph(req_data)
+
+        # Compute embeddings for segments and keyphrases
+        modified_request_obj = self.populate_embeddings(
+            req_data=req_data,
+            segment_object=segment_object,
+            meeting_word_graph=meeting_word_graph,
+            **kwargs,
+        )
+
+        return modified_request_obj, meeting_word_graph
+
+    def _form_segment_attr_object(self, segment: dict, segment_attr: dict) -> dict:
+        attr_object = {"attributes": segment_attr}
+        attributed_segment = {**segment, **attr_object}
+
+        return attributed_segment
+
+    def _form_keyphrase_attr_object(self, segment, keyphrase_attr, **kwargs):
+        keyphrase_list = kwargs.get("keyphrase_list")
+        keyphrase_attr["values"] = keyphrase_list
+
+        attr_object = {"keyphrases": keyphrase_attr}
+        keyphrase_attr_segment = {**segment, **attr_object}
+
+        return keyphrase_attr_segment
 
     def encode_word_graph(self, word_graph):
         word_graph = self.ranker.compute_edge_weights(word_graph)
@@ -502,7 +345,6 @@ class KeyphraseExtractor(object):
 
     def _compute_relevant_phrases(self, **kwargs):
         keyphrase_object = kwargs.get("keyphrase_object")
-        context_graph = kwargs.get("context_graph")
         n_kw = kwargs.get("n_kw")
         default_form = kwargs.get("default_form")
         rank_by = kwargs.get("rank_by")
@@ -546,6 +388,7 @@ class KeyphraseExtractor(object):
         rank_by="segment_relevance",
         sort_by="loc",
         validate: bool = False,
+        **kwargs,
     ):
         start = timer()
 
@@ -553,87 +396,45 @@ class KeyphraseExtractor(object):
         instance_id = req_data["instanceId"]
         keyphrases = []
         try:
-            if context_graph is None and meeting_word_graph is None:
+            if meeting_word_graph is None:
                 # Get graph objects
-                context_graph, meeting_word_graph = self._retrieve_context_graph(
-                    req_data=req_data
-                )
+                meeting_word_graph = self._retrieve_word_graph(req_data=req_data)
 
-            # handle the situation when word graph is removed but gets request later
-            if meeting_word_graph.graph.get("state") == "reset":
-                # Repopulate the graphs
-                logger.info("re-populating graph since it is in reset state")
-                context_graph, meeting_word_graph = self._update_context_with_word_graph(
-                    req_data=req_data,
-                    context_graph=context_graph,
-                    meeting_word_graph=meeting_word_graph,
-                    state="reset",
-                )
-
-                context_graph, meeting_word_graph = self.populate_word_graph(req_data)
-
-                # Check if the segments are already present in the context graph
-                status = self.check_for_segment_id(
-                    segment_object=segment_object, context_graph=context_graph
-                )
-                if status is not True:
-                    # Compute embeddings for segments and keyphrases
-                    context_graph, meeting_word_graph = self.populate_context_embeddings(
-                        req_data=req_data,
-                        segment_object=segment_object,
-                        context_graph=context_graph,
-                        meeting_word_graph=meeting_word_graph,
-                    )
-
-            # Check if the segments are already present in the context graph
-            status = self.check_for_segment_id(
-                segment_object=segment_object, context_graph=context_graph
+            logger.info("Adding segments before extracting keyphrases")
+            # Repopulate the graphs
+            modified_request_obj, meeting_word_graph = self.populate_and_embed_graph(
+                req_data=req_data, segment_object=segment_object, **kwargs
             )
-            if status is not True:
-                logger.info("Adding segments before extracting keyphrases")
-                # Repopulate the graphs
-                context_graph, meeting_word_graph = self.populate_word_graph(req_data)
-
-                # Compute embeddings for segments and keyphrases
-                context_graph, meeting_word_graph = self.populate_context_embeddings(
-                    req_data=req_data,
-                    segment_object=segment_object,
-                    context_graph=context_graph,
-                    meeting_word_graph=meeting_word_graph,
-                )
 
             keyphrase_object = self.extract_keywords(
                 segment_object=segment_object,
-                context_graph=context_graph,
                 meeting_word_graph=meeting_word_graph,
                 default_form=default_form,
             )
 
-            if rank:
-                try:
-                    keyphrases, keyphrase_object = self._compute_relevant_phrases(
-                        keyphrase_object=keyphrase_object,
-                        context_graph=context_graph,
-                        n_kw=n_kw,
-                        default_form=default_form,
-                        rank_by=rank_by,
-                        sort_by=sort_by,
-                        remove_phrases=True,
-                    )
-                except Exception as e:
-                    logger.warning(
-                        "Error computing keyphrase relevance",
-                        extra={"warnMsg": e, "trace": traceback.print_exc()},
-                    )
+            try:
+                keyphrases, keyphrase_object = self._compute_relevant_phrases(
+                    keyphrase_object=keyphrase_object,
+                    n_kw=n_kw,
+                    default_form=default_form,
+                    rank_by=rank_by,
+                    sort_by=sort_by,
+                    remove_phrases=True,
+                )
+            except Exception as e:
+                logger.warning(
+                    "Error computing keyphrase relevance",
+                    extra={"warnMsg": e, "trace": traceback.print_exc()},
+                )
 
-                    keyphrases, keyphrase_object = self.prepare_keyphrase_output(
-                        keyphrase_object=keyphrase_object,
-                        top_n=n_kw,
-                        default_form=default_form,
-                        rank_by="pagerank",
-                        sort_by=sort_by,
-                        remove_phrases=False,
-                    )
+                keyphrases, keyphrase_object = self.prepare_keyphrase_output(
+                    keyphrase_object=keyphrase_object,
+                    top_n=n_kw,
+                    default_form=default_form,
+                    rank_by="pagerank",
+                    sort_by=sort_by,
+                    remove_phrases=False,
+                )
 
             if validate:
                 validation_id = self.utils.hash_sha_object()
@@ -651,28 +452,6 @@ class KeyphraseExtractor(object):
                 "keyphrases extracted successfully",
                 extra={"result": keyphrases, "output": keyphrase_object},
             )
-
-            # TODO need to separate it and move to context-graph-constructor service
-            # Populate PIM keyphrases to context graph
-            if n_kw == 10:
-                original_pim_keyphrases = list(keyphrase_object[0]["original"].keys())
-                pim_keyphrases_hash = dict(
-                    zip(
-                        map(self.utils.hash_phrase, original_pim_keyphrases),
-                        original_pim_keyphrases,
-                    )
-                )
-                self._update_context_with_keyphrases(
-                    req_data=req_data,
-                    segment_keyphrases=original_pim_keyphrases,
-                    segment_object=segment_object[0],
-                    context_graph=context_graph,
-                    is_pim=True,
-                    upload=True,
-                    attr_dict={"keyphraseType": "original"},
-                    phrase_hash_dict=pim_keyphrases_hash,
-                )
-                logger.info("Updated context graph with PIM keyphrases")
 
             result = {"keyphrases": keyphrases}
             return result
@@ -705,6 +484,7 @@ class KeyphraseExtractor(object):
         validate: bool = False,
         populate_graph=True,
         group_id="",
+        **kwargs,
     ):
         start = timer()
 
@@ -712,82 +492,68 @@ class KeyphraseExtractor(object):
         instance_id = req_data["instanceId"]
         keyphrases = []
         try:
-            if context_graph is None and meeting_word_graph is None:
+            if meeting_word_graph is None:
                 # Get graph objects
-                context_graph, meeting_word_graph = self._retrieve_context_graph(
-                    req_data=req_data
-                )
+                meeting_word_graph = self._retrieve_word_graph(req_data=req_data)
 
-            # handle the situation when word graph is removed but gets request later
-            if meeting_word_graph.graph.get("state") == "reset":
-                # Repopulate the graphs
-                logger.info("re-populating graph since it is in reset state")
-                context_graph, meeting_word_graph = self._update_context_with_word_graph(
-                    req_data=req_data,
-                    context_graph=context_graph,
-                    meeting_word_graph=meeting_word_graph,
-                    state="reset",
-                )
-
-                context_graph, meeting_word_graph = self.populate_word_graph(req_data)
-
-                # Compute embeddings for segments and keyphrases
-                context_graph, meeting_word_graph = self.populate_context_embeddings(
-                    req_data=req_data,
-                    segment_object=segment_object,
-                    context_graph=context_graph,
-                    meeting_word_graph=meeting_word_graph,
-                    populate_graph=populate_graph,
-                    group_id=group_id,
-                )
-
-            else:
-                logger.info("Adding segments for new summary...")
-                # Repopulate the graphs
-                context_graph, meeting_word_graph = self.populate_word_graph(req_data)
-
-                # Compute embeddings for segments and keyphrases
-                context_graph, meeting_word_graph = self.populate_context_embeddings(
-                    req_data=req_data,
-                    segment_object=segment_object,
-                    context_graph=context_graph,
-                    meeting_word_graph=meeting_word_graph,
-                    populate_graph=populate_graph,
-                    group_id=group_id,
-                )
+            # # handle the situation when word graph is removed but gets request later
+            # if meeting_word_graph.graph.get("state") == "reset":
+            #     # Repopulate the graphs
+            #     logger.info("re-populating graph since it is in reset state")
+            #     context_graph, meeting_word_graph = self._update_context_with_word_graph(
+            #         req_data=req_data,
+            #         context_graph=context_graph,
+            #         meeting_word_graph=meeting_word_graph,
+            #         state="reset",
+            #     )
+            #
+            #     context_graph, meeting_word_graph = self.populate_word_graph(req_data)
+            #
+            #     # Compute embeddings for segments and keyphrases
+            #     context_graph, meeting_word_graph = self.populate_context_embeddings(
+            #         req_data=req_data,
+            #         segment_object=segment_object,
+            #         context_graph=context_graph,
+            #         meeting_word_graph=meeting_word_graph,
+            #         populate_graph=populate_graph,
+            #         group_id=group_id,
+            #     )
+            logger.info("Adding segments for new summary...")
+            # Repopulate the graphs
+            modified_request_obj, meeting_word_graph = self.populate_and_embed_graph(
+                req_data=req_data, segment_object=segment_object, **kwargs
+            )
 
             keyphrase_object = self.extract_keywords(
                 segment_object=segment_object,
-                context_graph=context_graph,
                 meeting_word_graph=meeting_word_graph,
                 default_form=default_form,
             )
 
-            if rank:
-                try:
-                    keyphrases, keyphrase_object = self._compute_relevant_phrases(
-                        keyphrase_object=keyphrase_object,
-                        context_graph=context_graph,
-                        n_kw=n_kw,
-                        default_form=default_form,
-                        rank_by=rank_by,
-                        sort_by=sort_by,
-                        remove_phrases=True,
-                    )
-                except Exception as e:
-                    logger.warning(
-                        "Error computing keyphrase relevance",
-                        extra={"warnMsg": e, "trace": traceback.print_exc()},
-                    )
+            try:
+                keyphrases, keyphrase_object = self._compute_relevant_phrases(
+                    keyphrase_object=keyphrase_object,
+                    context_graph=context_graph,
+                    n_kw=n_kw,
+                    default_form=default_form,
+                    rank_by=rank_by,
+                    sort_by=sort_by,
+                    remove_phrases=True,
+                )
+            except Exception as e:
+                logger.warning(
+                    "Error computing keyphrase relevance",
+                    extra={"warnMsg": e, "trace": traceback.print_exc()},
+                )
 
-                    keyphrases, keyphrase_object = self.prepare_keyphrase_output(
-                        keyphrase_object=keyphrase_object,
-                        top_n=n_kw,
-                        default_form=default_form,
-                        rank_by="pagerank",
-                        sort_by=sort_by,
-                        remove_phrases=False,
-                    )
+                keyphrases, keyphrase_object = self.prepare_keyphrase_output(
+                    keyphrase_object=keyphrase_object,
+                    top_n=n_kw,
+                    default_form=default_form,
+                    rank_by="pagerank",
+                    sort_by=sort_by,
+                    remove_phrases=False,
+                )
 
             if validate:
                 validation_id = self.utils.hash_sha_object()
@@ -933,7 +699,6 @@ class KeyphraseExtractor(object):
     def extract_keywords(
         self,
         segment_object: SegmentType,
-        context_graph: nx.DiGraph,
         meeting_word_graph: nx.Graph,
         relative_time=None,
         preserve_singlewords=False,
@@ -945,7 +710,6 @@ class KeyphraseExtractor(object):
             segment_object:
             relative_time:
             meeting_word_graph:
-            context_graph:
             req_data:
             preserve_singlewords:
 
@@ -1052,13 +816,7 @@ class KeyphraseExtractor(object):
         cleaned_keyphrase_list = self.utils.post_process_output(
             keyphrase_object=cleaned_keyphrase_list,
             preserve_singlewords=preserve_singlewords,
-            dict_key="original",
-        )
-
-        cleaned_keyphrase_list = self.utils.post_process_output(
-            keyphrase_object=cleaned_keyphrase_list,
-            preserve_singlewords=preserve_singlewords,
-            dict_key="descriptive",
+            dict_key=default_form,
         )
 
         return cleaned_keyphrase_list

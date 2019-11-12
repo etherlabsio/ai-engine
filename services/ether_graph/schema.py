@@ -54,7 +54,7 @@ class Schema(object):
                 }
 
                 type Keyphrase {
-                    value: string
+                    values: [string]
                     attribute: string
                     important: bool
                     type: string

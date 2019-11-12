@@ -117,28 +117,25 @@ class NATSTransport(object):
         request = json.loads(msg.data)
         segment_object = request["segments"]
 
-        try:
-            context_graph, meeting_word_graph = self.keyphrase_service.populate_word_graph(
-                request
-            )
+        keyphrase_attr_dict = {"type": "descriptive", "important": False}
 
-            # Compute embeddings for segments and keyphrases
-            context_graph, meeting_word_graph = self.keyphrase_service.populate_context_embeddings(
+        try:
+            modified_request_obj, meeting_word_graph = self.keyphrase_service.populate_and_embed_graph(
                 req_data=request,
                 segment_object=segment_object,
-                context_graph=context_graph,
-                meeting_word_graph=meeting_word_graph,
+                keyphrase_attr=keyphrase_attr_dict,
             )
 
+            await self.populate_segment_keyphrase_info(
+                modified_req_data=modified_request_obj
+            )
             end = timer()
             logger.info(
-                "Populated graph and written to s3",
+                "Populated to dgraph and written to s3",
                 extra={
                     "graphId": meeting_word_graph.graph.get("graphId"),
                     "nodes": meeting_word_graph.number_of_nodes(),
                     "edges": meeting_word_graph.number_of_edges(),
-                    "kgNodes": context_graph.number_of_nodes(),
-                    "kgEdges": context_graph.number_of_edges(),
                     "instanceId": request["instanceId"],
                     "responseTime": end - start,
                 },
@@ -146,7 +143,7 @@ class NATSTransport(object):
         except Exception:
             end = timer()
             logger.error(
-                "Error populating graph",
+                "Error populating to dgraph",
                 extra={
                     "err": traceback.print_exc(),
                     "responseTime": end - start,
@@ -166,11 +163,18 @@ class NATSTransport(object):
 
         limit = request.get("limit", 10)
 
+        keyphrase_attr_dict = {"type": "descriptive", "important": False}
+
         if populate_graph:
             output = self.keyphrase_service.get_keyphrases(
-                request, segment_object=segment_object, n_kw=limit, validate=validation
+                request,
+                segment_object=segment_object,
+                n_kw=limit,
+                validate=validation,
+                keyphrase_attr=keyphrase_attr_dict,
             )
         else:
+            keyphrase_attr_dict = {"type": "descriptive", "important": True}
             group_id = self.keyphrase_service.utils.hash_sha_object()
             output = self.keyphrase_service.get_summary_chapter_keyphrases(
                 request,
@@ -179,6 +183,7 @@ class NATSTransport(object):
                 validate=validation,
                 populate_graph=populate_graph,
                 group_id=group_id,
+                keyphrase_attr=keyphrase_attr_dict,
             )
 
         end = timer()
@@ -304,3 +309,26 @@ class NATSTransport(object):
         logger.info("Resetting keyphrases graph")
         output = self.keyphrase_service.reset_keyphrase_graph(request)
         await self.nats_manager.conn.publish(msg, json.dumps(output).encode())
+
+    async def populate_segment_keyphrase_info(self, modified_req_data):
+        eg_segment_topic = "ether_graph_service.populate_segments"
+        ether_graph_request = json.dumps(modified_req_data).encode()
+
+        msg = await self.nats_manager.conn.publish(
+            eg_segment_topic, ether_graph_request
+        )
+        resp = msg.data.decode()
+
+        return resp
+
+    async def query_ether_graph(self, query_text, variables=None):
+        eg_query_topic = "ether_graph_service.perform_query"
+        TIMEOUT = 20
+        query_request = {"query": query_text, "variables": variables}
+
+        msg = await self.nats_manager.conn.request(
+            eg_query_topic, json.dumps(query_request).encode(), timeout=TIMEOUT
+        )
+        resp = msg.data.decode()
+
+        return resp
