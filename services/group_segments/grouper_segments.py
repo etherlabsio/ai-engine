@@ -485,31 +485,13 @@ class community_detection:
                             )
                             break
 
-        # Remove Redundent PIMs in a group and also for single segment as a topic accept it as a topic only if it has duration greater than 30 sec.
-        new_pim = {}
-        track_single_seg = []
+        # Remove Redundent PIMs in a group and also for single segment as a topic accept it as a topic only if it has duration greater than 60 sec.
+        index = 0
         for pim in list(pims.keys()):
             if len(pims[pim]) == 1:
-                if self.segments_map[pims[pim]["segment0"][3]]["duration"] > 30:
-                    if pims[pim]["segment0"][3] in track_single_seg:
-                        continue
-                    track_single_seg.append(pims[pim]["segment0"][3])
-                    pass
-                else:
-                    continue
-            seen = []
-            new_pim[pim] = {}
-            index = 0
-            for seg in list(pims[pim]):
-                if pims[pim][seg][3] in seen:
-                    pass
-                else:
-                    new_pim[pim]["segment" + str(index)] = {}
-                    new_pim[pim]["segment" + str(index)] = pims[pim][seg]
-                    index += 1
-                    seen.append(pims[pim][seg][3])
-
-        return new_pim
+                if len(self.segments_map[pims[pim]["segment0"][-1]]["originalText"].split(" "))<120:
+                    del pims[pim]
+        return pims
 
     def order_groups_by_score(self, pims, fv_mapped_score):
         new_pims = {}
@@ -541,7 +523,7 @@ class community_detection:
             fv, graph_list, fv_mapped_score = self.get_computed_feature_vector_gpt()
         # _ = self.remove_preprocessed_segments(graph_list)
 
-        meeting_graph, yetto_prune = self.construct_graph_next_segment(fv, graph_list)
+        meeting_graph, yetto_prune = self.construct_graph(fv, graph_list)
         meeting_graph_pruned = self.prune_edges_outlier(
             meeting_graph, graph_list, yetto_prune, v
         )

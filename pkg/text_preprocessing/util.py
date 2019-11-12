@@ -5,6 +5,8 @@ from nltk.corpus import stopwords
 import nltk
 from nltk.stem import WordNetLemmatizer
 from nltk.tokenize import word_tokenize
+import itertools
+import string
 import os
 
 logger = logging.getLogger(__name__)
@@ -27,12 +29,15 @@ else:
         except LookupError:
             nltk.download("wordnet", download_dir="/tmp/nltk_data")
             nltk.download("stopwords", download_dir="/tmp/nltk_data")
+            nltk.download("averaged_perceptron_tagger", download_dir="/tmp/nltk_data")
     else:
         nltk.download("wordnet", download_dir="/tmp/nltk_data")
         nltk.download("stopwords", download_dir="/tmp/nltk_data")
+        nltk.download("averaged_perceptron_tagger", download_dir="/tmp/nltk_data")
         nltk.data.path.append("/tmp/nltk_data")
 stop_words_nltk = stopwords.words("english")
 
+stop_words_extra = ['','right','yeah','okay','ourselves', 'hers', 'between', 'yourself', 'but', 'again', 'there', 'about', 'once', 'during', 'out', 'very', 'having', 'with', 'they', 'own', 'an', 'be', 'some', 'for', 'do', 'its', 'yours', 'such', 'into', 'of', 'most', 'itself', 'other', 'off', 'is', 's', 'am', 'or', 'who', 'as', 'from', 'him', 'each', 'the', 'themselves', 'until', 'below', 'are', 'we', 'these', 'your', 'his', 'through', 'don', 'nor', 'me', 'were', 'her', 'more', 'himself', 'this', 'down', 'should', 'our', 'their', 'while', 'above', 'both', 'up', 'to', 'ours', 'had', 'she', 'all', 'no', 'when', 'at', 'any', 'before', 'them', 'same', 'and', 'been', 'have', 'in', 'will', 'on', 'does', 'yourselves', 'then', 'that', 'because', 'what', 'over', 'why', 'so', 'can', 'did', 'not', 'now', 'under', 'he', 'you', 'herself', 'has', 'just', 'where', 'too', 'only', 'myself', 'which', 'those', 'i', 'after', 'few', 'whom', 't', 'being', 'if', 'theirs', 'my', 'against', 'a', 'by', 'doing', 'it', 'how', 'further', 'was', 'here', 'than']
 stop_words_spacy = list(
     """
 a about above across after afterwards again against all almost alone along
@@ -101,7 +106,7 @@ yet you your yours yourself yourselves
 """.split()
 )
 
-stop_words = list(set(stop_words_nltk + stop_words_spacy))
+stop_words = list(set(stop_words_nltk + stop_words_spacy + stop_words_extra))
 
 contraction_mapping = {
     "ain't": "is not",
@@ -343,3 +348,34 @@ def get_filtered_pos(sentence, filter_pos=["JJ", "VB", "NN", "NNP", "FW"]):
             text_pos.append(sentence_pos)
         return text_pos
     return sentence
+
+def st_get_candidate_phrases(text, pos_search_pattern_list=[r"""base: {(<JJ.*>*<NN.*>+<IN>)?<JJ>*<NN.*>+}"""]):
+        punct = set(string.punctuation)
+        all_chunks = []
+
+        for pattern in pos_search_pattern_list:
+            all_chunks+=st_getregexChunks(text,pattern)
+
+        candidates_tokens = [' '.join(word for word, pos,
+                    chunk in group).lower()
+                    for key, group in itertools.groupby(all_chunks,
+                    lambda_unpack(lambda word, pos, chunk: chunk != 'O')) if key]
+
+        candidate_phrases = [cand for cand in candidates_tokens if cand not in stop_words and not all(char in punct for char in cand)]
+
+        return candidate_phrases
+
+def st_getregexChunks(text,grammar):
+
+    chunker = nltk.chunk.regexp.RegexpParser(grammar)
+    tagged_sents = nltk.pos_tag_sents(nltk.word_tokenize(sent) for sent in nltk.sent_tokenize(text))
+    all_chunks = list(itertools.chain.from_iterable(nltk.chunk.tree2conlltags(chunker.parse(tagged_sent))
+                                                    for tagged_sent in tagged_sents))
+    #print(grammar)
+    #print(all_chunks)
+    #print()
+
+    return all_chunks
+
+def lambda_unpack(f):
+    return lambda args: f(*args)
