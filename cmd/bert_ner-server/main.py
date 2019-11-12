@@ -54,9 +54,9 @@ def handler(event, context):
     try:
         segment = json_request["originalText"]
         ner_model = ner.BERT_NER(model)
-        entities, entity_scores = ner_model.get_entities(segment)
+        entities = ner_model.get_entities(segment)
 
-        response = json.dumps({"entities": entities, "entity_scores": entity_scores})
+        response = json.dumps({"entities": entities})
         return {"statusCode": 200, "body": response}
         logger.info(
             "Entity Extraction successful with {} entities detected.".format(
@@ -68,5 +68,5 @@ def handler(event, context):
         logger.error(
             "Error processing request", extra={"err": e, "request": json_request}
         )
-        response = json.dumps({"entities": [], "entity_scores": []})
+        response = json.dumps({"entities": {}})
         return {"statusCode": 404, "body": response}
