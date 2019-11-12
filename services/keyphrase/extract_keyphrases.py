@@ -6,7 +6,7 @@ from typing import List, Dict, Tuple
 from collections import OrderedDict
 from copy import deepcopy
 import numpy as np
-import uuid
+import json
 
 from graphrank.core import GraphRank
 from graphrank.utils import TextPreprocess, GraphUtils
@@ -16,6 +16,7 @@ from .knowledge_graph import KnowledgeGraph
 from .ranker import KeyphraseRanker
 from .s3io import S3IO
 from .word_graph import WordGraphBuilder
+from .queries import Queries
 
 logger = logging.getLogger(__name__)
 
@@ -24,11 +25,16 @@ SegmentType = Dict
 
 class KeyphraseExtractor(object):
     def __init__(
-        self, s3_client=None, encoder_lambda_client=None, lambda_function=None
+        self,
+        s3_client=None,
+        encoder_lambda_client=None,
+        lambda_function=None,
+        nats_manager=None,
     ):
         self.context_dir = "/context-instance-graphs/"
         self.feature_dir = "/sessions/"
         self.s3_client = s3_client
+        self.nats_manager = nats_manager
         self.kg = KnowledgeGraph()
         self.utils = KeyphraseUtils()
         self.io_util = S3IO(
@@ -41,6 +47,7 @@ class KeyphraseExtractor(object):
             context_dir=self.context_dir,
             knowledge_graph_object=self.kg,
             utils=KeyphraseUtils(),
+            nats_manager=nats_manager,
         )
         self.wg = WordGraphBuilder(
             graphrank_obj=GraphRank(),
@@ -48,6 +55,8 @@ class KeyphraseExtractor(object):
             graphutils_obj=GraphUtils(),
             keyphrase_utils_obj=self.utils,
         )
+
+        self.query_client = Queries(nats_manager=nats_manager)
 
         self.syntactic_filter = [
             "JJ",
@@ -186,7 +195,7 @@ class KeyphraseExtractor(object):
 
         return meeting_word_graph
 
-    def populate_embeddings(
+    def compute_embeddings(
         self,
         req_data,
         segment_object,
@@ -225,6 +234,7 @@ class KeyphraseExtractor(object):
 
         # Get segment text
         for i, kp_dict in enumerate(keyphrase_object):
+            keyphrase_attr_dict = deepcopy(keyphrase_attr)
             seg_text = kp_dict["segments"]
             segment_id = kp_dict["segmentId"]
             segment_keyphrase_dict = kp_dict[default_form]
@@ -293,13 +303,11 @@ class KeyphraseExtractor(object):
 
             attributed_segment_obj = self._form_keyphrase_attr_object(
                 segment=attributed_segment_obj,
-                keyphrase_attr=keyphrase_attr,
+                keyphrase_attr=keyphrase_attr_dict,
                 keyphrase_list=input_phrases_list,
             )
 
             req_data["segments"][i] = attributed_segment_obj
-
-            self.utils.write_to_json(req_data, file_name="segment_attr")
 
             logger.info(
                 "features embeddings computed and stored",
@@ -314,12 +322,14 @@ class KeyphraseExtractor(object):
         meeting_word_graph = self.populate_word_graph(req_data)
 
         # Compute embeddings for segments and keyphrases
-        modified_request_obj = self.populate_embeddings(
+        modified_request_obj = self.compute_embeddings(
             req_data=req_data,
             segment_object=segment_object,
             meeting_word_graph=meeting_word_graph,
             **kwargs,
         )
+
+        self.utils.write_to_json(modified_request_obj, file_name="segment_attr")
 
         return modified_request_obj, meeting_word_graph
 
@@ -331,6 +341,7 @@ class KeyphraseExtractor(object):
 
     def _form_keyphrase_attr_object(self, segment, keyphrase_attr, **kwargs):
         keyphrase_list = kwargs.get("keyphrase_list")
+        # keyphrase_attr_dict = deepcopy(keyphrase_attr)
         keyphrase_attr["values"] = keyphrase_list
 
         attr_object = {"keyphrases": keyphrase_attr}
@@ -344,46 +355,33 @@ class KeyphraseExtractor(object):
         return word_graph
 
     def _compute_relevant_phrases(self, **kwargs):
-        keyphrase_object = kwargs.get("keyphrase_object")
-        n_kw = kwargs.get("n_kw")
-        default_form = kwargs.get("default_form")
-        rank_by = kwargs.get("rank_by")
-        sort_by = kwargs.get("sort_by")
-        remove_phrases = kwargs.get("remove_phrases")
-
-        keyphrase_object = self.ranker.compute_local_relevance(
-            keyphrase_object=keyphrase_object,
-            context_graph=context_graph,
-            normalize=False,
-        )
+        kp_dict = self.ranker.compute_local_relevance(dict_key="descriptive", **kwargs)
 
         # Compute the relevance of entities
-        keyphrase_object = self.ranker.compute_local_relevance(
-            keyphrase_object=keyphrase_object,
-            context_graph=context_graph,
-            normalize=False,
-            dict_key="entities",
+        kp_dict = self.ranker.compute_local_relevance(
+            dict_key="entities", kp_dict=kp_dict, **kwargs
         )
 
-        keyphrases, keyphrase_object = self.prepare_keyphrase_output(
-            keyphrase_object=keyphrase_object,
-            top_n=n_kw,
-            default_form=default_form,
-            rank_by=rank_by,
-            sort_by=sort_by,
-            remove_phrases=remove_phrases,
+        return kp_dict
+
+    def _make_validation(self, keyphrase_object, context_id, instance_id):
+        validation_id = self.utils.hash_sha_object()
+        validation_file_name = self.utils.write_to_json(
+            keyphrase_object, file_name="keyphrase_validation_" + validation_id
+        )
+        self.io_util.upload_validation(
+            context_id=context_id,
+            feature_dir=self.feature_dir,
+            instance_id=instance_id,
+            validation_file_name=validation_file_name,
         )
 
-        return keyphrases, keyphrase_object
-
-    def get_keyphrases(
+    async def get_keyphrases(
         self,
         req_data,
         segment_object: SegmentType,
-        context_graph=None,
         meeting_word_graph=None,
         n_kw=10,
-        rank=True,
         default_form="descriptive",
         rank_by="segment_relevance",
         sort_by="loc",
@@ -394,6 +392,9 @@ class KeyphraseExtractor(object):
 
         context_id = req_data["contextId"]
         instance_id = req_data["instanceId"]
+
+        populate_graph = kwargs.get("populate_graph", True)
+        group_id = kwargs.get("group_id")
         keyphrases = []
         try:
             if meeting_word_graph is None:
@@ -413,9 +414,32 @@ class KeyphraseExtractor(object):
             )
 
             try:
-                keyphrases, keyphrase_object = self._compute_relevant_phrases(
+                for i, kp_dict in enumerate(keyphrase_object):
+                    segment_id = kp_dict["segmentId"]
+                    segment_query_obj = self.ranker.form_segment_query(
+                        segment_id=segment_id, populate_graph=populate_graph
+                    )
+                    response = await self.query_client.query_graph(
+                        query_object=segment_query_obj
+                    )
+                    npz_file = self.ranker.query_segment_embeddings(
+                        response=response, populate_graph=populate_graph
+                    )
+                    kp_dict = self._compute_relevant_phrases(
+                        npz_file=npz_file,
+                        segment_id=segment_id,
+                        kp_dict=kp_dict,
+                        populate_graph=populate_graph,
+                        group_id=group_id,
+                    )
+                    keyphrase_object[i] = kp_dict
+
+                keyphrase_object = self.ranker.compute_normalized_boosted_rank(
+                    keyphrase_object=keyphrase_object, dict_key=default_form
+                )
+                keyphrases, keyphrase_object = self.prepare_keyphrase_output(
                     keyphrase_object=keyphrase_object,
-                    n_kw=n_kw,
+                    top_n=n_kw,
                     default_form=default_form,
                     rank_by=rank_by,
                     sort_by=sort_by,
@@ -437,15 +461,10 @@ class KeyphraseExtractor(object):
                 )
 
             if validate:
-                validation_id = self.utils.hash_sha_object()
-                validation_file_name = self.utils.write_to_json(
-                    keyphrase_object, file_name="keyphrase_validation_" + validation_id
-                )
-                self.io_util.upload_validation(
+                self._make_validation(
+                    keyphrase_object=keyphrase_object,
                     context_id=context_id,
-                    feature_dir=self.feature_dir,
                     instance_id=instance_id,
-                    validation_file_name=validation_file_name,
                 )
 
             logger.debug(
@@ -496,28 +515,6 @@ class KeyphraseExtractor(object):
                 # Get graph objects
                 meeting_word_graph = self._retrieve_word_graph(req_data=req_data)
 
-            # # handle the situation when word graph is removed but gets request later
-            # if meeting_word_graph.graph.get("state") == "reset":
-            #     # Repopulate the graphs
-            #     logger.info("re-populating graph since it is in reset state")
-            #     context_graph, meeting_word_graph = self._update_context_with_word_graph(
-            #         req_data=req_data,
-            #         context_graph=context_graph,
-            #         meeting_word_graph=meeting_word_graph,
-            #         state="reset",
-            #     )
-            #
-            #     context_graph, meeting_word_graph = self.populate_word_graph(req_data)
-            #
-            #     # Compute embeddings for segments and keyphrases
-            #     context_graph, meeting_word_graph = self.populate_context_embeddings(
-            #         req_data=req_data,
-            #         segment_object=segment_object,
-            #         context_graph=context_graph,
-            #         meeting_word_graph=meeting_word_graph,
-            #         populate_graph=populate_graph,
-            #         group_id=group_id,
-            #     )
             logger.info("Adding segments for new summary...")
             # Repopulate the graphs
             modified_request_obj, meeting_word_graph = self.populate_and_embed_graph(
@@ -556,15 +553,10 @@ class KeyphraseExtractor(object):
                 )
 
             if validate:
-                validation_id = self.utils.hash_sha_object()
-                validation_file_name = self.utils.write_to_json(
-                    keyphrase_object, file_name="keyphrase_validation_" + validation_id
-                )
-                self.io_util.upload_validation(
+                self._make_validation(
+                    keyphrase_object=keyphrase_object,
                     context_id=context_id,
-                    feature_dir=self.feature_dir,
                     instance_id=instance_id,
-                    validation_file_name=validation_file_name,
                 )
 
             logger.debug(

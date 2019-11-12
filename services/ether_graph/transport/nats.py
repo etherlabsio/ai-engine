@@ -107,6 +107,9 @@ class NATSTransport(object):
         request = json.loads(msg.data)
 
         print(request)
+        await self.nats_manager.conn.publish(
+            msg.reply, json.dumps({"success": True}).encode()
+        )
 
     async def perform_query(self, msg):
         request = json.loads(msg.data)

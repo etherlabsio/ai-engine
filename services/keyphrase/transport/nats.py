@@ -166,7 +166,7 @@ class NATSTransport(object):
         keyphrase_attr_dict = {"type": "descriptive", "important": False}
 
         if populate_graph:
-            output = self.keyphrase_service.get_keyphrases(
+            output = await self.keyphrase_service.get_keyphrases(
                 request,
                 segment_object=segment_object,
                 n_kw=limit,
@@ -176,7 +176,7 @@ class NATSTransport(object):
         else:
             keyphrase_attr_dict = {"type": "descriptive", "important": True}
             group_id = self.keyphrase_service.utils.hash_sha_object()
-            output = self.keyphrase_service.get_summary_chapter_keyphrases(
+            output = await self.keyphrase_service.get_keyphrases(
                 request,
                 segment_object=segment_object,
                 n_kw=limit,
@@ -314,17 +314,12 @@ class NATSTransport(object):
         eg_segment_topic = "ether_graph_service.populate_segments"
         ether_graph_request = json.dumps(modified_req_data).encode()
 
-        msg = await self.nats_manager.conn.publish(
-            eg_segment_topic, ether_graph_request
-        )
-        resp = msg.data.decode()
+        await self.nats_manager.conn.publish(eg_segment_topic, ether_graph_request)
 
-        return resp
-
-    async def query_ether_graph(self, query_text, variables=None):
+    async def query_graph(self, query_text, variables=None):
         eg_query_topic = "ether_graph_service.perform_query"
         TIMEOUT = 20
-        query_request = {"query": query_text, "variables": variables}
+        query_request = self.keyphrase_service.form_queries()
 
         msg = await self.nats_manager.conn.request(
             eg_query_topic, json.dumps(query_request).encode(), timeout=TIMEOUT

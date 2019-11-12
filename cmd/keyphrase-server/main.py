@@ -39,13 +39,6 @@ if __name__ == "__main__":
     s3_client = S3Manager(bucket_name=bucket_store)
     lambda_client = client("lambda", config=aws_config)
 
-    # Initialize keyphrase-service client
-    keyphrase_extractor = KeyphraseExtractor(
-        s3_client=s3_client,
-        encoder_lambda_client=lambda_client,
-        lambda_function=encoder_lambda_function,
-    )
-
     # Initialize event loop and transport layers
     asyncio.set_event_loop_policy(uvloop.EventLoopPolicy())
     loop = asyncio.get_event_loop()
@@ -53,6 +46,15 @@ if __name__ == "__main__":
     nats_manager = Manager(
         loop=loop, url=nats_url, queue_name="io.etherlabs.keyphrase_service"
     )
+
+    # Initialize keyphrase-service client
+    keyphrase_extractor = KeyphraseExtractor(
+        s3_client=s3_client,
+        encoder_lambda_client=lambda_client,
+        lambda_function=encoder_lambda_function,
+        nats_manager=nats_manager,
+    )
+
     nats_transport = NATSTransport(
         nats_manager=nats_manager, keyphrase_service=keyphrase_extractor
     )
