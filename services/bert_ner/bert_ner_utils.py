@@ -210,8 +210,9 @@ class BERT_NER:
                 score = self.sm(embed).detach().numpy().max(-1)[0]
                 label = self.labels[self.sm(embed).argmax().detach().numpy()]
                 # Consider Entities and Non-Entities with low confidence (false negatives)
-                if label != "O" or (label == "O" and score < 0.99):
-                    entities.append((tok, score))
+                if tok != "":
+                    if label != "O" or (label == "O" and score < 0.98):
+                        entities.append((tok, score))
         return entities
 
     def tokenize(self, text):
@@ -223,9 +224,7 @@ class BERT_NER:
         seen = []
         # handling abbreviations such as U.S.
         text = re.sub(
-            "[A-Z][.]\s?[A-Z][.]?",
-            lambda mobj: mobj.group(0)[0] + " " + mobj.group(0)[-2],
-            text,
+            "[A-Z][.]\s?", lambda mobj: mobj.group(0)[0] + " ", text
         ).casefold()
 
         # remove consecutive duplicate entities
