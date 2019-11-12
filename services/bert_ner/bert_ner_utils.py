@@ -5,7 +5,7 @@ import torch
 import torch.nn as nn
 from bert_utils.modeling_bert import BertPreTrainedModel, BertModel
 from bert_utils.tokenization_bert import BertTokenizer
-
+from itertools import groupby
 import nltk
 from nltk.tokenize import sent_tokenize
 
@@ -229,8 +229,15 @@ class BERT_NER:
         ).casefold()
 
         # remove consecutive duplicate entities
-        entity_words = list(dict.fromkeys([e[0] for e in entities if e[0] != ""]))
-        entity_scores = {e[0]: e[1] for e in entities}
+        entity_words = [
+            grouped_entity[0]
+            for grouped_entity in groupby(
+                map(lambda ent_score_tuple: ent_score_tuple[0], entities)
+            )
+        ]
+        entity_scores = {
+            ent_score_tuple[0]: ent_score_tuple[1] for ent_score_tuple in entities
+        }
         for i in range(len(entity_words)):
             if i in seen:
                 continue

@@ -1,1 +1,0 @@
-15525 (/Users/arjun/.cache/pants/setup/bootstrap-Darwin-x86_64/1.18.0_py37/bin/python /Users/arjun/.cache/pants/setup/bootstrap-Darwin-x86_64/1.18.0_py37/bin/pants bundle cmd/bert_ner-server:ner_lambda   )
