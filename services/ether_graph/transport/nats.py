@@ -76,8 +76,14 @@ class NATSTransport(object):
     async def context_start_handler(self, msg):
         msg_data = json.loads(msg.data)
         try:
-            self.eg_service.populate_context_info(req_data=msg_data)
-        except Exception:
+            resp = self.eg_service.populate_context_info(req_data=msg_data)
+
+            logger.info(
+                "Populated context and instance info to dgraph",
+                extra={"response": resp, "success": True},
+            )
+        except Exception as e:
+            logger.error("Error adding context info to dgraph", extra={"err": e})
             raise
 
     async def context_end_handler(self, msg):
@@ -86,15 +92,35 @@ class NATSTransport(object):
     # Topic Handler functions
 
     async def populate_segments(self, msg):
+        request = json.loads(msg.data)
+
+        try:
+            self.eg_service.populate_instance_segment_info(req_data=request)
+            resp = self.eg_service.populate_segment_info(req_data=request)
+
+            logger.info(
+                "Populated initial segment info to dgraph",
+                extra={"response": resp, "success": True},
+            )
+        except Exception as e:
+            logger.error("Error adding segment to dgraph", extra={"err": e})
+            raise
+
+    async def populate_segment_keyphrase(self, msg):
         start = timer()
         request = json.loads(msg.data)
 
         try:
-            self.eg_service.populate_segment_info(req_data=request)
+            resp = self.eg_service.populate_keyphrase_info(req_data=request)
+
+            logger.info(
+                "Populated segment and keyphrase info to dgraph",
+                extra={"response": resp, "success": True},
+            )
         except Exception as e:
             end = timer()
             logger.error(
-                "Error adding segment to dgraph",
+                "Error adding segment keyphrases to dgraph",
                 extra={
                     "err": e,
                     "trace": traceback.print_exc(),
@@ -102,15 +128,21 @@ class NATSTransport(object):
                 },
             )
             raise
-
-    async def populate_segment_keyphrase(self, msg):
-        request = json.loads(msg.data)
-
-        print(request)
         await self.nats_manager.conn.publish(
             msg.reply, json.dumps({"success": True}).encode()
         )
 
     async def perform_query(self, msg):
         request = json.loads(msg.data)
-        return request
+        query_text = request["query"]
+        variables = request["variables"]
+
+        try:
+            resp = self.eg_service.perform_queries(query_text, variables)
+
+            logger.info("Successfully queried dgraph", extra={"success": True})
+            print(resp)
+            await self.nats_manager.conn.publish(msg.reply, json.dumps(resp).encode())
+        except Exception as e:
+            logger.error("Error querying dgraph", extra={"err": e})
+            raise

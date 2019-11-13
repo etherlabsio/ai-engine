@@ -1,5 +1,6 @@
 import json as js
 import logging
+import hashlib
 
 logger = logging.getLogger(__name__)
 
@@ -90,22 +91,29 @@ class ContextSessionParser(object):
 
             segment_attr_dict = {k: segment[k] for k in segment_attr_list}
             segment_attr_dict.update(external_segment_attr)
+            extra_segment_attributes = segment.get("attributes", None)
+            if extra_segment_attributes is not None:
+                segment_attr_dict.update(extra_segment_attributes)
 
             # Rename `originalText` field
             segment_attr_dict["text"] = segment_attr_dict.pop("originalText")
 
             segment_node = self._segment_info(
-                segment=segment,
-                segment_attr=segment_attr_dict,
-                user_node=user_node,
-                provider_node=provider_node,
-                recorder_node=recoder_node,
+                segment=segment, segment_attr=segment_attr_dict
             )
 
         return segment_node, user_node, provider_node, recoder_node
 
-    def keyphrase_info(self):
-        pass
+    def parse_keyphrase_info(self, segment_object, **kwargs):
+        keyphrase_node = {}
+        ext_keyphrase_attr = kwargs.get("keyphrase_attr", dict())
+
+        for i, segment in enumerate(segment_object):
+            keyphrase_node = self._keyphrase_info(
+                segment=segment, keyphrase_attr=ext_keyphrase_attr
+            )
+
+        return keyphrase_node
 
     def parse_topic_marker(self):
         pass
@@ -124,27 +132,27 @@ class ContextSessionParser(object):
         # Update context info
         self.context_label.update(context_attr)
         context_node = {
+            "dgraph.type": self.schema_type[self.context_label.get("attribute")],
             "uid": "_:" + context_id,
             "xid": context_id,
-            "dgraph.type": self.schema_type[self.context_label.get("attribute")],
             **self.context_label,
         }
 
         # Update mind info
         self.mind_label.update(mind_attr)
         mind_node = {
+            "dgraph.type": self.schema_type[self.mind_label.get("attribute")],
             "uid": "_:" + mind_id,
             "xid": mind_id,
-            "dgraph.type": self.schema_type[self.mind_label.get("attribute")],
             **self.mind_label,
         }
 
         # Update instance info
         self.instance_label.update(instance_attr)
         instance_node = {
+            "dgraph.type": self.schema_type[self.instance_label.get("attribute")],
             "uid": "_:" + instance_id,
             "xid": instance_id,
-            "dgraph.type": self.schema_type[self.instance_label.get("attribute")],
             **self.instance_label,
         }
 
@@ -156,9 +164,9 @@ class ContextSessionParser(object):
         # Update instance info
         self.instance_label.update(instance_attr)
         instance_node = {
+            "dgraph.type": self.schema_type[self.instance_label.get("attribute")],
             "uid": "_:" + instance_id,
             "xid": instance_id,
-            "dgraph.type": self.schema_type[self.instance_label.get("attribute")],
             **self.instance_label,
         }
 
@@ -170,9 +178,9 @@ class ContextSessionParser(object):
         # Update segment info
         self.segment_label.update(segment_attr)
         segment_node = {
+            "dgraph.type": self.schema_type[self.segment_label.get("attribute")],
             "uid": "_:" + segment["id"],
             "xid": segment["id"],
-            "dgraph.type": self.schema_type[self.segment_label.get("attribute")],
             **self.segment_label,
         }
 
@@ -184,9 +192,9 @@ class ContextSessionParser(object):
 
         self.user_label.update(user_attr)
         user_node = {
+            "dgraph.type": self.schema_type[self.user_label.get("attribute")],
             "uid": "_:" + user_id,
             "xid": user_id,
-            "dgraph.type": self.schema_type[self.user_label.get("attribute")],
             **self.user_label,
         }
 
@@ -198,8 +206,10 @@ class ContextSessionParser(object):
 
         self.transcriber_label.update(provider_attr)
         provider_node = {
-            "name": provider_name,
             "dgraph.type": self.schema_type[self.transcriber_label.get("attribute")],
+            "uid": "_:" + provider_name,
+            "xid": provider_name,
+            "name": provider_name,
             **self.transcriber_label,
         }
 
@@ -211,13 +221,31 @@ class ContextSessionParser(object):
 
         self.recording_label.update(recorder_attr)
         recorder_node = {
+            "dgraph.type": self.schema_type[self.recording_label.get("attribute")],
             "uid": "_:" + recorder_id,
             "xid": recorder_id,
-            "dgraph.type": self.schema_type[self.recording_label.get("attribute")],
             **self.recording_label,
         }
 
         return recorder_node
 
     def _keyphrase_info(self, segment, **kwargs):
+        keyphrase_attributes = segment["keyphrases"]
+        segment_id = segment["id"]
         keyphrase_attr = kwargs.get("keyphrase_attr", dict())
+
+        keyphrase_attributes.update(keyphrase_attr)
+        self.keyphrase_label.update(keyphrase_attributes)
+        keyphrase_node = {
+            "dgraph.type": self.schema_type[self.keyphrase_label.get("attribute")],
+            "uid": "_:" + self._hash_sha_object(data=segment_id),
+            "xid": self._hash_sha_object(data=segment_id),
+            **self.keyphrase_label,
+        }
+
+        return keyphrase_node
+
+    def _hash_sha_object(self, data: str) -> str:
+        hash_object = hashlib.sha1(data.encode())
+        hash_str = hash_object.hexdigest()
+        return hash_str

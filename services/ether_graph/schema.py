@@ -1,10 +1,10 @@
 class Schema(object):
-    def __init__(self):
-        self.meeting_def = """
+    def fetch_schema(self):
+        meeting_def = """
                 type Context {
                     xid: string
                     attribute: string
-                    hasMeeting: [Instance]
+                    hasMeeting: [ContextSession]
                     associatedMind: Mind
                 }
 
@@ -16,7 +16,7 @@ class Schema(object):
                 type ContextSession {
                     xid: string
                     attribute: string
-                    hasSegment: [Segment]
+                    hasSegment: [TranscriptionSegment]
                 }
 
                 type TranscriptionSegment {
@@ -26,15 +26,16 @@ class Schema(object):
                     analyzedText: string
                     embedding_vector_uri: string
                     embedding_vector_group_uri: string
+                    groupId: string
                     confidence: float
                     language: string
                     startTime: datetime
                     endTime: datetime
                     duration: int
                     authoredBy: User
-                    hasKeywords: [Keyphrase]
+                    hasKeywords: Keyphrase
                     hasSource: [Source]
-                    providedBy: Provider    
+                    providedBy: TranscriptionProvider    
                 }
 
                 type User {
@@ -49,12 +50,14 @@ class Schema(object):
                 }
 
                 type TranscriptionProvider {
+                    xid: string
                     name: string
                     attribute: string
                 }
 
                 type Keyphrase {
-                    values: [string]
+                    xid: string
+                    values: string
                     attribute: string
                     important: bool
                     type: string
@@ -63,15 +66,18 @@ class Schema(object):
 
                 xid: string @index(exact) @upsert .
                 name: string @index(exact) .
-                value: string @index(term) .
+                values: [string] .
                 attribute: string @index(hash) .
                 text: string @index(fulltext) .
                 embedding_vector_uri: string .
                 embedding_vector_group_uri: string .
+                groupId: string @index(hash) .
                 associatedMind: uid .
                 hasMeeting: [uid] @reverse .
                 hasSegment: [uid] @reverse .
-                hasKeywords: [uid] .
+                hasKeywords: uid .
                 authoredBy: uid @reverse .
+                providedBy: uid .
 
                 """
+        return meeting_def

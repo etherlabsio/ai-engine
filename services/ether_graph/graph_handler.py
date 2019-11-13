@@ -22,6 +22,11 @@ class GraphHandler(object):
         self.segment_keyphrase_rel = "hasKeywords"
         self.context_mind_rel = "associatedMind"
 
+        client_stub = pydgraph.DgraphClientStub("localhost:9080")
+        client = pydgraph.DgraphClient(client_stub)
+
+        self.dgraph = client
+
     # For testing purposes
     def to_json(self, data, filename):
         with open(filename + ".json", "w", encoding="utf-8") as f_:
@@ -67,7 +72,7 @@ class GraphHandler(object):
         return node_obj
 
     def set_schema(self):
-        schema = self.context_schema.meeting_def()
+        schema = self.context_schema.fetch_schema()
         return self.dgraph.alter(pydgraph.Operation(schema=schema))
 
     def populate_context_info(self, req_data, **kwargs):
@@ -120,12 +125,13 @@ class GraphHandler(object):
     def populate_segment_info(self, req_data, **kwargs):
         segment_object = req_data["segments"]
         segment_node, user_node, provider_node, recorder_node = self.context_parser.parse_segment_info(
-            segment_object=segment_object
+            segment_object=segment_object, **kwargs
         )
 
         segment_id = segment_node["xid"]
         user_id = user_node["xid"]
         recorder_id = recorder_node["xid"]
+        provider_name = provider_node["xid"]
 
         segment_node = self.query_transform_node(xid=segment_id, node_obj=segment_node)
         user_node = self.query_transform_node(xid=user_id, node_obj=user_node)
@@ -133,7 +139,7 @@ class GraphHandler(object):
             xid=recorder_id, node_obj=recorder_node
         )
         provider_node = self.query_transform_node(
-            xid="", node_obj=provider_node, extra_field="name"
+            xid=provider_name, node_obj=provider_node, extra_field=None
         )
 
         segment_node.update(
@@ -149,8 +155,30 @@ class GraphHandler(object):
 
         return resp
 
-    def populate_keyphrase_info(self, req_data):
-        pass
+    def populate_keyphrase_info(self, req_data, **kwargs):
+        segment_object = req_data["segments"]
+        segment_node, user_node, provider_node, recorder_node = self.context_parser.parse_segment_info(
+            segment_object=segment_object, **kwargs
+        )
+
+        keyphrase_node = self.context_parser.parse_keyphrase_info(
+            segment_object=segment_object
+        )
+        segment_id = segment_node["xid"]
+        keyphrase_id = keyphrase_node["xid"]
+
+        segment_node = self.query_transform_node(xid=segment_id, node_obj=segment_node)
+        keyphrase_node = self.query_transform_node(
+            xid=keyphrase_id, node_obj=keyphrase_node
+        )
+        segment_node.update({self.segment_keyphrase_rel: keyphrase_node})
+
+        mutation_query_obj = segment_node
+        resp = self._mutate_info(mutation_query=mutation_query_obj)
+
+        self.to_json(segment_node, "seg")
+
+        return resp
 
     def populate_marker_info(self, req_data):
         pass
@@ -169,7 +197,7 @@ class GraphHandler(object):
                 query = ext_query
 
             variables = {"$i": xid}
-            res = client.txn(read_only=True).query(query, variables=variables)
+            res = self.dgraph.txn(read_only=True).query(query, variables=variables)
             response = js.loads(res.json)
 
             return response
@@ -191,21 +219,34 @@ class GraphHandler(object):
             # Clean up. Calling this after txn.commit() is a no-op and hence safe.
             txn.discard()
 
+    def perform_queries(self, query_text, variables=None):
+        txn = self.dgraph.txn()
+        try:
+            query = query_text
+
+            if variables is not None:
+                res = self.dgraph.txn(read_only=True).query(query, variables=variables)
+            else:
+                res = self.dgraph.txn(read_only=True).query(query)
+
+            response = js.loads(res.json)
+            return response
+        finally:
+            # Clean up. Calling this after txn.commit() is a no-op and hence safe.
+            txn.discard()
+
 
 if __name__ == "__main__":
-    client_stub = pydgraph.DgraphClientStub("localhost:9080")
-    client = pydgraph.DgraphClient(client_stub)
+    # client_stub = pydgraph.DgraphClientStub("localhost:9080")
+    # client = pydgraph.DgraphClient(client_stub)
 
-    gh = GraphHandler(dgraph_client=client)
+    gh = GraphHandler(dgraph_client="")
 
     req_data = gh.read_json("meeting_test.json")
 
-    try:
-        # Execute one-by-one in sequence
+    # Execute one-by-one in sequence
 
-        # gh.set_schema()
-        # gh.populate_context_info(req_data)
-        # gh.populate_instance_segment_info(req_data)
-        gh.populate_segment_info(req_data)
-    finally:
-        client_stub.close()
+    gh.set_schema()
+    # gh.populate_context_info(req_data)
+    # gh.populate_instance_segment_info(req_data)
+    # gh.populate_segment_info(req_data)
