@@ -1035,9 +1035,7 @@ class KeyphraseExtractor(object):
                 preference = item["preference"]
                 loc = input_segment.find(word)
                 loc_small = input_segment.find(word.lower())
-                if (loc > -1 or loc_small > -1) and (
-                    "*" not in word or "." not in word
-                ):
+                if (loc > -1 or loc_small > -1) and ("*" not in word):
                     try:
                         entity_pagerank_score = meeting_word_graph.nodes[word].get(
                             "pagerank"
