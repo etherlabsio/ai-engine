@@ -897,6 +897,9 @@ class KeyphraseExtractor(object):
             overall_keyphrase_quality_score = 0
 
         # Limit keyphrase list to top-n
+        if top_n == 10:
+            remove_phrases = False
+
         sorted_keyphrase_dict = self.utils.limit_phrase_list(
             entities_dict=final_entity_dict,
             keyphrase_dict=final_keyphrase_dict,

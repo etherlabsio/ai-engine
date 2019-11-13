@@ -237,7 +237,6 @@ class KeyphraseUtils(object):
         }
 
         sort_key_dict = {"loc": -1, "preference": 4, "order": "asc"}
-
         if remove_phrases:
             for entity, scores in entities_dict.items():
                 preference_value = scores[sort_key_dict.get("preference")]
@@ -264,7 +263,7 @@ class KeyphraseUtils(object):
                 if final_sort:
                     keyphrase_score = norm_boosted_score
 
-                if keyphrase_score > keyphrase_quality_score:
+                if keyphrase_score >= keyphrase_quality_score:
                     modified_keyphrase_dict[phrase] = scores
 
         else:
