@@ -12,3 +12,8 @@ python_library(
     name="action_item_detector",
     sources=["action_item_detector/*"],
 )
+
+python_library(
+    name="bert_ner",
+    sources=["bert_ner/*"],
+)
