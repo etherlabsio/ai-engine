@@ -13,7 +13,6 @@ from graphrank.core import GraphRank
 from graphrank.utils import TextPreprocess, GraphUtils
 
 from .utils import KeyphraseUtils
-from .knowledge_graph import KnowledgeGraph
 from .ranker import KeyphraseRanker
 from .s3io import S3IO
 from .word_graph import WordGraphBuilder
@@ -36,8 +35,6 @@ class KeyphraseExtractor(object):
         self.context_dir = "/context-instance-graphs/"
         self.feature_dir = "/sessions/"
         self.s3_client = s3_client
-        self.nats_manager = nats_manager
-        self.kg = KnowledgeGraph()
         self.utils = KeyphraseUtils()
         self.io_util = S3IO(
             s3_client=s3_client, graph_utils_obj=GraphUtils(), utils=KeyphraseUtils(),
@@ -47,10 +44,9 @@ class KeyphraseExtractor(object):
             lambda_function=lambda_function,
             s3_io_util=self.io_util,
             context_dir=self.context_dir,
-            knowledge_graph_object=self.kg,
             utils=KeyphraseUtils(),
-            nats_manager=nats_manager,
         )
+
         self.wg = WordGraphBuilder(
             graphrank_obj=GraphRank(),
             textpreprocess_obj=TextPreprocess(),
@@ -350,7 +346,6 @@ class KeyphraseExtractor(object):
 
     def _form_keyphrase_attr_object(self, segment, keyphrase_attr, **kwargs):
         keyphrase_list = kwargs.get("keyphrase_list")
-        # keyphrase_attr_dict = deepcopy(keyphrase_attr)
         keyphrase_attr["values"] = keyphrase_list
 
         attr_object = {"keyphrases": keyphrase_attr}
@@ -367,9 +362,7 @@ class KeyphraseExtractor(object):
         kp_dict = self.ranker.compute_local_relevance(dict_key="descriptive", **kwargs)
 
         # Compute the relevance of entities
-        kp_dict = self.ranker.compute_local_relevance(
-            dict_key="entities", kp_dict=kp_dict, **kwargs
-        )
+        kp_dict = self.ranker.compute_local_relevance(dict_key="entities", **kwargs)
 
         return kp_dict
 
@@ -409,7 +402,6 @@ class KeyphraseExtractor(object):
 
         populate_graph = kwargs.get("populate_graph", True)
         group_id = kwargs.get("group_id")
-        keyphrases = []
         try:
             if meeting_word_graph is None:
                 # Get graph objects
@@ -504,44 +496,37 @@ class KeyphraseExtractor(object):
             )
             raise
 
-    def get_summary_chapter_keyphrases(
+    async def get_keyphrases_with_offset(
         self,
         req_data,
-        segment_object: SegmentType,
-        context_graph=None,
-        meeting_word_graph=None,
         n_kw=10,
-        rank=True,
         default_form="descriptive",
         rank_by="segment_relevance",
         sort_by="loc",
         validate: bool = False,
-        populate_graph=True,
-        group_id="",
         **kwargs,
     ):
         start = timer()
-
+        keyphrase_offsets = []
+        segment_object = req_data["segments"]
         context_id = req_data["contextId"]
         instance_id = req_data["instanceId"]
 
-        # Use startTime of the first segment as relative starting point
-        relative_time = self.utils.formatTime(
-            segment_object[0]["startTime"], datetime_object=True
-        )
-
-        keyphrases = []
+        populate_graph = kwargs.get("populate_graph", True)
+        group_id = kwargs.get("group_id")
         try:
-            if meeting_word_graph is None:
-                # Get graph objects
-                meeting_word_graph = self._retrieve_word_graph(req_data=req_data)
+            # Get graph objects
+            meeting_word_graph = self._retrieve_word_graph(req_data=req_data)
 
-            logger.info("Adding segments for new summary...")
+            logger.info("Adding segments before extracting keyphrases")
             # Repopulate the graphs
             modified_request_obj, meeting_word_graph = self.populate_and_embed_graph(
                 req_data=req_data, segment_object=segment_object, **kwargs
             )
 
+            relative_time = self.utils.formatTime(
+                req_data["relativeTime"], datetime_object=True
+            )
             keyphrase_object = self.extract_keywords(
                 segment_object=segment_object,
                 meeting_word_graph=meeting_word_graph,
@@ -550,10 +535,32 @@ class KeyphraseExtractor(object):
             )
 
             try:
-                keyphrases, keyphrase_object = self._compute_relevant_phrases(
+                for i, kp_dict in enumerate(keyphrase_object):
+                    segment_id = kp_dict["segmentId"]
+                    segment_query_obj = self.ranker.form_segment_query(
+                        segment_id=segment_id, populate_graph=populate_graph
+                    )
+                    response = await self.query_client.query_graph(
+                        query_object=segment_query_obj
+                    )
+                    npz_file = self.ranker.query_segment_embeddings(
+                        response=response, populate_graph=populate_graph
+                    )
+                    kp_dict = self._compute_relevant_phrases(
+                        npz_file=npz_file,
+                        segment_id=segment_id,
+                        kp_dict=kp_dict,
+                        populate_graph=populate_graph,
+                        group_id=group_id,
+                    )
+                    keyphrase_object[i] = kp_dict
+
+                keyphrase_object = self.ranker.compute_normalized_boosted_rank(
+                    keyphrase_object=keyphrase_object, dict_key=default_form
+                )
+                keyphrases, keyphrase_object = self.prepare_keyphrase_output(
                     keyphrase_object=keyphrase_object,
-                    context_graph=context_graph,
-                    n_kw=n_kw,
+                    top_n=n_kw,
                     default_form=default_form,
                     rank_by=rank_by,
                     sort_by=sort_by,
@@ -574,101 +581,15 @@ class KeyphraseExtractor(object):
                     remove_phrases=False,
                 )
 
+            keyphrase_offsets = self.parse_keyphrase_offset(
+                keyphrase_list=keyphrases, keyphrase_object=keyphrase_object
+            )
             if validate:
                 self._make_validation(
                     keyphrase_object=keyphrase_object,
                     context_id=context_id,
                     instance_id=instance_id,
                 )
-
-            logger.debug(
-                "keyphrases extracted successfully for new summary",
-                extra={"result": keyphrases, "output": keyphrase_object},
-            )
-
-            self.meeting_keywords.extend(keyphrases)
-            user_id_list = [seg["spokenBy"] for seg in segment_object]
-            result = {"keyphrases": keyphrases, "segment_users": user_id_list}
-            return result
-
-        except Exception as e:
-            end = timer()
-            logger.error(
-                "Error extracting keyphrases from grouped segments",
-                extra={
-                    "responseTime": end - start,
-                    "instanceId": req_data["instanceId"],
-                    "segmentsReceived": [seg_id["id"] for seg_id in segment_object],
-                    "err": traceback.print_exc(),
-                    "errMsg": e,
-                },
-            )
-            raise
-
-    def get_keyphrases_with_offset(
-        self,
-        req_data,
-        n_kw=10,
-        rank=True,
-        default_form="descriptive",
-        rank_by="segment_relevance",
-        sort_by="loc",
-        validate: bool = False,
-    ):
-        start = timer()
-        keyphrase_offsets = []
-        segment_object = req_data["segments"]
-        try:
-            # Get graph objects
-            context_graph, meeting_word_graph = self._retrieve_context_graph(
-                req_data=req_data
-            )
-
-            # Check if the segments are already present in the context graph
-            status = self.check_for_segment_id(
-                segment_object=segment_object, context_graph=context_graph
-            )
-            if status is not True:
-                logger.info("Adding segments before extracting keyphrases")
-                # Repopulate the graphs
-                context_graph, meeting_word_graph = self.populate_word_graph(req_data)
-
-                # Compute embeddings for segments and keyphrases
-                (context_graph, meeting_word_graph,) = self.populate_context_embeddings(
-                    req_data=req_data,
-                    segment_object=segment_object,
-                    context_graph=context_graph,
-                    meeting_word_graph=meeting_word_graph,
-                )
-
-            relative_time = self.utils.formatTime(
-                req_data["relativeTime"], datetime_object=True
-            )
-            keyphrase_object = self.extract_keywords(
-                segment_object=segment_object,
-                context_graph=context_graph,
-                meeting_word_graph=meeting_word_graph,
-                relative_time=relative_time,
-            )
-
-            if rank:
-                keyphrase_object = self.ranker.compute_local_relevance(
-                    keyphrase_object=keyphrase_object, context_graph=context_graph,
-                )
-
-            keyphrases, keyphrase_object = self.prepare_keyphrase_output(
-                keyphrase_object=keyphrase_object,
-                top_n=n_kw,
-                default_form=default_form,
-                rank_by=rank_by,
-                sort_by=sort_by,
-            )
-
-            keyphrase_offsets = self.parse_keyphrase_offset(
-                keyphrase_list=keyphrases, keyphrase_object=keyphrase_object
-            )
-            if validate:
-                self.utils.write_to_json(keyphrase_object)
 
             end = timer()
             logger.debug(
@@ -939,6 +860,9 @@ class KeyphraseExtractor(object):
             overall_keyphrase_quality_score = 0
 
         # Limit keyphrase list to top-n
+        if top_n == 10:
+            remove_phrases = False
+
         sorted_keyphrase_dict = self.utils.limit_phrase_list(
             entities_dict=final_entity_dict,
             keyphrase_dict=final_keyphrase_dict,
@@ -984,9 +908,7 @@ class KeyphraseExtractor(object):
 
         segment_object = req_data["segments"]
         # Get graph objects
-        context_graph, meeting_word_graph = self._retrieve_context_graph(
-            req_data=req_data
-        )
+        meeting_word_graph = self._retrieve_word_graph(req_data=req_data)
 
         keyphrase_list, descriptive_kp = self.wg.get_segment_keyphrases(
             segment_object=segment_object, word_graph=meeting_word_graph
@@ -1004,26 +926,16 @@ class KeyphraseExtractor(object):
 
         # Download context graph from s3 and remove the word graph object upon reset
 
-        context_graph, word_graph = self._retrieve_context_graph(req_data=req_data)
-        context_graph.remove_node(word_graph)
-
-        # Remove the embedding features from the context graph
-        # context_graph = self.kg.query_for_embedded_nodes(context_graph)
-        # context_graph = self.kg.query_for_embedded_segments(context_graph)
-
+        word_graph = self._retrieve_word_graph(req_data=req_data)
         word_graph_id = word_graph.graph.get("graphId")
 
         # Write it back to s3
         self.io_util.upload_s3(
-            graph_obj=context_graph,
+            graph_obj=word_graph,
             s3_dir=self.context_dir,
             context_id=context_id,
             instance_id=instance_id,
         )
-
-        word_graph.clear()
-
-        result = {"keyphrases": self.meeting_keywords}
 
         end = timer()
         logger.info(
@@ -1032,11 +944,7 @@ class KeyphraseExtractor(object):
                 "deletedGraphId": word_graph_id,
                 "nodes": word_graph.number_of_nodes(),
                 "edges": word_graph.number_of_edges(),
-                "kgNodes": context_graph.number_of_nodes(),
-                "kgEdges": context_graph.number_of_edges(),
                 "responseTime": end - start,
                 "instanceId": req_data["instanceId"],
             },
         )
-
-        return result

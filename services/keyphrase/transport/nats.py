@@ -193,29 +193,21 @@ class NATSTransport(object):
         limit = request.get("limit", 10)
 
         keyphrase_attr_dict = {"type": "descriptive", "important": False}
+        group_id = None
 
-        if populate_graph:
-            output = await self.keyphrase_service.get_keyphrases(
-                request,
-                segment_object=segment_object,
-                n_kw=limit,
-                validate=validation,
-                keyphrase_attr=keyphrase_attr_dict,
-            )
-        else:
+        if populate_graph is not True:
             keyphrase_attr_dict = {"type": "descriptive", "important": True}
             group_id = self.keyphrase_service.utils.hash_sha_object()
-            output = await self.keyphrase_service.get_keyphrases(
-                request,
-                segment_object=segment_object,
-                n_kw=limit,
-                validate=validation,
-                populate_graph=populate_graph,
-                group_id=group_id,
-                keyphrase_attr=keyphrase_attr_dict,
-            )
 
-        end = timer()
+        output = await self.keyphrase_service.get_keyphrases(
+            request,
+            segment_object=segment_object,
+            n_kw=limit,
+            validate=validation,
+            populate_graph=populate_graph,
+            group_id=group_id,
+            keyphrase_attr=keyphrase_attr_dict,
+        )
 
         # Get recommended watchers for every segment
         rec_request = {**request, **output}
@@ -231,7 +223,7 @@ class NATSTransport(object):
 
         if populate_graph is not True:
             logger.info(
-                "Publishing summary chapter keyphrases" + timeout_msg,
+                "Publishing summary chapter keyphrases",
                 extra={
                     "graphId": context_info,
                     "topicKeyphraseList": output,
@@ -245,7 +237,7 @@ class NATSTransport(object):
 
         elif limit == 6:
             logger.info(
-                "Publishing chapter keyphrases" + timeout_msg,
+                "Publishing chapter keyphrases",
                 extra={
                     "graphId": context_info,
                     "chapterKeyphraseList": output,
@@ -259,7 +251,7 @@ class NATSTransport(object):
             )
         elif limit == 10:
             logger.info(
-                "Publishing PIM keyphrases" + timeout_msg,
+                "Publishing PIM keyphrases",
                 extra={
                     "graphId": context_info,
                     "pimKeyphraseList": output,
@@ -358,15 +350,3 @@ class NATSTransport(object):
         ether_graph_request = json.dumps(modified_req_data).encode()
 
         await self.nats_manager.conn.publish(eg_segment_topic, ether_graph_request)
-
-    async def query_graph(self, query_text, variables=None):
-        eg_query_topic = "ether_graph_service.perform_query"
-        TIMEOUT = 20
-        query_request = self.keyphrase_service.form_queries()
-
-        msg = await self.nats_manager.conn.request(
-            eg_query_topic, json.dumps(query_request).encode(), timeout=TIMEOUT
-        )
-        resp = msg.data.decode()
-
-        return resp
