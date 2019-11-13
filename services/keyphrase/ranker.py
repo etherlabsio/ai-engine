@@ -2,7 +2,6 @@ from timeit import default_timer as timer
 import logging
 from scipy.spatial.distance import cosine
 import numpy as np
-from copy import deepcopy
 import json
 from nltk.tokenize import sent_tokenize
 
@@ -18,7 +17,6 @@ class KeyphraseRanker(object):
         knowledge_graph_object,
         encoder_lambda_client,
         lambda_function,
-        nats_manager,
     ):
         self.encoder_lambda_client = encoder_lambda_client
         self.lambda_function = lambda_function
@@ -26,7 +24,6 @@ class KeyphraseRanker(object):
         self.context_dir = context_dir
         self.io_util = s3_io_util
         self.utils = utils
-        self.nats_manager = nats_manager
 
     def _get_pairwise_embedding_distance(self, embedding_array):
 
@@ -185,9 +182,6 @@ class KeyphraseRanker(object):
             kp_dict["entitiesQuality"] = entity_confidence_score
             kp_dict["medianEntitiesQuality"] = entity_median_score
 
-        # keyphrase_object = self.compute_normalized_boosted_rank(
-        #     keyphrase_object, dict_key=dict_key
-        # )
         logger.info("Computed segment relevance score")
 
         return kp_dict
@@ -242,23 +236,6 @@ class KeyphraseRanker(object):
 
         return keyphrase_object
 
-    def _get_segment_phrase_embedding(
-        self, context_graph, segment_id, populate_graph=True
-    ):
-
-        # Get segment embedding vector from context graph
-        for node, nattr in context_graph.nodes(data=True):
-            if nattr.get("attribute") == "segmentId" and node == segment_id:
-                embedding_uri = nattr.get("embedding_vector_uri")
-                if populate_graph is not True:
-                    embedding_uri = nattr.get("embedding_vector_group_uri")
-
-                # Download embedding file and deserialize it
-                npz_file = self.io_util.download_npz(npz_file_path=embedding_uri)
-                return npz_file
-            else:
-                continue
-
     def query_segment_embeddings(self, response, populate_graph=True):
 
         # Get segment embedding vector from context graph
@@ -294,14 +271,3 @@ class KeyphraseRanker(object):
         query_object = {"query": query, "variables": variables}
 
         return query_object
-
-    async def _query_graph(self, query_object):
-        eg_query_topic = "ether_graph_service.perform_query"
-        TIMEOUT = 20
-
-        msg = await self.nats_manager.conn.request(
-            eg_query_topic, json.dumps(query_object).encode(), timeout=TIMEOUT
-        )
-        resp = msg.data.decode()
-
-        return resp

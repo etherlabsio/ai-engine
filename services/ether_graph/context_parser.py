@@ -1,4 +1,3 @@
-import json as js
 import logging
 import hashlib
 

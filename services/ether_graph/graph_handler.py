@@ -176,7 +176,7 @@ class GraphHandler(object):
         mutation_query_obj = segment_node
         resp = self._mutate_info(mutation_query=mutation_query_obj)
 
-        self.to_json(segment_node, "seg")
+        # self.to_json(segment_node, "seg")
 
         return resp
 
@@ -202,7 +202,6 @@ class GraphHandler(object):
 
             return response
         finally:
-            # Clean up. Calling this after txn.commit() is a no-op and hence safe.
             txn.discard()
 
     def _mutate_info(self, mutation_query):
@@ -232,14 +231,11 @@ class GraphHandler(object):
             response = js.loads(res.json)
             return response
         finally:
-            # Clean up. Calling this after txn.commit() is a no-op and hence safe.
             txn.discard()
 
 
+# For testing locally
 if __name__ == "__main__":
-    # client_stub = pydgraph.DgraphClientStub("localhost:9080")
-    # client = pydgraph.DgraphClient(client_stub)
-
     gh = GraphHandler(dgraph_client="")
 
     req_data = gh.read_json("meeting_test.json")
