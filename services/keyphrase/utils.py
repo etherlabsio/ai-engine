@@ -217,7 +217,7 @@ class KeyphraseUtils(object):
         entities_dict,
         keyphrase_dict,
         phrase_limit=6,
-        entities_limit=2,
+        entities_limit=3,
         entity_quality_score=0,
         keyphrase_quality_score=0,
         remove_phrases=False,
@@ -240,7 +240,6 @@ class KeyphraseUtils(object):
 
         if remove_phrases:
             for entity, scores in entities_dict.items():
-                preference_value = scores[sort_key_dict.get("preference")]
                 boosted_score = scores[rank_key_dict.get("boosted_score")]
                 norm_boosted_score = scores[rank_key_dict.get("norm_boosted_score")]
 
@@ -248,13 +247,8 @@ class KeyphraseUtils(object):
                 if final_sort:
                     entity_score = norm_boosted_score
 
-                # Check for relevance scores if the entity type is other than Organization or Product
-                if preference_value > 2:
-                    if entity_score >= entity_quality_score:
-                        modified_entity_dict[entity] = scores
-                else:
-                    if entity_score > 0:
-                        modified_entity_dict[entity] = scores
+                if entity_score >= entity_quality_score:
+                    modified_entity_dict[entity] = scores
 
             for phrase, scores in keyphrase_dict.items():
                 boosted_score = scores[rank_key_dict.get("boosted_score")]
@@ -278,6 +272,7 @@ class KeyphraseUtils(object):
             sort_by=sort_by,
             rank_key_dict=rank_key_dict,
             sort_key_dict=sort_key_dict,
+            final_sort=final_sort,
         )
 
         if final_sort:
@@ -311,6 +306,7 @@ class KeyphraseUtils(object):
         sort_key_dict,
         rank_by,
         sort_by,
+        final_sort,
     ):
 
         # Sort by rank/scores
@@ -323,14 +319,20 @@ class KeyphraseUtils(object):
         # Sort Entities by preference
         ranked_entities_dict = self.sort_dict_by_value(
             dict_var=entity_dict,
-            key=rank_key_dict["norm_boosted_score"],
+            key=rank_key_dict["boosted_score"],
             order=rank_key_dict["order"],
         )
+        if final_sort:
+            ranked_entities_dict = self.sort_dict_by_value(
+                dict_var=entity_dict,
+                key=rank_key_dict["norm_boosted_score"],
+                order=rank_key_dict["order"],
+            )
 
         return ranked_entities_dict, ranked_keyphrase_dict
 
     def _slice_phrase_dict(
-        self, entities_dict, keyphrase_dict, phrase_limit=6, entities_limit=2
+        self, entities_dict, keyphrase_dict, phrase_limit=6, entities_limit=3
     ):
 
         word_limit = phrase_limit - entities_limit

@@ -24,7 +24,11 @@ SegmentType = Dict
 
 class KeyphraseExtractor(object):
     def __init__(
-        self, s3_client=None, encoder_lambda_client=None, lambda_function=None
+        self,
+        s3_client=None,
+        encoder_lambda_client=None,
+        lambda_function=None,
+        ner_lambda_function=None,
     ):
         self.context_dir = "/context-instance-graphs/"
         self.feature_dir = "/sessions/"
@@ -47,6 +51,8 @@ class KeyphraseExtractor(object):
             textpreprocess_obj=TextPreprocess(),
             graphutils_obj=GraphUtils(),
             keyphrase_utils_obj=self.utils,
+            lambda_client=encoder_lambda_client,
+            ner_lambda_function=ner_lambda_function,
         )
 
         self.syntactic_filter = [
@@ -992,7 +998,7 @@ class KeyphraseExtractor(object):
                 segment_dict["offset"] = offset_time
 
             # Get entities
-            entities = self.wg.get_entities(input_segment)
+            entities = self.wg.get_custom_entities(input_segment)
             segment_entities.extend(entities)
 
             # Get cleaned words
@@ -1028,14 +1034,23 @@ class KeyphraseExtractor(object):
                 word = item["text"]
                 preference = item["preference"]
                 loc = input_segment.find(word)
-                if loc > -1 and ("*" not in word or "." not in word):
+                loc_small = input_segment.find(word.lower())
+                if (loc > -1 or loc_small > -1) and (
+                    "*" not in word or "." not in word
+                ):
                     try:
                         entity_pagerank_score = meeting_word_graph.nodes[word].get(
                             "pagerank"
                         )
                     except Exception:
-                        entity_pagerank_score = 0
+                        try:
+                            entity_pagerank_score = meeting_word_graph.nodes[
+                                word.lower()
+                            ].get("pagerank")
+                        except Exception:
+                            entity_pagerank_score = 0
 
+                    final_loc = loc if loc > -1 else loc_small
                     segment_dict["entities"][word] = list(
                         (
                             entity_pagerank_score,
@@ -1043,7 +1058,7 @@ class KeyphraseExtractor(object):
                             boosted_score,
                             norm_boosted_score,
                             preference,
-                            loc,
+                            final_loc,
                         )
                     )
 
@@ -1098,12 +1113,13 @@ class KeyphraseExtractor(object):
                 entities_dict=entity_dict,
                 keyphrase_dict=keyphrase_dict,
                 phrase_limit=top_n,
-                entities_limit=2,
+                entities_limit=3,
                 entity_quality_score=entity_quality_score,
                 keyphrase_quality_score=keyphrase_quality_score,
                 rank_by=rank_by,
                 sort_by=sort_by,
-                remove_phrases=remove_phrases,
+                remove_phrases=False,
+                final_sort=False,
             )
 
             final_keyphrase_dict = {**final_keyphrase_dict, **ranked_keyphrase_dict}
@@ -1153,7 +1169,7 @@ class KeyphraseExtractor(object):
             entities_dict=final_entity_dict,
             keyphrase_dict=final_keyphrase_dict,
             phrase_limit=dynamic_top_n,
-            entities_limit=2,
+            entities_limit=3,
             entity_quality_score=overall_entity_quality_score,
             keyphrase_quality_score=overall_keyphrase_quality_score,
             rank_by=rank_by,
