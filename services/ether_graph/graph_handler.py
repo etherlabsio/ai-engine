@@ -1,11 +1,13 @@
 import logging
 import json as js
 import pydgraph
+from os import getenv
 
 from context_parser import ContextSessionParser
 from schema import Schema
 
 logger = logging.getLogger(__name__)
+DGRAPH_URL = getenv("DGRAPH_URL", "localhost:9080")
 
 
 class GraphHandler(object):
@@ -22,7 +24,7 @@ class GraphHandler(object):
         self.segment_keyphrase_rel = "hasKeywords"
         self.context_mind_rel = "associatedMind"
 
-        client_stub = pydgraph.DgraphClientStub("localhost:9080")
+        client_stub = pydgraph.DgraphClientStub(DGRAPH_URL)
         client = pydgraph.DgraphClient(client_stub)
 
         self.dgraph = client
