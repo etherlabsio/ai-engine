@@ -10,17 +10,10 @@ logger = logging.getLogger(__name__)
 
 class KeyphraseRanker(object):
     def __init__(
-        self,
-        s3_io_util,
-        utils,
-        context_dir,
-        knowledge_graph_object,
-        encoder_lambda_client,
-        lambda_function,
+        self, s3_io_util, utils, context_dir, encoder_lambda_client, lambda_function
     ):
         self.encoder_lambda_client = encoder_lambda_client
         self.lambda_function = lambda_function
-        self.kg = knowledge_graph_object
         self.context_dir = context_dir
         self.io_util = s3_io_util
         self.utils = utils

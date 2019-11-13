@@ -11,7 +11,6 @@ from graphrank.core import GraphRank
 from graphrank.utils import TextPreprocess, GraphUtils
 
 from .utils import KeyphraseUtils
-from .knowledge_graph import KnowledgeGraph
 from .ranker import KeyphraseRanker
 from .s3io import S3IO
 from .word_graph import WordGraphBuilder
@@ -33,7 +32,6 @@ class KeyphraseExtractor(object):
         self.context_dir = "/context-instance-graphs/"
         self.feature_dir = "/sessions/"
         self.s3_client = s3_client
-        self.kg = KnowledgeGraph()
         self.utils = KeyphraseUtils()
         self.io_util = S3IO(
             s3_client=s3_client, graph_utils_obj=GraphUtils(), utils=KeyphraseUtils()
@@ -43,7 +41,6 @@ class KeyphraseExtractor(object):
             lambda_function=lambda_function,
             s3_io_util=self.io_util,
             context_dir=self.context_dir,
-            knowledge_graph_object=self.kg,
             utils=KeyphraseUtils(),
         )
 
