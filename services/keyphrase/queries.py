@@ -12,6 +12,6 @@ class Queries(object):
         msg = await self.nats_manager.conn.request(
             eg_query_topic, json.dumps(query_object).encode(), timeout=TIMEOUT
         )
-        resp = msg.data.decode()
+        resp = json.loads(msg.data.decode())
 
         return resp

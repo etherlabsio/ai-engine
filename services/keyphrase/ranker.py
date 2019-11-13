@@ -263,9 +263,9 @@ class KeyphraseRanker(object):
 
         # Get segment embedding vector from context graph
         if populate_graph:
-            embedding_uri = response["q"].get("embedding_vector_uri")
+            embedding_uri = response["q"][0].get("embedding_vector_uri")
         else:
-            embedding_uri = response["q"].get("embedding_vector_group_uri")
+            embedding_uri = response["q"][0].get("embedding_vector_group_uri")
 
         npz_file = self.io_util.download_npz(npz_file_path=embedding_uri)
         return npz_file

@@ -358,9 +358,7 @@ class KeyphraseExtractor(object):
         kp_dict = self.ranker.compute_local_relevance(dict_key="descriptive", **kwargs)
 
         # Compute the relevance of entities
-        kp_dict = self.ranker.compute_local_relevance(
-            dict_key="entities", kp_dict=kp_dict, **kwargs
-        )
+        kp_dict = self.ranker.compute_local_relevance(dict_key="entities", **kwargs)
 
         return kp_dict
 
