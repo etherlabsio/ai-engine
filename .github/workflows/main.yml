@@ -7,7 +7,6 @@ jobs:
     steps:
     - name: Github Actions
       uses: actions/checkout@v1
-    - name: black code formattor 
-      uses: lgeiger/black-action@v1.0.1
-      with:
-        args: ". --exclude .pants.d --check --diff"
+    - name: Python Style Checker
+      uses: andymckay/pycodestyle-action@0.1.3
+
