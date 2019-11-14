@@ -20,7 +20,6 @@ python_library(
 		'3rdparty/python:textblob',
 		'3rdparty/python:langdetect',
 		'3rdparty/python:six',
-		'3rdparty/python:spacy',
 		'3rdparty/python:uvloop',
 		'3rdparty/python:iso8601',
 		'3rdparty/python:sklearn',
