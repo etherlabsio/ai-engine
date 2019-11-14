@@ -318,7 +318,10 @@ class BERT_NER:
     def capitalize_entities(self, entity_list):
         def capitalize_entity(ent):
             if not ent[0].isupper():
-                ent = ent.capitalize()
+                if "." in ent:
+                    ent = ent.title()
+                else:
+                    ent = ent.capitalize()
             return ent
 
         entity_list = list(
@@ -339,7 +342,7 @@ class BERT_NER:
         for (word, tag) in pos_text:
             toks = self.tokenizer.encode(word)
             # removing characters that usually do not appear within text
-            clean_word = re.sub(r"[^a-zA-Z0-9_\'*-.]+", "", word).strip()
+            clean_word = re.sub(r"[^a-zA-Z0-9_\'*-.]+", "", word).strip(" .,")
             token_to_word.extend([(clean_word, tag)] * len(toks))
             input_ids.extend(toks)
         return input_ids, token_to_word
@@ -414,9 +417,11 @@ class BERT_NER:
                 score += grouped_scores[grouped_words[k]]
                 seen += [k]
                 k += 1
-            # remove single verb and adjective entities
-            if len(conc.split()) == 1 and grouped_words[i][1][0] in ["V", "J", "."]:
-                continue
+            # remove single verb and punct entities
+            if len(conc.split()) == 1:
+                if grouped_words[i][1][0] in ["V", "."]:
+                    continue
+                conc = conc.split("'")[0]
 
             sent_entity_list += [conc.strip(" ,.")]
             sent_scores += [score / (k - i)]
