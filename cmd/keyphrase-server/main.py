@@ -27,6 +27,7 @@ if __name__ == "__main__":
     nats_url = getenv("NATS_URL", "nats://localhost:4222")
     bucket_store = getenv("STORAGE_BUCKET", "io.etherlabs.staging2.contexts")
     encoder_lambda_function = getenv("FUNCTION_NAME", "keyphrase_ranker")
+    ner_lambda_function = getenv("NER_FUNCTION_NAME", "ner")
     aws_region = getenv("AWS_DEFAULT_REGION", "us-east-1")
 
     # Initialize Boto session for aws services
@@ -44,6 +45,7 @@ if __name__ == "__main__":
         s3_client=s3_client,
         encoder_lambda_client=lambda_client,
         lambda_function=encoder_lambda_function,
+        ner_lambda_function=ner_lambda_function,
     )
 
     # Initialize event loop and transport layers
