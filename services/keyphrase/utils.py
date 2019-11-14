@@ -29,7 +29,9 @@ class KeyphraseUtils(object):
     def map_embeddings_to_phrase(
         self, phrase_list: List, embedding_list: List
     ) -> Tuple[Dict, Dict]:
-        phrase_hash_dict = dict(zip(map(self.hash_phrase, phrase_list), phrase_list))
+        phrase_hash_dict = dict(
+            zip(map(self.hash_phrase, phrase_list), phrase_list)
+        )
         phrase_embedding_dict = dict(
             zip(map(self.hash_phrase, phrase_list), embedding_list)
         )
@@ -73,7 +75,9 @@ class KeyphraseUtils(object):
         if order == "desc":
             sorted_list = sorted(item_list, key=lambda x: x[key], reverse=True)
         else:
-            sorted_list = sorted(item_list, key=lambda x: x[key], reverse=False)
+            sorted_list = sorted(
+                item_list, key=lambda x: x[key], reverse=False
+            )
 
         return sorted_list
 
@@ -125,7 +129,10 @@ class KeyphraseUtils(object):
         return segment_list
 
     def post_process_output(
-        self, keyphrase_object, dict_key="descriptive", preserve_singlewords=False
+        self,
+        keyphrase_object,
+        dict_key="descriptive",
+        preserve_singlewords=False,
     ):
 
         for i, kp_item in enumerate(keyphrase_object):
@@ -178,7 +185,9 @@ class KeyphraseUtils(object):
         processed_entities = []
 
         # Remove duplicates from the single phrases which are occurring in multi-keyphrases
-        multi_phrases = [phrases for phrases in entity_list if len(phrases.split()) > 1]
+        multi_phrases = [
+            phrases for phrases in entity_list if len(phrases.split()) > 1
+        ]
         single_phrase = [
             phrases for phrases in entity_list if len(phrases.split()) == 1
         ]
@@ -216,8 +225,8 @@ class KeyphraseUtils(object):
         self,
         entities_dict,
         keyphrase_dict,
-        phrase_limit=6,
-        entities_limit=3,
+        phrase_limit=10,
+        entities_limit=5,
         entity_quality_score=0,
         keyphrase_quality_score=0,
         remove_phrases=False,
@@ -241,7 +250,9 @@ class KeyphraseUtils(object):
         if remove_phrases:
             for entity, scores in entities_dict.items():
                 boosted_score = scores[rank_key_dict.get("boosted_score")]
-                norm_boosted_score = scores[rank_key_dict.get("norm_boosted_score")]
+                norm_boosted_score = scores[
+                    rank_key_dict.get("norm_boosted_score")
+                ]
 
                 entity_score = boosted_score
                 if final_sort:
@@ -252,7 +263,9 @@ class KeyphraseUtils(object):
 
             for phrase, scores in keyphrase_dict.items():
                 boosted_score = scores[rank_key_dict.get("boosted_score")]
-                norm_boosted_score = scores[rank_key_dict.get("norm_boosted_score")]
+                norm_boosted_score = scores[
+                    rank_key_dict.get("norm_boosted_score")
+                ]
 
                 keyphrase_score = boosted_score
                 if final_sort:
@@ -284,7 +297,10 @@ class KeyphraseUtils(object):
             )
 
             # Combine entities and keyphrases
-            final_result_dict = {**ranked_entities_dict, **ranked_keyphrase_dict}
+            final_result_dict = {
+                **ranked_entities_dict,
+                **ranked_keyphrase_dict,
+            }
 
             # Sort chronologically
             sorted_keyphrase_dict = self.sort_dict_by_value(
@@ -332,11 +348,11 @@ class KeyphraseUtils(object):
         return ranked_entities_dict, ranked_keyphrase_dict
 
     def _slice_phrase_dict(
-        self, entities_dict, keyphrase_dict, phrase_limit=6, entities_limit=3
+        self, entities_dict, keyphrase_dict, phrase_limit=10, entities_limit=5
     ):
 
         word_limit = phrase_limit - entities_limit
-        if len(list(entities_dict.keys())) > entities_limit:
+        if len(list(entities_dict.keys())) >= entities_limit:
             modified_entity_dict = dict(
                 itertools.islice(entities_dict.items(), entities_limit)
             )
