@@ -317,11 +317,10 @@ class BERT_NER:
 
     def capitalize_entities(self, entity_list):
         def capitalize_entity(ent):
+            if "." in ent:
+                ent = ent.title()
             if not ent[0].isupper():
-                if "." in ent:
-                    ent = ent.title()
-                else:
-                    ent = ent.capitalize()
+                ent = ent.capitalize()
             return ent
 
         entity_list = list(
