@@ -59,8 +59,7 @@ class GraphIO(object):
             logger.error(
                 "Could not load graph object from file", extra={"err": e}
             )
-            graph_obj = nx.DiGraph()
-            return graph_obj
+            raise
 
     def cleanup_graph(self, graph_obj):
         graph_obj = self.backfill.format_old_labels(g=graph_obj)
@@ -69,21 +68,9 @@ class GraphIO(object):
 
         assert nx.is_directed(graph_obj) is True
 
-        logger.info(
-            "Cleaned-up context graph",
-            extra={
-                "nodes": graph_obj.number_of_nodes(),
-                "edges": graph_obj.number_of_edges(),
-            },
-        )
-
         return graph_obj
 
-    def convert_pickle_to_graphml(
-        self, graph_pickle: bytes, output_filename: str
-    ):
-        graph_obj = self.load_graph_from_pickle(byte_string=graph_pickle)
-
+    def convert_to_graphml(self, graph_obj: nx.DiGraph, output_filename: str):
         logger.info(
             "converting graph to GraphML. Starting cleanup and backfill process",
             extra={
@@ -92,9 +79,8 @@ class GraphIO(object):
             },
         )
         try:
-            processed_graph = self.cleanup_graph(graph_obj=graph_obj)
             nx.write_graphml(
-                processed_graph, output_filename, infer_numeric_types=True
+                graph_obj, output_filename, infer_numeric_types=True
             )
 
         except Exception as e:
@@ -122,9 +108,19 @@ class GraphIO(object):
         file_obj = self.s3_client.download_file(file_name=s3_path)
         file_obj_bytestring = file_obj["Body"].read()
 
-        logger.info("Downloaded graph object from s3")
-
         return file_obj_bytestring
+
+    def extract_process_graph(self, s3_path):
+        # Download graph file
+        file_obj = self.download_s3(s3_path=s3_path)
+
+        # Load graph object
+        graph_obj = self.load_graph_from_pickle(byte_string=file_obj)
+
+        # Cleanup and process graph object
+        processed_graph = self.cleanup_graph(graph_obj=graph_obj)
+
+        return processed_graph
 
 
 class GraphTransforms(object):

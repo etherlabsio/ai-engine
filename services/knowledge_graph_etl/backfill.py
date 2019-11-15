@@ -8,7 +8,9 @@ import logging
 import uuid
 
 user_metadata = os.getenv("USER_META", "ws-ch-relations-staging2.csv")
-workspace_metadata = os.getenv("WORKSPACE_META", "user_context_associations_s2")
+workspace_metadata = os.getenv(
+    "WORKSPACE_META", "user_context_associations_s2"
+)
 
 
 logger = logging.getLogger(__name__)
@@ -45,14 +47,23 @@ class BackFillCleanupJob(object):
         self.mind_label = {"attribute": "mindId", "name": ""}
         self.customer_label = {"attribute": "customerId"}
         self.mind_dict = {
-            "01DAAPWR6W051Q9WWQY99JSGFY": {"name": "generic", "type": "domain"},
+            "01DAAPWR6W051Q9WWQY99JSGFY": {
+                "name": "generic",
+                "type": "domain",
+            },
             "01DAAQY88QZB19JQZ5PRJFR76Y": {
                 "name": "Software Engineering",
                 "type": "domain",
             },
             "01DAAQYN9GBEBC92AYWNXEDP0C": {"name": "HR", "type": "domain"},
-            "01DAATANXNRQA35E6004HB7MBN": {"name": "Marketing", "type": "domain"},
-            "01DAATBC3AK1QWC5NYC5AHV2XZ": {"name": "Product", "type": "domain"},
+            "01DAATANXNRQA35E6004HB7MBN": {
+                "name": "Marketing",
+                "type": "domain",
+            },
+            "01DAATBC3AK1QWC5NYC5AHV2XZ": {
+                "name": "Product",
+                "type": "domain",
+            },
             "01DADP74WFV607KNPCB6VVXGTG": {"name": "AI", "type": "domain"},
             "01DAAYHEKY5F4E02QVRJPTFTXV": {
                 "name": "Ether Engineering",
@@ -72,6 +83,7 @@ class BackFillCleanupJob(object):
     def format_old_labels(self, g: nx.DiGraph):
         old_label_name = "label"
         old_user_attr = "authorId"
+        old_keyword_attr = "importantKeywords"
 
         # Change node attribute - label to attribute
         for n, attr in g.nodes.data(old_label_name):
@@ -82,12 +94,19 @@ class BackFillCleanupJob(object):
             if attr == old_user_attr:
                 g.nodes[n]["attribute"] = "userId"
 
+        for n, attr in g.nodes.data("attribute"):
+            if attr == old_keyword_attr:
+                g.nodes[n]["attribute"] = "segmentKeywords"
+
         return g
 
     def convert_id_to_uuid_format(self, g: nx.DiGraph):
 
         user_id_dict = {}
         instance_id_dict = {}
+        workspace_id_dict = {}
+        segment_id_dict = {}
+        recording_id_dict = {}
 
         for n, attr in g.nodes.data("attribute"):
             if attr == "userId":
@@ -96,9 +115,60 @@ class BackFillCleanupJob(object):
             if attr == "instanceId":
                 instance_id_dict[n] = str(uuid.UUID(n))
 
+            if attr == "segmentId":
+                segment_id_dict[n] = str(uuid.UUID(n))
+
+            if attr == "sourceId":
+                recording_id_dict[n] = str(uuid.UUID(n))
+
+            if attr == "workspaceId":
+                workspace_id_dict[n] = str(uuid.UUID(n))
+            elif attr is None:
+                for k, v in dict(g.adj[n]).items():
+                    rel = v.get("relation")
+                    if rel == "hasMember":
+                        workspace_id_dict[n] = str(uuid.UUID(n))
+
         # Relabel user and instance nodes to UUID format
         nx.relabel_nodes(g, user_id_dict, copy=False)
         nx.relabel_nodes(g, instance_id_dict, copy=False)
+        nx.relabel_nodes(g, workspace_id_dict, copy=False)
+        nx.relabel_nodes(g, segment_id_dict, copy=False)
+        nx.relabel_nodes(g, recording_id_dict, copy=False)
+
+        return g
+
+    @staticmethod
+    def reformat_deprecated_attributes(g: nx.DiGraph):
+        for n, attr in g.nodes.data("attribute"):
+            # Remove "phraseId" and "phrase" attributes. Rename "keyphraseType"
+            if attr == "segmentKeywords":
+                g.nodes[n]["type"] = g.nodes[n].pop("keyphraseType", "")
+                try:
+                    del g.nodes[n]["phraseId"]
+                    del g.nodes[n]["phrase"]
+                except Exception:
+                    continue
+
+            # Flatten and normalize user attributes in meta graph
+            if attr == "userId":
+                if g.nodes[n].get("avatars") is not None:
+                    g.nodes[n]["avatars.image192"] = g.nodes[n]["avatars"].pop(
+                        "image192", ""
+                    )
+                    g.nodes[n]["avatars.imageOriginal"] = g.nodes[n][
+                        "avatars"
+                    ].pop("imageOriginal", "")
+                    try:
+                        del g.nodes[n]["avatars"]
+                    except Exception:
+                        continue
+
+        # Remove mindId with "undefinedMind" value
+        try:
+            g.remove_node("undefinedMind")
+        except Exception:
+            logger.warning("No undefinedMind present")
 
         return g
 
@@ -107,7 +177,9 @@ class BackFillCleanupJob(object):
             context_graph = nx.DiGraph(type="meta")
 
         user_node_list = self._prepare_user_nodes()
-        user_workspace_edge_list, user_context_edge_list = self._prepare_user_edges()
+        user_workspace_edge_list, user_context_edge_list = (
+            self._prepare_user_edges()
+        )
 
         N, E = self._prepare_workspace_nodes()
         workspace_node_list = N[0]
@@ -141,7 +213,10 @@ class BackFillCleanupJob(object):
         user_node_list = []
         for i in range(len(self.user_meta_df)):
             uinfo_attr = js.loads(self.user_meta_df["user_attributes"][i])
-            u_attr = {x: uinfo_attr.pop(x, None) for x in self.user_attribute_namespace}
+            u_attr = {
+                x: uinfo_attr.pop(x, None)
+                for x in self.user_attribute_namespace
+            }
             u_attr.update(self.user_label)
             user_id = self.user_meta_df["user_id"][i]
             user_node_list.append((user_id, u_attr))
@@ -164,7 +239,9 @@ class BackFillCleanupJob(object):
             user_workspace_edge_list.append(
                 (workspace_id, user_id, self.workspace_user_rel)
             )
-            user_context_edge_list.append((user_id, context_id, self.user_context_rel))
+            user_context_edge_list.append(
+                (user_id, context_id, self.user_context_rel)
+            )
 
         return user_workspace_edge_list, user_context_edge_list
 
@@ -225,7 +302,9 @@ class BackFillCleanupJob(object):
             workspace_customer_edge_list.append(
                 (workspace_id, customer_id, self.workspace_customer_rel)
             )
-            context_mind_edge_list.append((context_id, mind_id, self.context_mind_rel))
+            context_mind_edge_list.append(
+                (context_id, mind_id, self.context_mind_rel)
+            )
 
             N = (
                 workspace_node_list,
@@ -251,9 +330,14 @@ class BackFillCleanupJob(object):
             graph (nx.DiGraph)
 
         """
-        graph = BackFillCleanupJob.remove_word_graph_object(context_graph=graph)
+        graph = BackFillCleanupJob.reformat_deprecated_attributes(g=graph)
+        graph = BackFillCleanupJob.remove_word_graph_object(
+            context_graph=graph
+        )
         graph = BackFillCleanupJob.remove_embedded_nodes(context_graph=graph)
-        graph = BackFillCleanupJob.remove_embedded_segments(context_graph=graph)
+        graph = BackFillCleanupJob.remove_embedded_segments(
+            context_graph=graph
+        )
 
         return graph
 
@@ -271,14 +355,12 @@ class BackFillCleanupJob(object):
         ):
             if e_attr == "hasWordGraph":
                 if isinstance(n2, nx.Graph):
-                    logger.info("retrieved word graph object and removing it")
 
                     context_graph.remove_node(n2)
                     return context_graph
             else:
                 if context_graph.nodes[n2]["attribute"] != "wordGraph":
                     continue
-        logger.debug("No word graph object found")
         return context_graph
 
     @staticmethod
@@ -295,10 +377,9 @@ class BackFillCleanupJob(object):
             if n_attr == "segmentKeywords" or n_attr == "importantKeywords":
                 try:
                     del context_graph.nodes[node]["embedding_vector"]
-                except:
+                except Exception:
                     continue
 
-        logger.info("removed embeddings vectors from keyword nodes")
         return context_graph
 
     @staticmethod
@@ -316,10 +397,9 @@ class BackFillCleanupJob(object):
             if n_attr == "segmentId":
                 try:
                     del context_graph.nodes[node]["embedding_vector"]
-                except:
+                except Exception:
                     continue
 
-        logger.info("removed embeddings vectors from segment nodes")
         return context_graph
 
     def handle_nonetype_values(self, g: nx.DiGraph):

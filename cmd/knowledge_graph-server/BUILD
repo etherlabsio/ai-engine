@@ -3,7 +3,7 @@ python_binary(
 	dependencies = [
 		'pkg:common-libs',
 		':kg-dep',
-		'services/knowledge_graph:kg-libs',
+		'services/knowledge_graph_etl:kg-libs',
 		'services:global-services'
 	],
 	source="main.py",
@@ -36,7 +36,7 @@ python_binary(
 	dependencies = [
 		'pkg:common-libs',
 		':kg-dep',
-		'services/knowledge_graph:kg-libs',
+		'services/knowledge_graph_etl:kg-libs',
 		'services:global-services'
 	],
 	source="main.py",

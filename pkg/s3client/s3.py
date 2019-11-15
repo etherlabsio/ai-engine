@@ -52,7 +52,9 @@ class S3Manager(object):
         """
         s3_client = self.conn
         try:
-            s3_client.put_object(Body=body, Key=s3_key, Bucket=self.bucket_name)
+            s3_client.put_object(
+                Body=body, Key=s3_key, Bucket=self.bucket_name
+            )
             return True
         except Exception as e:
             logger.error("s3 upload failed", extra={"err": e})
@@ -74,31 +76,31 @@ class S3Manager(object):
         file_name = file_name.split("tmp/")[-1]
 
         file_name_only = file_name.split("/")[-1]
-        file_name_only_len = len(file_name_only)
-        file_name_len = len(file_name)
 
         if download_dir is None:
             # Download the file as an object
             try:
-                file_obj = s3_client.get_object(Bucket=self.bucket_name, Key=file_name)
+                file_obj = s3_client.get_object(
+                    Bucket=self.bucket_name, Key=file_name
+                )
                 return file_obj
             except Exception as e:
                 logger.error(
-                    "Cannot download file", extra={"err": e, "fileName": file_name}
+                    "Cannot download file",
+                    extra={"err": e, "fileName": file_name},
                 )
                 return
         else:
-            file_dir = download_dir + file_name[0 : file_name_len - file_name_only_len]
-            if not os.path.exists(file_dir):
-                os.makedirs(file_dir)
+            if not os.path.exists(download_dir):
+                os.makedirs(download_dir)
             try:
-                s3_client.download_file(
-                    self.bucket_name, file_name, download_dir + file_name
-                )
+                file_dir = download_dir + "/" + file_name_only
+                s3_client.download_file(self.bucket_name, file_name, file_dir)
                 return file_name
             except Exception as e:
                 logger.error(
-                    "Cannot download file", extra={"err": e, "fileName": file_name}
+                    "Cannot download file",
+                    extra={"err": e, "fileName": file_name},
                 )
                 return
 
