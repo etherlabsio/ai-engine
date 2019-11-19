@@ -48,7 +48,9 @@ class WordGraphBuilder(object):
     ):
         meeting_word_graph = graph
         for text in text_list:
-            original_tokens, pos_tuple, filtered_pos_tuple = self.process_text(text)
+            original_tokens, pos_tuple, filtered_pos_tuple = self.process_text(
+                text
+            )
             meeting_word_graph = self.gr.build_word_graph(
                 graph_obj=graph,
                 input_pos_text=pos_tuple,
@@ -112,7 +114,10 @@ class WordGraphBuilder(object):
             )
 
             lambda_output = (
-                invoke_response["Payload"].read().decode("utf8").replace("'", '"')
+                invoke_response["Payload"]
+                .read()
+                .decode("utf8")
+                .replace("'", '"')
             )
             response = json.loads(lambda_output)
             status_code = response["statusCode"]
@@ -124,7 +129,6 @@ class WordGraphBuilder(object):
                 logger.info(
                     "Received response from encoder lambda function",
                     extra={
-                        "entities": entity_dict,
                         "num": len(entity_dict.keys()),
                         "lambdaResponseTime": end - start,
                     },
@@ -154,10 +158,14 @@ class WordGraphBuilder(object):
         segment_list = self.utils.read_segments(segment_object=segment_object)
         try:
             for text in segment_list:
-                original_tokens, pos_tuple, filtered_pos_tuple = self.process_text(text)
+                original_tokens, pos_tuple, filtered_pos_tuple = self.process_text(
+                    text
+                )
 
                 keyphrase_list.extend(
-                    self.get_custom_keyphrases(graph=word_graph, pos_tuple=pos_tuple)
+                    self.get_custom_keyphrases(
+                        graph=word_graph, pos_tuple=pos_tuple
+                    )
                 )
                 descriptive_keyphrase_list.extend(
                     self.get_custom_keyphrases(
