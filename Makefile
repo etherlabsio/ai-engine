@@ -71,7 +71,8 @@ update-lambda-function-gs:
 	aws s3 cp --profile ${ENV} dist/group_segments_code.pex s3://io.etherlabs.artifacts/${ENV}/group_segments_code.pex
 	aws lambda update-function-code --function-name group-segments --s3-bucket io.etherlabs.artifacts --s3-key ${ENV}/group_segments_code.pex
 
-.PHONY: test-gs
-test-gs:
-	aws s3 cp --profile staging2 dist/group_segments_code.pex s3://io.etherlabs.staging2.contexts/topics/group_segments_code.pex
-	aws lambda update-function-code --function-name pex_test --s3-bucket io.etherlabs.staging2.contexts --s3-key topics/group_segments_code.pex --region=us-east-1
+.PHONY: build-upload-update-lambda
+build-upload-update-lambda:
+	./pants bundle cmd/{app-name}-server:{build-name}
+	aws s3 cp --profile ${ENV} dist/{build-name}.pex s3://io.etherlabs.artifacts/${ENV}/{build-name}.pex
+	aws lambda update-function-code --function-name {function-name} --s3-bucket io.etherlabs.artifacts --s3-key ${ENV}/{build-name}.pex
