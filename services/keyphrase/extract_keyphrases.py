@@ -1181,8 +1181,8 @@ class KeyphraseExtractor(object):
         if top_n == 10 or top_n == 5:
             dynamic_top_n = top_n
 
-        if dynamic_top_n >= 12:
-            dynamic_top_n = 12
+        if dynamic_top_n >= 10:
+            dynamic_top_n = 10
 
         try:
             overall_entity_quality_score = np.mean(
