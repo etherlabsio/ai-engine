@@ -12,6 +12,7 @@ from nltk.tokenize import sent_tokenize
 
 nltk.data.path.append("/tmp/nltk_data")
 nltk.download("punkt", download_dir="/tmp/nltk_data")
+nltk.download("averaged_perceptron_tagger", download_dir="/tmp/nltk_data")
 
 
 class BertForTokenClassification_custom(BertPreTrainedModel):
@@ -55,6 +56,7 @@ class BERT_NER:
         self.model = model
         self.tokenizer = BertTokenizer("vocab.txt")
         self.sm = nn.Softmax(dim=1)
+        self.conf = 0.995
         self.contractions = {
             "[sep]": "separator",
             "[cls]": "classify",
@@ -132,8 +134,145 @@ class BERT_NER:
             "you'll": "you will",
             "you're": "you are",
         }
+        self.stop_words = {
+            "",
+            "oh",
+            "uh",
+            "um",
+            "huh",
+            "right",
+            "yeah",
+            "okay",
+            "ourselves",
+            "hers",
+            "between",
+            "yourself",
+            "but",
+            "again",
+            "there",
+            "about",
+            "once",
+            "during",
+            "out",
+            "very",
+            "having",
+            "with",
+            "they",
+            "own",
+            "an",
+            "be",
+            "some",
+            "for",
+            "do",
+            "its",
+            "yours",
+            "such",
+            "into",
+            "of",
+            "most",
+            "itself",
+            "other",
+            "off",
+            "is",
+            "am",
+            "or",
+            "who",
+            "as",
+            "from",
+            "him",
+            "each",
+            "the",
+            "themselves",
+            "until",
+            "below",
+            "are",
+            "we",
+            "these",
+            "your",
+            "his",
+            "through",
+            "don",
+            "nor",
+            "me",
+            "were",
+            "her",
+            "more",
+            "himself",
+            "this",
+            "down",
+            "should",
+            "our",
+            "their",
+            "while",
+            "above",
+            "both",
+            "up",
+            "to",
+            "ours",
+            "had",
+            "she",
+            "all",
+            "no",
+            "when",
+            "at",
+            "any",
+            "before",
+            "them",
+            "same",
+            "and",
+            "been",
+            "have",
+            "in",
+            "will",
+            "on",
+            "does",
+            "yourselves",
+            "then",
+            "that",
+            "because",
+            "what",
+            "over",
+            "why",
+            "so",
+            "can",
+            "did",
+            "not",
+            "now",
+            "under",
+            "he",
+            "you",
+            "herself",
+            "has",
+            "just",
+            "where",
+            "too",
+            "only",
+            "myself",
+            "which",
+            "those",
+            "after",
+            "few",
+            "whom",
+            "being",
+            "if",
+            "theirs",
+            "my",
+            "against",
+            "by",
+            "doing",
+            "it",
+            "how",
+            "further",
+            "was",
+            "here",
+            "than",
+        }
 
     def replace_contractions(self, text):
+        text = re.sub(
+            "[A-Z]\. ", lambda mobj: mobj.group(0)[0] + mobj.group(0)[1], text
+        )
+        text = re.sub("\.(\w{2,})", lambda mobj: " " + mobj.group(1), text).casefold()
         for word in text.split(" "):
             if self.contractions.get(word.lower()):
                 text = text.replace(word, self.contractions[word.lower()])
@@ -153,34 +292,59 @@ class BERT_NER:
 
         # removing duplicate entities
         seg_entities = dict(zip(segment_entities, segment_scores))
-        # seg_words = list(seg_entities.keys())
-        # seg_scores = list(seg_entities.values())
         return seg_entities
 
     def get_entities_from_sentence(self, text):
-
         # cleaning and splitting text, preserving punctuation
         clean_text = self.replace_contractions(text)
-        split_text = re.split("[\s]|([?.,!/]+)", clean_text)
-
-        input_ids, token_to_word = self.prepare_input_for_model(split_text)
+        split_text = list(
+            filter(
+                lambda word: word not in ["", None],
+                re.split(
+                    "[\s]|([?,!/]+)|\.(\w{2,}[*]*\w{2,})|(\w{2,}[*]*\w{2,})(\.)",
+                    clean_text,
+                ),
+            )
+        )
+        pos_text = nltk.pos_tag(split_text)
+        input_ids, token_to_word = self.prepare_input_for_model(pos_text)
 
         entities = self.extract_entities(input_ids, token_to_word)
-
         sent_entity_list, sent_scores = self.concat_entities(clean_text, entities)
+        if len(sent_entity_list) > 0:
+            sent_entity_list = self.capitalize_entities(sent_entity_list)
+
         return sent_entity_list, sent_scores
 
-    def prepare_input_for_model(self, split_text):
+    def capitalize_entities(self, entity_list):
+        def capitalize_entity(ent):
+            if "." in ent:
+                ent = ent.title()
+            if not ent[0].isupper():
+                ent = ent.capitalize()
+            return ent
+
+        entity_list = list(
+            map(
+                lambda entities: " ".join(
+                    list(map(lambda ent: capitalize_entity(ent), entities.split()))
+                ),
+                entity_list,
+            )
+        )
+
+        return entity_list
+
+    def prepare_input_for_model(self, pos_text):
         input_ids = []
         token_to_word = []
 
-        for word in split_text:
-            if word not in ["", None]:
-                toks = self.tokenizer.encode(word)
-                # removing characters that usually do not appear within text
-                clean_word = re.sub(r"[^a-zA-Z0-9_\'*-]+", "", word).strip()
-                token_to_word.extend([clean_word] * len(toks))
-                input_ids.extend(toks)
+        for (word, tag) in pos_text:
+            toks = self.tokenizer.encode(word)
+            # removing characters that usually do not appear within text
+            clean_word = re.sub(r"[^a-zA-Z0-9_\'*-.]+", "", word).strip(" .,")
+            token_to_word.extend([(clean_word, tag)] * len(toks))
+            input_ids.extend(toks)
         return input_ids, token_to_word
 
     def extract_entities(self, input_ids, token_to_word):
@@ -203,16 +367,17 @@ class BERT_NER:
             with torch.no_grad():
                 outputs = self.model(input_tensor)[0][0, 1:-1]
 
-            for j, (tok, embed) in enumerate(
+            for j, ((tok, tag), embed) in enumerate(
                 zip(token_to_word[i : i + batch_size], list(outputs))
             ):
                 embed = embed.unsqueeze(0)
                 score = self.sm(embed).detach().numpy().max(-1)[0]
                 label = self.labels[self.sm(embed).argmax().detach().numpy()]
                 # Consider Entities and Non-Entities with low confidence (false negatives)
-                if tok != "":
-                    if label != "O" or (label == "O" and score < 0.995):
-                        entities.append((tok, score))
+                if tok.casefold() not in self.stop_words:
+                    if label != "O" or (label == "O" and score < self.conf):
+                        entities.append((tok, score, tag))
+
         return entities
 
     def tokenize(self, text):
@@ -222,46 +387,43 @@ class BERT_NER:
         sent_entity_list = []
         sent_scores = []
         seen = []
-        # handling abbreviations such as U.S.
-        text = re.sub(
-            "[A-Z][.]\s?", lambda mobj: mobj.group(0)[0] + " ", text
-        ).casefold()
-
+        # handling acronym followed by capitalized entitity
+        text = re.sub("\.(\w{2,})", lambda mobj: " " + mobj.group(1), text).casefold()
         # remove consecutive duplicate entities
-        entity_words = [
+        # (word, score, pos_tag)
+        grouped_words = [
             grouped_entity[0]
-            for grouped_entity in groupby(
-                map(lambda ent_score_tuple: ent_score_tuple[0], entities)
-            )
+            for grouped_entity in groupby(entities, key=lambda x: (x[0], x[2]))
         ]
-        entity_scores = {
-            ent_score_tuple[0]: ent_score_tuple[1] for ent_score_tuple in entities
-        }
-        for i in range(len(entity_words)):
+        grouped_scores = {(ent[0], ent[2]): ent[1] for ent in entities}
+        for i in range(len(grouped_words)):
             if i in seen:
                 continue
-            if entity_words[i].casefold() in text:
-                conc = entity_words[i].strip("'\"") + " "
-                conc = conc if conc[0].isupper() else conc.capitalize()
 
-                check = entity_words[i] + " "
-                score = entity_scores[entity_words[i]]
-                seen += [i]
-                k = i + 1
+            conc = grouped_words[i][0].strip("'\"") + " "
 
-                while k < len(entity_words) and (
-                    check.casefold() + entity_words[k].casefold() in text
-                ):
-                    conc_word = entity_words[k].strip("'\"") + " "
-                    conc += (
-                        conc_word if conc_word[0].isupper() else conc_word.capitalize()
-                    )
+            check = grouped_words[i][0] + " "
+            score = grouped_scores[grouped_words[i]]
+            seen += [i]
+            k = i + 1
 
-                    check += entity_words[k] + " "
-                    score += entity_scores[entity_words[k]]
-                    seen += [k]
-                    k += 1
-                sent_entity_list += [conc.strip(" ,.")]
-                sent_scores += [score / (k - i)]
+            while k < len(grouped_words) and (
+                check.casefold() + grouped_words[k][0].casefold() in text
+            ):
+                conc_word = grouped_words[k][0].strip("'\"") + " "
+                conc += conc_word
+
+                check += grouped_words[k][0] + " "
+                score += grouped_scores[grouped_words[k]]
+                seen += [k]
+                k += 1
+            # remove single verb and punct entities
+            if len(conc.split()) == 1:
+                if grouped_words[i][1][0] in ["V", "."]:
+                    continue
+                conc = conc.split("'")[0]
+
+            sent_entity_list += [conc.strip(" ,.")]
+            sent_scores += [score / (k - i)]
 
         return sent_entity_list, sent_scores

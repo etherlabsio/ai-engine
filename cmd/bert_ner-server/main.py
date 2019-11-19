@@ -19,8 +19,8 @@ import pickle
 
 s3 = boto3.resource("s3")
 
-logger = logging.getLogger(__name__)
-
+logger = logging.getLogger()
+logger.setLevel(logging.INFO)
 
 def load_model():
     bucket = os.getenv("BUCKET_NAME")
@@ -55,14 +55,14 @@ def handler(event, context):
         segment = json_request["originalText"]
         ner_model = ner.BERT_NER(model)
         entities = ner_model.get_entities(segment)
-
         response = json.dumps({"entities": entities})
-        return {"statusCode": 200, "body": response}
         logger.info(
             "Entity Extraction successful with {} entities detected.".format(
-                len(entities)
+                entities
             )
         )
+        return {"statusCode": 200, "body": response}
+        
 
     except Exception as e:
         logger.error(
