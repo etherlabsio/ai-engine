@@ -12,7 +12,8 @@ class CandidateKPExtractor(object):
         self.stop_words = stop_words
 
     def get_candidate_phrases(self, text, pos_search_pattern_list=[
-                                        r"""verbnoun:{<VB>+<.+>{0,2}<NN.*>+}"""]):
+                                    r"""verbnoun:{<VB>+<.+>{0,2}<NN.*>+(<.+>{0,2}<JJ.*>*<NN.*>+)*}"""]):
+                                        #r"""verbnoun:{<VB>+<.+>{0,2}<NN.*>+}"""]):
         all_chunks = []
 
         for pattern in pos_search_pattern_list:
@@ -32,7 +33,8 @@ class CandidateKPExtractor(object):
         if len(ai_candidates) == 0 and len(prop_candidates) > 0:
             # search for ai subject with new candidates
             ai_candidates = self.get_candidate_phrases(text, pos_search_pattern_list = [
-                r"""verbnoun:{<VB>+<.+>{0,5}<NN.*>+}"""])
+                r"""verbnoun:{<VB>+<.+>{0,5}<NN.*>+(<.+>{0,2}<JJ.*>*<NN.*>+)*}"""])
+                #r"""verbnoun:{<VB>+<.+>{0,5}<NN.*>+}"""])
             
         return ai_candidates
 
