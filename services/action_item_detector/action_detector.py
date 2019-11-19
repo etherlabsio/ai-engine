@@ -265,7 +265,7 @@ class ActionItemDetector():
                 ai_response_list.append({"id": uuid_,
                                         "subject": action_item,
                                         "segment_ids": [segment],
-                                        "assignees": [assignee],
+                                        "assignees": [],
                                         "is_assignee_previous": is_prev_user,
                                         "is_assignee_both": is_both})
             else:
@@ -273,7 +273,7 @@ class ActionItemDetector():
                     ai_response_list.append({"id": uuid_,
                                         "subject": action_item,
                                         "segment_ids": [segment],
-                                        "assignees": [assignee],
+                                        "assignees": [],
                                         "is_assignee_previous": is_prev_user,
                                         "is_assignee_both": is_both})
 
