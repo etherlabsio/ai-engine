@@ -210,15 +210,6 @@ class KeyphraseUtils(object):
 
         processed_entities.extend(single_phrase)
 
-        # Remove single lettered entity that are coming up
-        for entities in processed_entities:
-            tmp_entitites = list(entities)
-            if len(tmp_entitites) < 4 or ("*" in entities or "." in entities):
-                try:
-                    processed_entities.remove(entities)
-                except Exception:
-                    continue
-
         return processed_entities
 
     def limit_phrase_list(
