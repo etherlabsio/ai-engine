@@ -8,6 +8,8 @@ python_binary(
 	],
 	source="main.py",
     compatibility=['CPython==3.7.*'],
+
+    platforms=["linux-x86_64"]
 )
 
 python_library(

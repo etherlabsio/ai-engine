@@ -272,6 +272,7 @@ class BERT_NER:
         text = re.sub(
             "[A-Z]\. ", lambda mobj: mobj.group(0)[0] + mobj.group(0)[1], text
         )
+        text = re.sub("\.(\w{2,})", lambda mobj: " " + mobj.group(1), text).casefold()
         for word in text.split(" "):
             if self.contractions.get(word.lower()):
                 text = text.replace(word, self.contractions[word.lower()])
