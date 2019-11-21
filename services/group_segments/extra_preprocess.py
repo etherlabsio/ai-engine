@@ -4,31 +4,6 @@ import iso8601
 from datetime import datetime
 import json
 
-def get_filtered_pos(filtered, pos_list=['NN', 'JJ']):
-    filtered_list_temp = []
-    filtered_list = []
-    flag = False
-    flag_JJ = False
-    for word, pos in filtered:
-        if pos == 'NN' or pos == 'JJ':
-            flag=True
-            if pos == 'JJ':
-                flag_JJ = True
-            else:
-                flag_JJ = False
-            filtered_list_temp.append((word, pos))
-            continue
-        if flag:
-            if 'NN' in list(map(lambda x: x[1], filtered_list_temp)):
-                if not flag_JJ:
-                    filtered_list.append(list(map(lambda x:x[0], filtered_list_temp)))
-                else:
-                    filtered_list.append(list(map(lambda x:x[0], filtered_list_temp))[:-1])
-                    flag_JJ = False
-            filtered_list_temp = []
-            flag=False
-    return filtered_list
-
 def preprocess_text(text):
     mod_texts_unfiltered = tp.preprocess(text, stop_words=False, remove_punct=False)
     mod_texts = []
@@ -54,11 +29,11 @@ def preprocess_text(text):
             mod_texts.append(split2)
             continue
 
-        if len(sent.split(' ')) <= 4:
+        if len(sent.split(' ')) <= 5:
                 continue
 
         mod_texts.append(sent)
-    if len(mod_texts) <=0:
+    if len(mod_texts) <=1:
         return ""
     return mod_texts
 

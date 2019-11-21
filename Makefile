@@ -56,6 +56,7 @@ update-lambda-function-scorer:
 
 .PHONY: update-lambda-function-gs
 update-lambda-function-gs:
+	./pants bundle cmd/group_segments-server:group_segments_code
 	aws s3 cp --profile ${ENV} dist/group_segments_code.pex s3://io.etherlabs.artifacts/${ENV}/group_segments_code.pex
 	aws lambda update-function-code --function-name group-segments --s3-bucket io.etherlabs.artifacts --s3-key ${ENV}/group_segments_code.pex
 
