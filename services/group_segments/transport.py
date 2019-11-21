@@ -50,7 +50,7 @@ def decode_json_request(req) -> Request:
         if ele['originalText'] != "":
             segments_order[ele['id']] = index
             index+=1
-    
+
     return Request(
         req["mindId"],
         req["instanceId"],

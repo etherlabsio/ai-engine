@@ -7,33 +7,29 @@ import json
 def preprocess_text(text):
     mod_texts_unfiltered = tp.preprocess(text, stop_words=False, remove_punct=False)
     mod_texts = []
-
-    for index, sent in enumerate(mod_texts_unfiltered):
-
-        filtered_list = tp.st_get_candidate_phrases(sent)
-        if len(filtered_list)==0:
-            continue
-
-        flag = False
-        for kp in filtered_list:
-            if len(kp.split(" "))>1:
-                flag = True
-        if not flag:
-            continue
-
-        if len(sent.split(' ')) > 250:
-            length = len(sent.split(' '))
-            split1 = ' '.join([i for i in sent.split(' ')[:round(length / 2)]])
-            split2 = ' '.join([i for i in sent.split(' ')[round(length / 2):]])
-            mod_texts.append(split1)
-            mod_texts.append(split2)
-            continue
-
-        if len(sent.split(' ')) <= 5:
+    if mod_texts_unfiltered is not None:
+        for index, sent in enumerate(mod_texts_unfiltered):
+            filtered_list = tp.st_get_candidate_phrases(sent)
+            if len(filtered_list)==0:
+                continue
+            elif True not in list(map(lambda x: len(x.split(' '))>1, filtered_list)):
                 continue
 
-        mod_texts.append(sent)
-    if len(mod_texts) <=1:
+            if len(sent.split(' ')) > 250:
+                length = len(sent.split(' '))
+                split1 = ' '.join([i for i in sent.split(' ')[:round(length / 2)]])
+                split2 = ' '.join([i for i in sent.split(' ')[round(length / 2):]])
+                mod_texts.append(split1)
+                mod_texts.append(split2)
+                continue
+
+            if len(sent.split(' ')) <= 4:
+                    continue
+
+            mod_texts.append(sent)
+        if len(mod_texts) <=1:
+            return ""
+    else:
         return ""
     return mod_texts
 

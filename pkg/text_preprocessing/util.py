@@ -349,7 +349,8 @@ def get_filtered_pos(sentence, filter_pos=["JJ", "VB", "NN", "NNP", "FW"]):
         return text_pos
     return sentence
 
-def st_get_candidate_phrases(text, pos_search_pattern_list=[r"""base: {(<JJ.*>*<NN.*>+<IN>)?<JJ>*<NN.*>+}"""]):
+#def st_get_candidate_phrases(text, pos_search_pattern_list=[r"""base: {(<JJ.*>*<NN.*>+<IN>)?<JJ>*<NN.*>+}"""]):
+def st_get_candidate_phrases(text, pos_search_pattern_list=[r"""base: {<(CD)|(DT)|(JJR)>* (<VB.>*)( (<NN>+ <NN>+)|((<JJ>|<NN>) <NN>)| ((<JJ>|<NN>)+|((<JJ>|<NN>)* (<NN> <NN.>)? (<JJ>|<NN>)*) <NN.>))}"""]):
         punct = set(string.punctuation)
         all_chunks = []
 

@@ -629,6 +629,24 @@ class community_detection:
             logger.info("Final PIMs", extra={"PIMs": pims})
         return pims
 
+    def fallback_pims(self):
+        print ("Unable to compute Groups, falling back to PIMs approach.")
+        if self.compute_fv:
+            fv, graph_list, fv_mapped_score = self.compute_feature_vector_gpt()
+        else:
+            fv, graph_list, fv_mapped_score = self.get_computed_feature_vector_gpt()
+        pims = {}
+        for index, segment in enumerate(self.segments_org["segments"]):
+            pims[index] = {}
+            pims[index]["segment0"] = (segment["originalText"], segment["spokenBy"], segment["createdAt"], segment["id"])
+        pims = self.order_groups_by_score(pims, fv_mapped_score)
+        new_pims = {}
+        for key in pims.keys()[:5]:
+            new_pims = deepcopy(pims[key])
+        logger.info("Final PIMs", extra={"PIMs": new_pims})
+
+        return new_pims
+
     def get_communities_without_outlier(self):
         fv, graph_list = self.compute_feature_vector()
         logger.info("No of sentences is", extra={"sentence": len(fv.keys())})
