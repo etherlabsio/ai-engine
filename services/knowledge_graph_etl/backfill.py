@@ -141,7 +141,8 @@ class BackFillCleanupJob(object):
     @staticmethod
     def reformat_deprecated_attributes(g: nx.DiGraph):
         for n, attr in g.nodes.data("attribute"):
-            # Remove "phraseId" and "phrase" attributes. Rename "keyphraseType"
+            # Remove "phraseId" and "phrase" attributes.
+            # Rename "keyphraseType"
             if attr == "segmentKeywords":
                 g.nodes[n]["type"] = g.nodes[n].pop("keyphraseType", "")
                 try:
@@ -325,7 +326,8 @@ class BackFillCleanupJob(object):
 
     def cleanup_nx_data_types(self, graph):
         """
-        Checks if there is any numpy array or dict or any other data types are present in the graph object and
+        Checks if there is any numpy array or dict or any
+        other data types are present in the graph object and
         removes it before converting to GraphML
         Returns:
             graph (nx.DiGraph)

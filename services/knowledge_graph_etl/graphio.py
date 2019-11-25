@@ -22,11 +22,13 @@ class GraphIO(object):
 
         Args:
             graph_obj: A NetworkX graph object
-            filename (str): Filename in .pickle or .gz, .bz2 format if needed to be stored locally. Defaults to None
+            filename (str): Filename in .pickle or .gz, .bz2 format if
+            needed to be stored locally. Defaults to None
             protocol: pickle's data stream format.
 
         Returns:
-            If `filename` is None: pickled representation of the object as a string, instead of writing it to a file.
+            If `filename` is None: pickled representation of the object
+             as a string, instead of writing it to a file.
             Else writes to a file.
         """
         if filename is not None:
@@ -41,7 +43,8 @@ class GraphIO(object):
         """
 
         Args:
-            filename (str): Filename ending in `.pkl`, `.gpickle` or `.gz, .bz2`. Defaults to None
+            filename (str): Filename ending in `.pkl`,
+            `.gpickle` or `.gz, .bz2`. Defaults to None
             byte_string (bytearray): Pickled bytes stream object
 
         Returns:

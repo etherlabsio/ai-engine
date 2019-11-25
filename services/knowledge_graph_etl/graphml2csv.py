@@ -11,8 +11,10 @@
 #    http://aws.amazon.com/apache2.0/
 #
 # or in the "license" file accompanying this file.
-# This file is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND,
-# either express or implied. See the License for the specific language governing permissions
+# This file is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND,
+# either express or implied. See the License for
+# the specific language governing permissions
 # and limitations under the License.
 
 """
@@ -22,8 +24,10 @@
 @contact:    @beebs-systap
 @deffield    created:  2018-01-30
 
-Heavily modified from https://github.com/hadim/pygraphml/blob/master/pygraphml/graphml_parser.py
-licensed under BSD 3 Part: https://github.com/hadim/pygraphml/blob/master/LICENSE
+Heavily modified from
+https://github.com/hadim/pygraphml/blob/master/pygraphml/graphml_parser.py
+licensed under BSD 3 Part:
+https://github.com/hadim/pygraphml/blob/master/LICENSE
 
 """
 
@@ -107,7 +111,8 @@ class GraphML2CSV:
                     if event == "start":
 
                         # Extract the node and edge CSV headers
-                        # Write the header for the CSV files when we see the graph element
+                        # Write the header for the CSV files when
+                        # we see the graph element
                         if GraphML2CSV.graphml_tag(
                             elem.tag
                         ) == GraphML2CSV.graphml_tag("graph"):
@@ -132,7 +137,8 @@ class GraphML2CSV:
                             elem.tag
                         ) == GraphML2CSV.graphml_tag("key"):
 
-                            # Assume the labelV is the vertex label, if specified
+                            # Assume the labelV is the vertex label,
+                            # if specified
                             if (
                                 elem.attrib["id"] != "attribute"
                                 and elem.attrib["id"] != "relation"
@@ -179,7 +185,8 @@ class GraphML2CSV:
                             if "id" in elem.attrib:
                                 node_d["~id"] = elem.attrib["id"]
                             else:
-                                # If the optional ID is not present, use the node count
+                                # If the optional ID is not present,
+                                # use the node count
                                 node_d["~id"] = node_cnt
 
                             has_label = None
@@ -221,11 +228,13 @@ class GraphML2CSV:
                             source = elem.attrib["source"]
                             dest = elem.attrib["target"]
                             # Neptune CSV header values
-                            # source/target attributes refer to IDs: http://graphml.graphdrawing.org/xmlns/1.1/graphml-structure.xsd
+                            # source/target attributes refer to IDs:
+                            # http://graphml.graphdrawing.org/xmlns/1.1/graphml-structure.xsd
 
                             id = (
                                 source + "_" + dest
-                            )  # If the optional ID is not present, use the source_dest
+                            )  # If the optional ID is not present,
+                            # use the source_dest
                             if "id" in elem.attrib:
                                 id = elem.attrib["id"]
 
