@@ -1,6 +1,7 @@
 type Customer {
     xid: string
     attribute: string
+    hasMember: [User]
 }
 
 type Workspace {
@@ -16,13 +17,13 @@ type Channel {
     attribute: string
     name: string
     belongsTo: Workspace
+    hasContext: Context
 }
 
 type Context {
     xid: string
     attribute: string
     associatedMind: Mind
-    belongsTo: Channel
     hasMeeting: [ContextSession]
 }
 
@@ -39,18 +40,11 @@ type User {
     belongsTo: [Context]
     email: string
     name: string
-    source: string
     status: string
     deleted: bool
     createdAt: datetime
     deletedAt: datetime
     updatedAt: datetime
-    sourceId: string
-    accessToken: string
-    mentionName: string
-    teamId: string
-    avatars.image192: string
-    avatars.imageOriginal: string
 }
 
 type ContextSession {
@@ -101,7 +95,6 @@ type Keyphrase {
 xid: string @index(exact) @upsert .
 name: string @index(exact) .
 email: string @index(exact) .
-mentionName: string @index(term) .
 values: [string] @index(term, fulltext) .
 attribute: string @index(hash) .
 text: string @index(fulltext) .
@@ -116,3 +109,4 @@ authoredBy: uid @reverse .
 providedBy: uid .
 belongsTo: uid @reverse .
 hasMember: [uid] @reverse .
+hasContext: uid @reverse .
