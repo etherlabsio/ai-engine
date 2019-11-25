@@ -177,9 +177,10 @@ class BackFillCleanupJob(object):
             context_graph = nx.DiGraph(type="meta")
 
         user_node_list = self._prepare_user_nodes()
-        user_workspace_edge_list, user_context_edge_list = (
-            self._prepare_user_edges()
-        )
+        (
+            user_workspace_edge_list,
+            user_context_edge_list,
+        ) = self._prepare_user_edges()
 
         N, E = self._prepare_workspace_nodes()
         workspace_node_list = N[0]

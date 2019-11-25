@@ -138,7 +138,7 @@ class GraphML2CSV:
                                 and elem.attrib["id"] != "relation"
                             ):
                                 if (
-                                    not "for" in elem.attrib
+                                    "for" not in elem.attrib
                                     or elem.attrib["for"] == "node"
                                 ):
                                     vtx_dict[elem.attrib["id"]] = (
@@ -153,7 +153,7 @@ class GraphML2CSV:
                                     )
 
                                 if (
-                                    not "for" in elem.attrib
+                                    "for" not in elem.attrib
                                     or elem.attrib["for"] == "edge"
                                 ):
                                     edge_dict[elem.attrib["id"]] = (
