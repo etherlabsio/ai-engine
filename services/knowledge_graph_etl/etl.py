@@ -29,7 +29,7 @@ class GraphETL(object):
         self.sink = "dgraph"
         self.download_loc = Path(
             "/Users/shashank/Workspace/Orgs/Ether/ai-engine"
-            + "/tests/knowledge_graph-service/dgraph_archive_s2/"
+            + "/tests/knowledge_graph-service/dgraph_prod_archive/"
         ).absolute()
 
     def process_graph_objects(

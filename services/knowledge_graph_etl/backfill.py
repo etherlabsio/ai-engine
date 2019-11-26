@@ -148,6 +148,7 @@ class BackFillCleanupJob(object):
                 try:
                     del g.nodes[n]["phraseId"]
                     del g.nodes[n]["phrase"]
+                    del g.nodes[n]["word"]
                 except Exception:
                     continue
 

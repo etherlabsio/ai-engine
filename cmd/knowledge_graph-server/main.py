@@ -20,7 +20,7 @@ bucket_store = os.getenv("STORAGE_BUCKET", "io.etherlabs.production.contexts")
 s2_bucket_store = os.getenv(
     "S2_STORAGE_BUCKET", "io.etherlabs.staging2.contexts"
 )
-profile_name = os.getenv("PROFILE", "staging2")
+profile_name = os.getenv("PROFILE", "default")
 
 if profile_name == "staging2":
     bucket = s2_bucket_store

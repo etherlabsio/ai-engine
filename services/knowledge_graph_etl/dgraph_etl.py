@@ -5,7 +5,7 @@ import pydgraph
 import hashlib
 import os
 import logging
-import uuid
+import traceback
 
 from backfill import BackFillCleanupJob
 from graphio import GraphIO
@@ -15,7 +15,14 @@ logger = logging.getLogger(__name__)
 
 class DgraphETL(object):
     def __init__(self):
-        self.list_type_edges = ["hasMeeting", "hasSegment", "hasKeywords"]
+        self.list_type_edges = [
+            "hasMeeting",
+            "hasSegment",
+            "hasSource",
+            "hasUser",
+            "hasMember",
+            "hasMarker",
+        ]
         self.keyword_node = ["importKeywords"]
         self.schema_type = {
             "contextId": "Context",
@@ -30,6 +37,7 @@ class DgraphETL(object):
             "importantKeywords": "Keyphrase",
             "segmentKeywords": "Keyphrase",
             "customerId": "Customer",
+            "markerId": "Marker",
         }
 
         self.context_label = {"attribute": "contextId"}
@@ -41,12 +49,20 @@ class DgraphETL(object):
         self.pim_keyphrase_label = {"attribute": "importantKeywords"}
         self.keyphrase_label = {"attribute": "segmentKeywords"}
         self.mind_label = {"attribute": "mindId"}
+        self.marker_label = {"attribute": "markerId"}
 
     def to_json(self, data, filename):
-        with open(
-            os.getcwd() + filename + ".json", "w", encoding="utf-8"
-        ) as f_:
-            js.dump(data, f_, ensure_ascii=False, indent=4)
+
+        try:
+            with open(
+                os.path.join(os.getcwd(), filename + ".json"),
+                "w",
+                encoding="utf-8",
+            ) as f_:
+                js.dump(data, f_, ensure_ascii=False, indent=4)
+        except Exception as e:
+            print(e)
+            print(traceback.print_exc())
 
         return filename + ".json"
 
@@ -66,61 +82,6 @@ class DgraphETL(object):
         hash_object = hashlib.sha1(data.encode())
         hash_str = hash_object.hexdigest()
         return hash_str
-
-    def nx_to_dgraph(self, g: nx.DiGraph) -> List[dict]:
-
-        dgraph_compat_data = []
-        node_dict = dict(g.nodes())
-        for source_node, node_attr in node_dict.items():
-            if node_attr.get("attribute") in self.keyword_node:
-                dgraph_source_node_dict = {"keyphrase": source_node}
-            else:
-                dgraph_source_node_dict = {
-                    "uid": "_:" + source_node,
-                    "name": source_node,
-                }
-            dgraph_source_node_dict.update(node_attr)
-
-            # Add `dgraph.type` for every uid node type
-            if dgraph_source_node_dict["attribute"] in self.schema_type.keys():
-                dgraph_source_node_dict.update(
-                    {
-                        "dgraph.type": self.schema_type[
-                            dgraph_source_node_dict["attribute"]
-                        ]
-                    }
-                )
-
-            edge_rel_list = []
-            target_spec_dict = {}
-            source_node_neighbours = dict(g[source_node]).items()
-            for target, edge_attr in list(source_node_neighbours):
-
-                relation_key = edge_attr.get("relation", None)
-                target_spec = {relation_key: []}
-                if relation_key in self.list_type_edges:
-                    if relation_key == "hasKeywords":
-                        edge_rel_list.append({"keyphrase": target})
-                    else:
-                        edge_rel_list.append(
-                            {"uid": "_:" + target, "name": target}
-                        )
-
-                    target_spec[relation_key] = edge_rel_list
-                else:
-                    target_spec = {
-                        relation_key: {"uid": "_:" + target, "name": target}
-                    }
-
-                target_spec_dict = {**target_spec, **target_spec_dict}
-
-            dgraph_node_edge_dict = {
-                **dgraph_source_node_dict,
-                **target_spec_dict,
-            }
-            dgraph_compat_data.append(dgraph_node_edge_dict)
-
-        return dgraph_compat_data
 
     def nx_dgraph(self, g: nx.DiGraph):
         node_list = []
@@ -144,6 +105,7 @@ class DgraphETL(object):
                 }
 
                 keyword_list = []
+                list_type_nodes = []
                 for target_node, relation_dict in target.items():
                     target_attr = g.nodes[target_node]
                     relation = relation_dict.get("relation")
@@ -165,6 +127,16 @@ class DgraphETL(object):
                             "values": keyword_list,
                             **target_attr,
                         }
+                        source_node.update({relation: target_node_dict})
+                    elif relation in self.list_type_edges:
+                        target_node_dict = {
+                            "dgraph.type": target_dgraph_type,
+                            "uid": "_:" + target_node,
+                            "xid": target_node,
+                            **target_attr,
+                        }
+                        list_type_nodes.append(target_node_dict)
+                        source_node.update({relation: list_type_nodes})
                     else:
                         target_node_dict = {
                             "dgraph.type": target_dgraph_type,
@@ -172,7 +144,8 @@ class DgraphETL(object):
                             "xid": target_node,
                             **target_attr,
                         }
-                    source_node.update({relation: target_node_dict})
+                        source_node.update({relation: target_node_dict})
+                    # source_node.update({relation: target_node_dict})
 
                 node_list.append(source_node.copy())
 
@@ -181,7 +154,7 @@ class DgraphETL(object):
 
 if __name__ == "__main__":
     dgraph = DgraphETL()
-    nx_data = "meta_graph_s2.pickle"
+    nx_data = "meta_graph_prod.pickle"
     g = nx.read_gpickle(nx_data)
 
     backfill_obj = BackFillCleanupJob()
@@ -189,4 +162,4 @@ if __name__ == "__main__":
     g = gio.cleanup_graph(graph_obj=g)
 
     dgraph_compat_data = dgraph.nx_dgraph(g)
-    dgraph.to_json(dgraph_compat_data, filename="meta_graph_s2")
+    dgraph.to_json(dgraph_compat_data, filename="meta_graph_prod")

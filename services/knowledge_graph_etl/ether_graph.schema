@@ -1,7 +1,7 @@
 type Customer {
     xid: string
     attribute: string
-    hasMember: [User]
+    hasUser: [User]
 }
 
 type Workspace {
@@ -18,6 +18,7 @@ type Channel {
     name: string
     belongsTo: Workspace
     hasContext: Context
+    hasMember: [User]
 }
 
 type Context {
@@ -51,6 +52,17 @@ type ContextSession {
     xid: string
     attribute: string
     hasSegment: [TranscriptionSegment]
+    hasMarker: [Marker]
+}
+
+type Marker {
+    xid: string
+    attribute: string
+    automaticMarker: bool
+    type: string
+    description: string
+    createdAt: datetime
+    createdBy: User
 }
 
 type TranscriptionSegment {
@@ -93,7 +105,7 @@ type Keyphrase {
 }
 
 xid: string @index(exact) @upsert .
-name: string @index(exact) .
+name: string @index(term) .
 email: string @index(exact) .
 values: [string] @index(term, fulltext) .
 attribute: string @index(hash) .
@@ -110,3 +122,9 @@ providedBy: uid .
 belongsTo: uid @reverse .
 hasMember: [uid] @reverse .
 hasContext: uid @reverse .
+hasMarker: [uid] @reverse .
+hasUser: [uid] @reverse .
+createdBy: uid @reverse .
+description: string @index(term, fulltext) .
+type: string @index(term) .
+
