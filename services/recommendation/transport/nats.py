@@ -77,14 +77,27 @@ class NATSTransport(object):
 
     async def get_watchers(self, msg):
         msg_data = json.loads(msg.data)
+        keyphrase_list = msg_data["keyphrases"]
+
         try:
-            self.watcher_service.recommend_watchers(req_data=msg_data)
+            rec_users, related_words = self.watcher_service.get_recommended_watchers(
+                kw_list=keyphrase_list
+            )
+            watcher_response = {"users": rec_users, "words": related_words}
+
+            await self.nats_manager.conn.publish(
+                msg.reply, json.dumps(watcher_response).encode()
+            )
         except Exception:
             raise
 
     async def get_meetings(self, msg):
         msg_data = json.loads(msg.data)
+        keyphrase_list = msg_data["keyphrases"]
+
         try:
-            self.meeting_service.recommend_meetings(req_data=msg_data)
+            self.meeting_service.recommend_meetings(kw_list=keyphrase_list)
         except Exception:
             raise
+
+        pass

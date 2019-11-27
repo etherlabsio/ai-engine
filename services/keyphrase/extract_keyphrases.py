@@ -1364,6 +1364,8 @@ class KeyphraseExtractor(object):
             top_users, kw_list=self.meeting_keywords
         )
 
+        result = {"keyphrases": self.meeting_keywords}
+
         end = timer()
         logger.info(
             "Post-reset: Graph info; Final Recommended watchers",
@@ -1379,3 +1381,5 @@ class KeyphraseExtractor(object):
                 "instanceId": req_data["instanceId"],
             },
         )
+
+        return result
