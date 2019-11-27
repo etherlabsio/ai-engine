@@ -6,7 +6,6 @@ from typing import List, Dict, Tuple
 from collections import OrderedDict
 from copy import deepcopy
 import numpy as np
-import uuid
 
 from graphrank.core import GraphRank
 from graphrank.utils import TextPreprocess, GraphUtils
@@ -29,6 +28,7 @@ class KeyphraseExtractor(object):
         encoder_lambda_client=None,
         lambda_function=None,
         ner_lambda_function=None,
+        watcher_obj=None,
     ):
         self.context_dir = "/context-instance-graphs/"
         self.feature_dir = "/sessions/"
@@ -57,6 +57,8 @@ class KeyphraseExtractor(object):
             ner_lambda_function=ner_lambda_function,
         )
 
+        self.rec_watcher = watcher_obj
+
         self.syntactic_filter = [
             "JJ",
             "JJR",
@@ -69,6 +71,7 @@ class KeyphraseExtractor(object):
             "NNPS",
             "FW",
         ]
+        self.meeting_keywords = []
 
     def get_graph_id(self, req_data):
         context_id = req_data["contextId"]
@@ -550,6 +553,44 @@ class KeyphraseExtractor(object):
 
         return keyphrases, keyphrase_object
 
+    def get_top_similar_users(self, kw_list):
+        similar_user_dict, user_id_dict = self.rec_watcher.query_similar_users(
+            kw_list=kw_list
+        )
+        top_users = [user for user, score in similar_user_dict.items()]
+        user_scores = [score for user, score in similar_user_dict.items()]
+
+        user_names = [user_id_dict[u].get("name") for u in top_users]
+
+        logger.info(
+            "Top recommended users found",
+            extra={
+                "totalSimilarUsers": len(top_users),
+                "users": user_names[:6],
+                "scores": user_scores[:6],
+            },
+        )
+
+        return top_users[:4], user_names[:4]
+
+    def get_explainability(self, similar_user_list, kw_list):
+        top_similar_words_dict = self.rec_watcher.explainability(
+            similar_user_list=similar_user_list, kw_list=kw_list
+        )
+        top_words = [words for words, score in top_similar_words_dict.items()]
+        top_scores = [score for words, score in top_similar_words_dict.items()]
+
+        logger.info(
+            "Similarity explanation",
+            extra={
+                "totalRelatedWords": len(top_words),
+                "words": top_words[:4],
+                "scores": top_scores[:4],
+            },
+        )
+
+        return top_words[:4]
+
     def get_keyphrases(
         self,
         req_data,
@@ -697,6 +738,27 @@ class KeyphraseExtractor(object):
                 )
                 logger.info("Updated context graph with PIM keyphrases")
 
+            top_users, top_user_names = self.get_top_similar_users(
+                kw_list=keyphrases
+            )
+            related_words = self.get_explainability(
+                top_users, kw_list=keyphrases
+            )
+
+            logger.info(
+                "Final Segment-based Recommended watchers",
+                extra={
+                    "recWatchers": top_user_names,
+                    "relatedWords": related_words,
+                    "instanceId": req_data["instanceId"],
+                    "segmentsReceived": [
+                        seg_id["id"] for seg_id in segment_object
+                    ],
+                },
+            )
+
+            self.meeting_keywords.extend(keyphrases)
+
             result = {"keyphrases": keyphrases}
             return result
 
@@ -834,6 +896,25 @@ class KeyphraseExtractor(object):
             logger.debug(
                 "keyphrases extracted successfully for new summary",
                 extra={"result": keyphrases, "output": keyphrase_object},
+            )
+
+            top_users, top_user_names = self.get_top_similar_users(
+                kw_list=keyphrases
+            )
+            related_words = self.get_explainability(
+                top_users, kw_list=keyphrases
+            )
+
+            logger.info(
+                "Final Segment-based Recommended watchers",
+                extra={
+                    "recWatchers": top_user_names,
+                    "relatedWords": related_words,
+                    "instanceId": req_data["instanceId"],
+                    "segmentsReceived": [
+                        seg_id["id"] for seg_id in segment_object
+                    ],
+                },
             )
 
             result = {"keyphrases": keyphrases}
@@ -1276,9 +1357,16 @@ class KeyphraseExtractor(object):
 
         word_graph.clear()
 
+        top_users, top_user_names = self.get_top_similar_users(
+            kw_list=self.meeting_keywords
+        )
+        related_words = self.get_explainability(
+            top_users, kw_list=self.meeting_keywords
+        )
+
         end = timer()
         logger.info(
-            "Post-reset: Graph info",
+            "Post-reset: Graph info; Final Recommended watchers",
             extra={
                 "deletedGraphId": word_graph_id,
                 "nodes": word_graph.number_of_nodes(),
@@ -1286,5 +1374,8 @@ class KeyphraseExtractor(object):
                 "kgNodes": context_graph.number_of_nodes(),
                 "kgEdges": context_graph.number_of_edges(),
                 "responseTime": end - start,
+                "recWatchers": top_user_names,
+                "relatedWords": related_words,
+                "instanceId": req_data["instanceId"],
             },
         )

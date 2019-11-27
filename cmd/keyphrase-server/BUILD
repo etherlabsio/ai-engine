@@ -5,7 +5,8 @@ python_binary(
 		'services/keyphrase:keyphrase-libs',
 		':keyphrase-dep',
 		'vendor:vendor-libs',
-		'services:global-services'
+		'services:global-services',
+		'services/recommendations:watchers-libs'
 	],
 	source="main.py",
 
@@ -28,7 +29,8 @@ python_library(
 		'3rdparty/python:boto3',
 		'3rdparty/python:botocore',
 		'3rdparty/python:numpy',
-		'3rdparty/python:python-dotenv'
+		'3rdparty/python:python-dotenv',
+		'3rdparty/python:pydgraph'
 	],
 
 )

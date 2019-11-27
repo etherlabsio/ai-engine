@@ -1,5 +1,5 @@
 import numpy as np
-from vectorize import Vectorizer
+import pickle
 
 
 class MinHash(object):
@@ -61,34 +61,103 @@ class LSH(object):
 
     def describe(self):
         for table in self.tables:
-            # print(table.table, table.projections)
             yield (table)
 
 
-class Search(object):
+class WordSearch(object):
     def __init__(
-        self, input, vectorizer=Vectorizer(), num_buckets=4, hash_size=8
+        self,
+        input_list: list,
+        vectorizer=None,
+        num_buckets: int = 8,
+        hash_size: int = 4,
+        dim: int = 512,
     ):
-        self.dim_size = 512
+        self.dim_size = dim
         self.lsh = LSH(
             self.dim_size, num_buckets=num_buckets, hash_size=hash_size
         )
         self.vectorizer = vectorizer
-        self.input = input
+        self.input_list = input_list
         self.num_features_in_input = dict()
-        for f in self.input:
-            self.num_features_in_input[f] = 0
+        for kw in self.input_list:
+            self.num_features_in_input[kw] = 0
 
     def featurize(self):
-        # for kw_list in self.input:
-        kw_features = self.vectorizer.get_embeddings(input_list=self.input)
+        kw_features = self.vectorizer.get_embeddings(
+            input_list=self.input_list
+        )
 
         for i in range(len(kw_features)):
-            self.lsh.add([kw_features[i]], self.input[i])
-            self.num_features_in_input[self.input[i]] += len(kw_features[i])
+            self.lsh.add([kw_features[i]], self.input_list[i])
+            self.num_features_in_input[self.input_list[i]] += len(
+                kw_features[i]
+            )
 
     def query(self, kw_list):
-        # kw_list = user_dict[user]
+        kw_features = self.vectorizer.get_embeddings(input_list=kw_list)
+
+        results = self.lsh.query(kw_features)
+
+        counts = dict()
+        for r in results:
+            if r["label"] in counts.keys():
+                counts[r["label"]] += 1
+            else:
+                counts[r["label"]] = 1
+        for k in counts:
+            counts[k] = float(counts[k]) / self.num_features_in_input[k]
+        return counts
+
+    def describe(self):
+        for t in self.lsh.describe():
+            yield (t)
+
+
+class UserSearch(object):
+    def __init__(
+        self,
+        input_dict: dict,
+        user_vector_data=None,
+        vectorizer=None,
+        num_buckets: int = 8,
+        hash_size: int = 4,
+        dim: int = 512,
+    ):
+        self.dim_size = dim
+        self.user_vector_data = user_vector_data
+        self.lsh = LSH(
+            self.dim_size, num_buckets=num_buckets, hash_size=hash_size
+        )
+        self.vectorizer = vectorizer
+        self.input_dict = input_dict
+        self.num_features_in_input = dict()
+        for user, kw in self.input_dict.items():
+            self.num_features_in_input[user] = 0
+
+    def featurize(self, write=False):
+
+        user_vec_dict = {}
+
+        for user, kw in self.input_dict.items():
+            if self.user_vector_data is None:
+                kw_features = self.vectorizer.get_embeddings(input_list=kw)
+
+                if write:
+                    user_vec_dict[user] = kw_features
+                    with open("reference_user_kw_vector.pickle", "wb") as f_:
+                        pickle.dump(user_vec_dict, f_)
+
+            else:
+                try:
+                    kw_features = self.user_vector_data[user]
+                except KeyError:
+                    continue
+
+            self.lsh.add(kw_features, user)
+            self.num_features_in_input[user] += len(kw_features)
+
+    def query(self, kw_list):
         kw_features = self.vectorizer.get_embeddings(input_list=kw_list)
 
         results = self.lsh.query(kw_features)

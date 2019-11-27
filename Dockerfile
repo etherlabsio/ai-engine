@@ -36,6 +36,8 @@ FROM python:3.7-slim
 WORKDIR /app
 COPY pkg pkg
 COPY vendor vendor
+COPY reference_prod_user.json reference_prod_user.json
+COPY reference_user_kw_vector.pickle reference_user_kw_vector.pickle
 COPY --from=compile-image /build/dist/server.pex .
 
 ENV NLTK_DATA /app/vendor/nltk_data/
