@@ -116,10 +116,12 @@ class NATSTransport(object):
 
     async def context_end_handler(self, msg):
         # Reset graph
+        request = json.loads(msg.data)
         instance_keyphrases = await self.reset_keyphrases(msg)
 
-        await self.call_recommended_watchers(req_data=instance_keyphrases)
-        await self.call_recommended_meetings(req_data=instance_keyphrases)
+        rec_request = {**request, **instance_keyphrases}
+        await self.call_recommended_watchers(req_data=rec_request)
+        # await self.call_recommended_meetings(req_data=instance_keyphrases)
 
     async def call_recommended_watchers(self, req_data):
         recommend_watcher_topic = "recommendation.service.get_watchers"
@@ -212,6 +214,10 @@ class NATSTransport(object):
             )
 
         end = timer()
+
+        # Get recommended watchers for every segment
+        rec_request = {**request, **output}
+        await self.call_recommended_watchers(req_data=rec_request)
 
         deadline_time = end - start
         if deadline_time > 15:
@@ -343,4 +349,5 @@ class NATSTransport(object):
         request = json.loads(msg.data)
         logger.info("Resetting keyphrases graph")
         output = self.keyphrase_service.reset_keyphrase_graph(request)
-        await self.nats_manager.conn.publish(msg, json.dumps(output).encode())
+
+        return output
