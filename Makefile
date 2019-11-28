@@ -56,7 +56,7 @@ deploy_keyphrase:
 # Recommendation
 deploy_recommendation:
 	$(MAKE) deploy_ecs APP=recommendation ARTIFACT=recommendation-server CONTAINER_IMAGE=${IMAGE_PREFIX}/recommendation \
-		 CLUSTER_NAME=ml-inference SERVICE_NAME=recommendation-service
+		 CLUSTER_NAME=ml-inference SERVICE_NAME=recommendation-service FAMILY=recommendation
 
 
 .PHONY: new-service

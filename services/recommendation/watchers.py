@@ -236,6 +236,7 @@ class RecWatchers(object):
     def make_validation_data(self, req_data, user_list, word_list):
         segment_obj = req_data["segments"]
         instance_id = req_data["instanceId"]
+        input_keyphrase_list = req_data["keyphrases"]
 
         for i in range(len(segment_obj)):
             segment_id = segment_obj[i]["id"]
@@ -247,13 +248,14 @@ class RecWatchers(object):
                     "meta": {
                         "instanceId": instance_id,
                         "segmentId": segment_id,
+                        "inputKeyphrases": input_keyphrase_list,
                         "relatedWords": word_list,
                     },
                 }
             )
 
     def format_validation_data(
-        self, instance_id, context_id, prefix="watchers/"
+        self, instance_id, context_id, prefix="watchers_"
     ):
         file_name = prefix + instance_id + ".jsonl"
         with jsonlines.open(file_name, mode="w") as writer:
