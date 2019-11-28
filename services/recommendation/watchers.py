@@ -3,6 +3,8 @@ import os
 import pickle
 import logging
 from nltk import word_tokenize, pos_tag
+import jsonlines
+from pathlib import Path
 
 from .lsh import WordSearch, UserSearch
 
@@ -11,9 +13,14 @@ logger = logging.getLogger(__name__)
 
 class RecWatchers(object):
     def __init__(
-        self, reference_user_file, reference_user_kw_vector, vectorizer=None
+        self,
+        reference_user_file,
+        reference_user_kw_vector,
+        vectorizer=None,
+        s3_client=None,
     ):
         self.vectorizer = vectorizer
+        self.s3_client = s3_client
         self.pos_list = ["NN", "NNS", "NNP"]
 
         # Load and read files for rec
@@ -23,6 +30,20 @@ class RecWatchers(object):
         self.user_vector_data = self.load_pickle(
             file_name=reference_user_kw_vector
         )
+
+        # Initialize User query
+
+        self.ref_user_kw_dict = {
+            k: self.reference_user_dict[k]["keywords"]
+            for k in self.reference_user_dict.keys()
+        }
+        self.us = UserSearch(
+            input_dict=self.ref_user_kw_dict,
+            vectorizer=self.vectorizer,
+            user_vector_data=self.user_vector_data,
+        )
+
+        self.validation_dict = {}
 
     def to_json(self, data, filename):
         with open(filename + ".json", "w", encoding="utf-8") as f_:
@@ -113,15 +134,6 @@ class RecWatchers(object):
 
     def featurize_reference_users(self):
         # Featurize reference users
-        self.ref_user_kw_dict = {
-            k: self.reference_user_dict[k]["keywords"]
-            for k in self.reference_user_dict.keys()
-        }
-        self.us = UserSearch(
-            input_dict=self.ref_user_kw_dict,
-            vectorizer=self.vectorizer,
-            user_vector_data=self.user_vector_data,
-        )
         self.us.featurize()
 
     def _query_similar_users(self, kw_list):
@@ -220,3 +232,60 @@ class RecWatchers(object):
         )
 
         return user_names[:n_users], top_words[:n_kw]
+
+    def make_validation_data(self, req_data, user_list, word_list):
+        segment_obj = req_data["segments"]
+        instance_id = req_data["instanceId"]
+
+        for i in range(len(segment_obj)):
+            segment_id = segment_obj[i]["id"]
+            segment_text = segment_obj[i]["originalText"]
+            self.validation_dict.update(
+                {
+                    "text": segment_text,
+                    "labels": user_list,
+                    "meta": {
+                        "instanceId": instance_id,
+                        "segmentId": segment_id,
+                        "relatedWords": word_list,
+                    },
+                }
+            )
+
+    def format_validation_data(
+        self, instance_id, context_id, prefix="watchers/"
+    ):
+        file_name = prefix + instance_id + ".jsonl"
+        with jsonlines.open(file_name, mode="w") as writer:
+            writer.write(self.validation_dict)
+
+        s3_path = self.upload_validation(
+            context_id=context_id,
+            instance_id=instance_id,
+            validation_file_name=file_name,
+        )
+
+        logger.info("Saved validation data", extra={"validationPath": s3_path})
+
+    def upload_validation(self, context_id, instance_id, validation_file_name):
+        s3_path = (
+            context_id
+            + "/sessions/"
+            + instance_id
+            + "/validation/recommendations/"
+            + validation_file_name
+        )
+
+        try:
+            self.s3_client.upload_to_s3(
+                file_name=validation_file_name, object_name=s3_path
+            )
+        except Exception as e:
+            logger.warning(e)
+
+        # Once uploading is successful, check if NPZ exists on disk and delete it
+        local_path = Path(validation_file_name).absolute()
+        if os.path.exists(local_path):
+            os.remove(local_path)
+
+        return s3_path

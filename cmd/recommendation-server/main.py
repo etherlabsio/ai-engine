@@ -50,7 +50,9 @@ if __name__ == "__main__":
     loop = asyncio.get_event_loop()
 
     nats_manager = Manager(
-        loop=loop, url=nats_url, queue_name="io.etherlabs.keyphrase_service"
+        loop=loop,
+        url=nats_url,
+        queue_name="io.etherlabs.recommendation_service",
     )
 
     logger.info("Downloading objects for recommendation")
@@ -61,7 +63,10 @@ if __name__ == "__main__":
         lambda_client=lambda_client, lambda_function=encoder_lambda_function
     )
     rec_object = RecWatchers(
-        reference_user_file, reference_user_kw_vector, vectorizer=vectorizer
+        reference_user_file,
+        reference_user_kw_vector,
+        vectorizer=vectorizer,
+        s3_client=s3_client,
     )
 
     logger.debug("download complete")
