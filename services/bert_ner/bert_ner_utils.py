@@ -51,8 +51,28 @@ class BertForTokenClassification_custom(BertPreTrainedModel):
 
 class BERT_NER:
     def __init__(self, model):
-
-        self.labels = ["O", "E"]
+        if model.config.num_labels == 9:
+            self.labels = [
+                "O",
+                "MISC",
+                "MISC",
+                "PER",
+                "PER",
+                "ORG",
+                "ORG",
+                "LOC",
+                "LOC",
+            ]
+        elif model.config.num_labels == 5:
+            self.labels = [
+                "O",
+                "MISC",
+                "PER",
+                "ORG",
+                "LOC",
+            ]
+        else:
+            self.labels = ["O", "E"]
         self.model = model
         self.tokenizer = BertTokenizer("vocab.txt")
         self.sm = nn.Softmax(dim=1)
@@ -270,11 +290,14 @@ class BERT_NER:
 
     def replace_contractions(self, text):
         text = re.sub(
-            "[A-Z]\. ", lambda mobj: mobj.group(0)[0] + mobj.group(0)[1], text
+            " (\w{1} \w{1}) (\w{1} )*",
+            lambda x: " " + x.group(0).replace(" ", "").upper() + " ",
+            text,
         )
         text = re.sub(
-            "\.(\w{2,})", lambda mobj: " " + mobj.group(1), text
+            "[A-Z]\. ", lambda mobj: mobj.group(0)[0] + mobj.group(0)[1], text
         )
+        text = re.sub("\.(\w{2,})", lambda mobj: " " + mobj.group(1), text)
         for word in text.split(" "):
             if self.contractions.get(word.lower()):
                 text = text.replace(word, self.contractions[word.lower()])
@@ -378,16 +401,19 @@ class BERT_NER:
             with torch.no_grad():
                 outputs = self.model(input_tensor)[0][0, 1:-1]
 
-            for j, ((tok, tag), embed) in enumerate(
-                zip(token_to_word[i : i + batch_size], list(outputs))
-            ):
-                embed = embed.unsqueeze(0)
-                score = self.sm(embed).detach().numpy().max(-1)[0]
-                label = self.labels[self.sm(embed).argmax().detach().numpy()]
-                # Consider Entities and Non-Entities with low confidence (false negatives)
+            scores = self.sm(outputs).detach().numpy().max(-1)
+            labels = [
+                self.labels[ind]
+                for ind in self.sm(outputs).argmax(-1).detach().numpy()
+            ]
+
+            for j, (tok, tag) in enumerate(token_to_word[i : i + batch_size]):
+                # Consider Entities, and Non-Entities with low confidence (false negatives)
                 if tok.casefold() not in self.stop_words:
-                    if label != "O" or (label == "O" and score < self.conf):
-                        entities.append((tok, score, tag))
+                    if labels[j] !="O" or (
+                        labels[j] == "O" and scores[j] < self.conf
+                    ):
+                        entities.append((tok, scores[j], tag))
 
         return entities
 
