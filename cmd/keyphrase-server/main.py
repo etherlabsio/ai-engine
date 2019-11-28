@@ -11,8 +11,6 @@ from botocore.client import Config
 
 from keyphrase.extract_keyphrases import KeyphraseExtractor
 from keyphrase.transport.nats import NATSTransport
-from recommendations.watchers import RecWatchers
-from recommendations.vectorize import Vectorizer
 
 
 from nats.manager import Manager
@@ -55,21 +53,12 @@ if __name__ == "__main__":
         loop=loop, url=nats_url, queue_name="io.etherlabs.keyphrase_service"
     )
 
-    logger.info("Downloading objects for recommendation")
-    vectorizer = Vectorizer(lambda_function=encoder_lambda_function)
-    reference_user_file = "reference_prod_user.json"
-    reference_user_kw_vector = "reference_user_kw_vector.pickle"
-    rec_object = RecWatchers(
-        reference_user_file, reference_user_kw_vector, vectorizer=vectorizer
-    )
-
     # Initialize keyphrase-service client
     keyphrase_extractor = KeyphraseExtractor(
         s3_client=s3_client,
         encoder_lambda_client=lambda_client,
         lambda_function=encoder_lambda_function,
         ner_lambda_function=ner_lambda_function,
-        watcher_obj=rec_object,
     )
     logger.debug("download complete")
 

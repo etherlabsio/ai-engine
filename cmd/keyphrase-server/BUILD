@@ -5,8 +5,7 @@ python_binary(
 		'services/keyphrase:keyphrase-libs',
 		':keyphrase-dep',
 		'vendor:vendor-libs',
-		'services:global-services',
-		'services/recommendations:watchers-libs'
+		'services:global-services'
 	],
 	source="main.py",
 
