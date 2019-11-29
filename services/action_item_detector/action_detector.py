@@ -247,7 +247,7 @@ class ActionItemDetector:
                 if ai_user == 0:
                     curr_assignees_list += [seg_object["spokenBy"]]
                 else:
-                    curr_assignees_list += []
+                    curr_assignees_list += ['NoA']
                 if ai_user == 1:
                     curr_isAssigneePrevious_list.append(True)
                 else:
@@ -272,6 +272,7 @@ class ActionItemDetector:
 
             #fix to check if the noun is good enough for the bare grammar pattern
             filtered_ai = [ele for ele in action_item.split(' ') if ele not in stop_words]
+            if assignee=='NoA': assignee=''
             if len(filtered_ai)>4:
                 ai_response_list.append({"id": uuid_,
                                         "subject": action_item,
@@ -280,7 +281,7 @@ class ActionItemDetector:
                                         "is_assignee_previous": is_prev_user,
                                         "is_assignee_both": is_both})
             else:
-                if len(action_item.split(' ')[-1])>4: # minimum noun length
+                if len(action_item.split(' ')[-1])>4 and len(filtered_ai)>3: # minimum noun length
                     ai_response_list.append({"id": uuid_,
                                         "subject": action_item,
                                         "segment_ids": [segment],

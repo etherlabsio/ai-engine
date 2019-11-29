@@ -1,8 +1,8 @@
-import spacy
-from spacy.lang.en.stop_words import STOP_WORDS
 import networkx as nx
 import logging
 import traceback
+import json
+from timeit import default_timer as timer
 from typing import Tuple
 
 logger = logging.getLogger(__name__)
@@ -10,14 +10,20 @@ logger = logging.getLogger(__name__)
 
 class WordGraphBuilder(object):
     def __init__(
-        self, graphrank_obj, textpreprocess_obj, graphutils_obj, keyphrase_utils_obj
+        self,
+        graphrank_obj,
+        textpreprocess_obj,
+        graphutils_obj,
+        keyphrase_utils_obj,
+        lambda_client,
+        ner_lambda_function,
     ):
-        self.nlp = spacy.load("vendor/en_core_web_sm/en_core_web_sm-2.1.0")
-        self.stop_words = list(STOP_WORDS)
         self.gr = graphrank_obj
         self.tp = textpreprocess_obj
         self.gutils = graphutils_obj
         self.utils = keyphrase_utils_obj
+        self.lambda_client = lambda_client
+        self.ner_lambda_function = ner_lambda_function
 
     def process_text(
         self, text, filter_by_pos=True, stop_words=False, syntactic_filter=None
@@ -42,7 +48,9 @@ class WordGraphBuilder(object):
     ):
         meeting_word_graph = graph
         for text in text_list:
-            original_tokens, pos_tuple, filtered_pos_tuple = self.process_text(text)
+            original_tokens, pos_tuple, filtered_pos_tuple = self.process_text(
+                text
+            )
             meeting_word_graph = self.gr.build_word_graph(
                 graph_obj=graph,
                 input_pos_text=pos_tuple,
@@ -80,67 +88,66 @@ class WordGraphBuilder(object):
 
         return keyphrases
 
-    def get_entities(self, input_segment):
-        spacy_list = ["PRODUCT", "EVENT", "LOC", "ORG", "PERSON", "WORK_OF_ART"]
-        comprehend_list = [
-            "COMMERCIAL_ITEM",
-            "EVENT",
-            "LOCATION",
-            "ORGANIZATION",
-            "PERSON",
-            "TITLE",
-        ]
+    def get_custom_entities(self, input_segment):
+        entity_list = []
 
-        preference_order_dict = {
-            "COMMERCIAL_ITEM": 1,
-            "ORGANIZATION": 2,
-            "PERSON": 3,
-            "LOCATION": 4,
-            "EVENT": 5,
-            "TITLE": 6,
-        }
+        entity_dict = self.call_custom_ner(input_segment=input_segment)
 
-        match_dict = dict(zip(spacy_list, comprehend_list))
+        for entity, conf_score in entity_dict.items():
+            entity_list.append(
+                {"text": entity, "preference": 1, "conf_score": conf_score}
+            )
 
-        doc = self.nlp(input_segment)
-        t_noun_chunks = list(set(list(doc.noun_chunks)))
-        filtered_entities = []
-        t_ner_type = []
+        return entity_list
 
-        for ent in list(set(doc.ents)):
-            t_type = ent.label_
-            if t_type in list(match_dict) and str(ent) not in filtered_entities:
-                t_ner_type.append(match_dict[t_type])
-                filtered_entities.append(str(ent))
-        t_noun_chunks = [str(item).strip().lower() for item in t_noun_chunks]
+    def call_custom_ner(self, input_segment):
 
-        # remove stop words from noun_chunks/NERs
-        entity_dict = []
-        for entt in list(zip(filtered_entities, t_ner_type)):
-            entity_dict.append({"text": str(entt[0]), "type": entt[1]})
+        start = timer()
+        lambda_payload = {"body": {"originalText": input_segment}}
 
-        entity_preference_list = []
-        for content in entity_dict:
-            entity = content["text"]
-            entity_type = content["type"]
-            if entity_type in preference_order_dict.keys():
-                entity_preference_list.append(
-                    {
-                        "text": entity,
-                        "preference": preference_order_dict[entity_type],
-                        "type": entity_type,
-                    }
+        try:
+            logger.info("Invoking NER lambda")
+            invoke_response = self.lambda_client.invoke(
+                FunctionName=self.ner_lambda_function,
+                InvocationType="RequestResponse",
+                Payload=json.dumps(lambda_payload),
+            )
+
+            lambda_output = (
+                invoke_response["Payload"]
+                .read()
+                .decode("utf8")
+                .replace("'", '"')
+            )
+            response = json.loads(lambda_output)
+            status_code = response["statusCode"]
+            response_body = response["body"]
+
+            end = timer()
+            if status_code == 200:
+                entity_dict = json.loads(response_body)["entities"]
+                logger.info(
+                    "Received response from encoder lambda function",
+                    extra={
+                        "num": len(entity_dict.keys()),
+                        "lambdaResponseTime": end - start,
+                    },
                 )
 
-        sorted_entity_preference_list = self.utils.sort_by_value(
-            entity_preference_list, key="preference", order="asc"
-        )
-        logger.debug(
-            "sorted preference for entities",
-            extra={"orderedEntities": sorted_entity_preference_list},
-        )
+            else:
+                entity_dict = {}
+                logger.warning(
+                    "Invalid response from encoder lambda function",
+                    extra={"lambdaResponseTime": end - start},
+                )
 
-        return sorted_entity_preference_list
+            return entity_dict
+
+        except Exception as e:
+            logger.error("Invoking failed", extra={"err": e})
+
+            entity_dict = {}
+            return entity_dict
 
     def get_segment_keyphrases(
         self, segment_object: dict, word_graph: nx.Graph
@@ -151,10 +158,14 @@ class WordGraphBuilder(object):
         segment_list = self.utils.read_segments(segment_object=segment_object)
         try:
             for text in segment_list:
-                original_tokens, pos_tuple, filtered_pos_tuple = self.process_text(text)
+                original_tokens, pos_tuple, filtered_pos_tuple = self.process_text(
+                    text
+                )
 
                 keyphrase_list.extend(
-                    self.get_custom_keyphrases(graph=word_graph, pos_tuple=pos_tuple)
+                    self.get_custom_keyphrases(
+                        graph=word_graph, pos_tuple=pos_tuple
+                    )
                 )
                 descriptive_keyphrase_list.extend(
                     self.get_custom_keyphrases(

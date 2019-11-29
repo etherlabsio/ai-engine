@@ -102,3 +102,10 @@ update-vendor:
 	@mv en_core_web_sm-2.1.0/en_core_web_sm vendor/
 	@rm -rf en_core_web_sm-2.1.0
 	@rm -rf en_core_web_sm-2.1.0.tar.gz
+
+.PHONY: build-upload-update-lambda
+build-upload-update-lambda:
+	./pants bundle cmd/${app-name}-server:${build-name}
+	aws s3 cp --profile production dist/${build-name}.pex s3://io.etherlabs.artifacts/${ENV}/${build-name}.pex
+	aws lambda update-function-code --function-name ${function-name} --s3-bucket io.etherlabs.artifacts --s3-key ${ENV}/${build-name}.pex
+
