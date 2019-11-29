@@ -1,4 +1,1 @@
-python_library(
-	name="ether_graph_libs",
-	sources=["*/*","*"]
-)
+python_library(name="ether_graph_libs", sources=["*/*", "*"])

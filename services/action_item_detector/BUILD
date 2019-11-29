@@ -1,4 +1,1 @@
-python_library(
-	name="action_item_detector-libs",
-	sources=["*/*","*"]
-)
+python_library(name="action_item_detector-libs", sources=["*/*", "*"])

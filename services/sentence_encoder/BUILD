@@ -1,4 +1,1 @@
-python_library(
-	name="sentencoder-libs",
-	sources=["*"]
-)
+python_library(name="sentencoder-libs", sources=["*"])

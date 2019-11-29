@@ -1,4 +1,1 @@
-python_library(
-	name="pims-libs",
-	sources=["*"]
-)
+python_library(name="pims-libs", sources=["*"])
