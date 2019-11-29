@@ -814,7 +814,10 @@ class KeyphraseExtractor(object):
 
             # For chapters: Choose top-n from each segment for better diversity
             try:
-                ranked_entities_dict, ranked_keyphrase_dict = self.utils.limit_phrase_list(
+                (
+                    ranked_entities_dict,
+                    ranked_keyphrase_dict,
+                ) = self.utils.limit_phrase_list(
                     entities_dict=ranked_entities_dict,
                     keyphrase_dict=ranked_keyphrase_dict,
                     phrase_limit=top_n,
@@ -824,7 +827,10 @@ class KeyphraseExtractor(object):
                 )
             except Exception as e:
                 logger.warning("Not removing phrases by quality", extra={"warnMsg": e})
-                ranked_entities_dict, ranked_keyphrase_dict = self.utils.limit_phrase_list(
+                (
+                    ranked_entities_dict,
+                    ranked_keyphrase_dict,
+                ) = self.utils.limit_phrase_list(
                     entities_dict=ranked_entities_dict,
                     keyphrase_dict=ranked_keyphrase_dict,
                     phrase_limit=top_n,

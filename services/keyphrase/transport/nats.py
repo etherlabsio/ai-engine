@@ -118,12 +118,16 @@ class NATSTransport(object):
         segment_object = request["segments"]
 
         try:
-            context_graph, meeting_word_graph = self.keyphrase_service.populate_word_graph(
-                request
-            )
+            (
+                context_graph,
+                meeting_word_graph,
+            ) = self.keyphrase_service.populate_word_graph(request)
 
             # Compute embeddings for segments and keyphrases
-            context_graph, meeting_word_graph = self.keyphrase_service.populate_context_embeddings(
+            (
+                context_graph,
+                meeting_word_graph,
+            ) = self.keyphrase_service.populate_context_embeddings(
                 req_data=request,
                 segment_object=segment_object,
                 context_graph=context_graph,

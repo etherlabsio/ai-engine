@@ -10,7 +10,7 @@ from .util import (
     lemmatization,
     get_pos,
     get_filtered_pos,
-    st_get_candidate_phrases
+    st_get_candidate_phrases,
 )
 
 logger = logging.getLogger(__name__)
@@ -27,9 +27,9 @@ else:
         try:
             nltk.data.find("tokenizers/punkt/PY3/english.pickle")
         except LookupError:
-            nltk.download("punkt", download_dir='/tmp/nltk_data')
+            nltk.download("punkt", download_dir="/tmp/nltk_data")
     else:
-        nltk.download("punkt", download_dir='/tmp/nltk_data')
+        nltk.download("punkt", download_dir="/tmp/nltk_data")
 
 sent_detector = nltk.data.load("tokenizers/punkt/PY3/english.pickle")
 

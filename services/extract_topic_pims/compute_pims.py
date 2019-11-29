@@ -8,7 +8,9 @@ def get_pims(Request):
     group_no = None
     index = 0
     topic_pim = {}
-    ranked_pims = sorted([(k, v) for (k, v) in Request.pim_result.items()], key=lambda kv: kv[1])
+    ranked_pims = sorted(
+        [(k, v) for (k, v) in Request.pim_result.items()], key=lambda kv: kv[1]
+    )
 
     for (rec_id, distance) in ranked_pims:
         if rec_id in Request.gs_result.keys():
@@ -19,5 +21,5 @@ def get_pims(Request):
                 used_topics.append(group_no)
                 index += 1
 
-    final_output = list(map(lambda x: Request.group['group'][x] , topic_pim.values()))
+    final_output = list(map(lambda x: Request.group["group"][x], topic_pim.values()))
     return final_output

@@ -38,18 +38,18 @@ def decode_json_request(req) -> Request:
         return False
 
     segments_map = {}
-    for segm in req['segments']:
-        segments_map[segm['id']] = deepcopy(segm)
+    for segm in req["segments"]:
+        segments_map[segm["id"]] = deepcopy(segm)
 
     segments_org = deepcopy(req)
     segments = decode_segments(segments_org)
 
     index = 0
     segments_order = {}
-    for ele in sorted(segments, key=lambda x: x['startTime'], reverse=False):
-        if ele['originalText'] != "":
-            segments_order[ele['id']] = index
-            index+=1
+    for ele in sorted(segments, key=lambda x: x["startTime"], reverse=False):
+        if ele["originalText"] != "":
+            segments_order[ele["id"]] = index
+            index += 1
 
     return Request(
         req["mindId"],

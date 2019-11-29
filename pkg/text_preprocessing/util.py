@@ -37,7 +37,139 @@ else:
         nltk.data.path.append("/tmp/nltk_data")
 stop_words_nltk = stopwords.words("english")
 
-stop_words_extra = ['','right','yeah','okay','ourselves', 'hers', 'between', 'yourself', 'but', 'again', 'there', 'about', 'once', 'during', 'out', 'very', 'having', 'with', 'they', 'own', 'an', 'be', 'some', 'for', 'do', 'its', 'yours', 'such', 'into', 'of', 'most', 'itself', 'other', 'off', 'is', 's', 'am', 'or', 'who', 'as', 'from', 'him', 'each', 'the', 'themselves', 'until', 'below', 'are', 'we', 'these', 'your', 'his', 'through', 'don', 'nor', 'me', 'were', 'her', 'more', 'himself', 'this', 'down', 'should', 'our', 'their', 'while', 'above', 'both', 'up', 'to', 'ours', 'had', 'she', 'all', 'no', 'when', 'at', 'any', 'before', 'them', 'same', 'and', 'been', 'have', 'in', 'will', 'on', 'does', 'yourselves', 'then', 'that', 'because', 'what', 'over', 'why', 'so', 'can', 'did', 'not', 'now', 'under', 'he', 'you', 'herself', 'has', 'just', 'where', 'too', 'only', 'myself', 'which', 'those', 'i', 'after', 'few', 'whom', 't', 'being', 'if', 'theirs', 'my', 'against', 'a', 'by', 'doing', 'it', 'how', 'further', 'was', 'here', 'than']
+stop_words_extra = [
+    "",
+    "right",
+    "yeah",
+    "okay",
+    "ourselves",
+    "hers",
+    "between",
+    "yourself",
+    "but",
+    "again",
+    "there",
+    "about",
+    "once",
+    "during",
+    "out",
+    "very",
+    "having",
+    "with",
+    "they",
+    "own",
+    "an",
+    "be",
+    "some",
+    "for",
+    "do",
+    "its",
+    "yours",
+    "such",
+    "into",
+    "of",
+    "most",
+    "itself",
+    "other",
+    "off",
+    "is",
+    "s",
+    "am",
+    "or",
+    "who",
+    "as",
+    "from",
+    "him",
+    "each",
+    "the",
+    "themselves",
+    "until",
+    "below",
+    "are",
+    "we",
+    "these",
+    "your",
+    "his",
+    "through",
+    "don",
+    "nor",
+    "me",
+    "were",
+    "her",
+    "more",
+    "himself",
+    "this",
+    "down",
+    "should",
+    "our",
+    "their",
+    "while",
+    "above",
+    "both",
+    "up",
+    "to",
+    "ours",
+    "had",
+    "she",
+    "all",
+    "no",
+    "when",
+    "at",
+    "any",
+    "before",
+    "them",
+    "same",
+    "and",
+    "been",
+    "have",
+    "in",
+    "will",
+    "on",
+    "does",
+    "yourselves",
+    "then",
+    "that",
+    "because",
+    "what",
+    "over",
+    "why",
+    "so",
+    "can",
+    "did",
+    "not",
+    "now",
+    "under",
+    "he",
+    "you",
+    "herself",
+    "has",
+    "just",
+    "where",
+    "too",
+    "only",
+    "myself",
+    "which",
+    "those",
+    "i",
+    "after",
+    "few",
+    "whom",
+    "t",
+    "being",
+    "if",
+    "theirs",
+    "my",
+    "against",
+    "a",
+    "by",
+    "doing",
+    "it",
+    "how",
+    "further",
+    "was",
+    "here",
+    "than",
+]
 stop_words_spacy = list(
     """
 a about above across after afterwards again against all almost alone along
@@ -349,34 +481,55 @@ def get_filtered_pos(sentence, filter_pos=["JJ", "VB", "NN", "NNP", "FW"]):
         return text_pos
     return sentence
 
-#def st_get_candidate_phrases(text, pos_search_pattern_list=[r"""base: {(<JJ.*>*<NN.*>+<IN>)?<JJ>*<NN.*>+}"""]):
-def st_get_candidate_phrases(text, pos_search_pattern_list=[r"""base: {<(CD)|(DT)|(JJR)>* (<VB.>*)( (<NN>+ <NN>+)|((<JJ>|<NN>) <NN>)| ((<JJ>|<NN>)+|((<JJ>|<NN>)* (<NN> <NN.>)? (<JJ>|<NN>)*) <NN.>))}"""]):
-        punct = set(string.punctuation)
-        all_chunks = []
 
-        for pattern in pos_search_pattern_list:
-            all_chunks+=st_getregexChunks(text,pattern)
+# def st_get_candidate_phrases(text, pos_search_pattern_list=[r"""base: {(<JJ.*>*<NN.*>+<IN>)?<JJ>*<NN.*>+}"""]):
+def st_get_candidate_phrases(
+    text,
+    pos_search_pattern_list=[
+        r"""base: {<(CD)|(DT)|(JJR)>* (<VB.>*)( (<NN>+ <NN>+)|((<JJ>|<NN>) <NN>)| ((<JJ>|<NN>)+|((<JJ>|<NN>)* (<NN> <NN.>)? (<JJ>|<NN>)*) <NN.>))}"""
+    ],
+):
+    punct = set(string.punctuation)
+    all_chunks = []
 
-        candidates_tokens = [' '.join(word for word, pos,
-                    chunk in group).lower()
-                    for key, group in itertools.groupby(all_chunks,
-                    lambda_unpack(lambda word, pos, chunk: chunk != 'O')) if key]
+    for pattern in pos_search_pattern_list:
+        all_chunks += st_getregexChunks(text, pattern)
 
-        candidate_phrases = [cand for cand in candidates_tokens if cand not in stop_words and not all(char in punct for char in cand)]
+    candidates_tokens = [
+        " ".join(word for word, pos, chunk in group).lower()
+        for key, group in itertools.groupby(
+            all_chunks, lambda_unpack(lambda word, pos, chunk: chunk != "O")
+        )
+        if key
+    ]
 
-        return candidate_phrases
+    candidate_phrases = [
+        cand
+        for cand in candidates_tokens
+        if cand not in stop_words and not all(char in punct for char in cand)
+    ]
 
-def st_getregexChunks(text,grammar):
+    return candidate_phrases
+
+
+def st_getregexChunks(text, grammar):
 
     chunker = nltk.chunk.regexp.RegexpParser(grammar)
-    tagged_sents = nltk.pos_tag_sents(nltk.word_tokenize(sent) for sent in nltk.sent_tokenize(text))
-    all_chunks = list(itertools.chain.from_iterable(nltk.chunk.tree2conlltags(chunker.parse(tagged_sent))
-                                                    for tagged_sent in tagged_sents))
-    #print(grammar)
-    #print(all_chunks)
-    #print()
+    tagged_sents = nltk.pos_tag_sents(
+        nltk.word_tokenize(sent) for sent in nltk.sent_tokenize(text)
+    )
+    all_chunks = list(
+        itertools.chain.from_iterable(
+            nltk.chunk.tree2conlltags(chunker.parse(tagged_sent))
+            for tagged_sent in tagged_sents
+        )
+    )
+    # print(grammar)
+    # print(all_chunks)
+    # print()
 
     return all_chunks
+
 
 def lambda_unpack(f):
     return lambda args: f(*args)

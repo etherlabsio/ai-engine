@@ -382,7 +382,12 @@ class community_detection:
         while i != len(pims_keys):
             j = 0
             while j != len(pims_keys):
-                if i != j and pims_keys[i] in pims and pims_keys[j] in pims and (len(pims[pims_keys[i]]) != 1 or len(pims[pims_keys[j]]) != 1):
+                if (
+                    i != j
+                    and pims_keys[i] in pims
+                    and pims_keys[j] in pims
+                    and (len(pims[pims_keys[i]]) != 1 or len(pims[pims_keys[j]]) != 1)
+                ):
                     if (
                         pims[pims_keys[i]]["segment0"][1]
                         >= pims[pims_keys[j]]["segment0"][1]
@@ -647,7 +652,7 @@ class community_detection:
         return pims
 
     def fallback_pims(self):
-        print ("Unable to compute Groups, falling back to PIMs approach.")
+        print("Unable to compute Groups, falling back to PIMs approach.")
         if self.compute_fv:
             fv, graph_list, fv_mapped_score = self.compute_feature_vector_gpt()
         else:
@@ -655,7 +660,12 @@ class community_detection:
         pims = {}
         for index, segment in enumerate(self.segments_org["segments"]):
             pims[index] = {}
-            pims[index]["segment0"] = (segment["originalText"], segment["spokenBy"], segment["createdAt"], segment["id"])
+            pims[index]["segment0"] = (
+                segment["originalText"],
+                segment["spokenBy"],
+                segment["createdAt"],
+                segment["id"],
+            )
         pims = self.order_groups_by_score(pims, fv_mapped_score)
         new_pims = {}
         for key in pims.keys()[:5]:
