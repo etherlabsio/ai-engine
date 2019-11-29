@@ -43,6 +43,18 @@ deploy-production:
 	$(MAKE) deploy_ecs ARTIFACT=${ARTIFACT} CONTAINER_TAG=latest CONTAINER_IMAGE=${CONTAINER_IMAGE} \
 			ENVIRONMENT=production CLUSTER_NAME=ml-inference SERVICE_NAME=${SERVICE_NAME} AWS_PROFILE=default
 
+
+.PHONY: new-service
+new-service:
+	@mkdir services/${app}
+	@mkdir cmd/${app}-server
+	@touch cmd/${app}-server/main.py
+	@cp .template/BUILD.cmd cmd/${app}-server/BUILD
+	@cp .template/BUILD.services services/${app}/BUILD
+	@echo -e '\n\n Added cmd/${app}-server with BUILD & main file \n Added services/${app} with BUILD file'
+	@echo -e '\nNote: Kindly go into the Build files present in the 'services/${app}/' and 'cmd/${app}-server/'. \n Change the service name from Keyphrase to your respective service name and, \n add/remove the dependencies mentioned in the cmd/${app}-server/BUILD file '
+
+
 .PHONY: clean
 clean:
 	rm -f .version

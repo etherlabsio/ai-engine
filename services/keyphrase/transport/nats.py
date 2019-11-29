@@ -162,13 +162,29 @@ class NATSTransport(object):
         start = timer()
         request = json.loads(msg.data)
         segment_object = request["segments"]
+        validation = request.get("validate", True)
+        populate_graph = request.get("populateGraph", True)
+
         segment_ids = [seg_ids["id"] for seg_ids in segment_object]
         context_info = request["contextId"] + ":" + request["instanceId"]
 
         limit = request.get("limit", 10)
-        output = self.keyphrase_service.get_keyphrases(
-            request, segment_object=segment_object, n_kw=limit, validate=False
-        )
+
+        if populate_graph:
+            output = self.keyphrase_service.get_keyphrases(
+                request, segment_object=segment_object, n_kw=limit, validate=validation
+            )
+        else:
+            group_id = self.keyphrase_service.utils.hash_sha_object()
+            output = self.keyphrase_service.get_summary_chapter_keyphrases(
+                request,
+                segment_object=segment_object,
+                n_kw=limit,
+                validate=validation,
+                populate_graph=populate_graph,
+                group_id=group_id,
+            )
+
         end = timer()
 
         deadline_time = end - start
@@ -179,7 +195,21 @@ class NATSTransport(object):
         else:
             timeout_msg = ""
 
-        if limit == 6:
+        if populate_graph is not True:
+            logger.info(
+                "Publishing summary chapter keyphrases" + timeout_msg,
+                extra={
+                    "graphId": context_info,
+                    "topicKeyphraseList": output,
+                    "instanceId": request["instanceId"],
+                    "numOfSegments": len(request["segments"]),
+                    "limit": limit,
+                    "responseTime": end - start,
+                    "segmentsReceived": segment_ids,
+                },
+            )
+
+        elif limit == 6:
             logger.info(
                 "Publishing chapter keyphrases" + timeout_msg,
                 extra={
@@ -190,6 +220,7 @@ class NATSTransport(object):
                     "limit": limit,
                     "responseTime": end - start,
                     "segmentsReceived": segment_ids,
+                    "dynamicThreshold": len(output["keyphrases"]),
                 },
             )
         elif limit == 10:
@@ -198,19 +229,6 @@ class NATSTransport(object):
                 extra={
                     "graphId": context_info,
                     "pimKeyphraseList": output,
-                    "instanceId": request["instanceId"],
-                    "numOfSegments": len(request["segments"]),
-                    "limit": limit,
-                    "responseTime": end - start,
-                    "segmentsReceived": segment_ids,
-                },
-            )
-        else:
-            logger.info(
-                "Publishing topic keyphrases" + timeout_msg,
-                extra={
-                    "graphId": context_info,
-                    "topicKeyphraseList": output,
                     "instanceId": request["instanceId"],
                     "numOfSegments": len(request["segments"]),
                     "limit": limit,

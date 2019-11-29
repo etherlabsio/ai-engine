@@ -2,7 +2,6 @@ import networkx as nx
 import json as js
 import logging
 from copy import deepcopy
-import numpy as np
 
 logger = logging.getLogger(__name__)
 
@@ -51,12 +50,11 @@ class KnowledgeGraph(object):
 
         return g
 
-    def populate_instance_info(self, request, g=None, attribute_dict=None):
+    def populate_instance_info(
+        self, instance_id, segment_object, g=None, attribute_dict=None
+    ):
         if g is None:
             g = nx.DiGraph()
-
-        instance_id = request["instanceId"]
-        segment_list = request["segments"]
 
         segment_attrs_list = []
         user_list = []
@@ -66,47 +64,45 @@ class KnowledgeGraph(object):
         segment_transcriber_edge_list = []
         segment_recording_edge_list = []
 
-        for segment in segment_list:
-            # Add segment node and its attributes
-            segment_node = segment["id"]
+        # TODO Need the for loop when KG will be a standalone service
+        # for segment in segment_list:
+        # Add segment node and its attributes
+        segment_node = segment_object["id"]
 
-            segment_node_attrs = {
-                "attribute": "segmentId",
-                "text": segment["originalText"],
-                "confidence": segment["confidence"],
-                "startTime": segment["startTime"],
-                "endTime": segment["endTime"],
-                "duration": segment["duration"],
-                "language": segment["languageCode"],
-            }
+        segment_node_attrs = {
+            "attribute": "segmentId",
+            # "text": segment_object["originalText"],
+            "confidence": segment_object["confidence"],
+            "startTime": segment_object["startTime"],
+            "endTime": segment_object["endTime"],
+            "duration": segment_object["duration"],
+            "language": segment_object["languageCode"],
+        }
+        if attribute_dict is not None:
+            segment_node_attrs.update(attribute_dict)
 
-            if attribute_dict is not None:
-                segment_node_attrs.update(attribute_dict)
+        segment_attrs_list.append((segment_node, segment_node_attrs))
 
-            segment_attrs_list.append((segment_node, segment_node_attrs))
+        # Add userId node and its attributes
+        user_node = segment_object["spokenBy"]
+        user_list.append((user_node, self.user_label))
 
-            # Add userId node and its attributes
-            user_node = segment["spokenBy"]
-            user_list.append((user_node, self.user_label))
+        # Add transcriber node and its attributes
+        transcriber_node = segment_object["transcriber"]
+        transcriber_list.append((transcriber_node, self.transcriber_label))
 
-            # Add transcriber node and its attributes
-            transcriber_node = segment["transcriber"]
-            transcriber_list.append((transcriber_node, self.transcriber_label))
+        # Add recording node and its attributes
+        recording_node = segment_object["recordingId"]
+        recording_list.append((recording_node, self.recording_label))
 
-            # Add recording node and its attributes
-            recording_node = segment["recordingId"]
-            recording_list.append((recording_node, self.recording_label))
-
-            # Create edge tuple list
-            segment_user_edge_list.append(
-                (segment_node, user_node, self.segment_user_rel)
-            )
-            segment_transcriber_edge_list.append(
-                (segment_node, transcriber_node, self.segment_transcriber_rel)
-            )
-            segment_recording_edge_list.append(
-                (segment_node, recording_node, self.segment_recording_rel)
-            )
+        # Create edge tuple list
+        segment_user_edge_list.append((segment_node, user_node, self.segment_user_rel))
+        segment_transcriber_edge_list.append(
+            (segment_node, transcriber_node, self.segment_transcriber_rel)
+        )
+        segment_recording_edge_list.append(
+            (segment_node, recording_node, self.segment_recording_rel)
+        )
 
         # Add instance -> segment nodes
         g.add_nodes_from([(instance_id, self.instance_label)])
@@ -132,53 +128,49 @@ class KnowledgeGraph(object):
         return g
 
     def populate_keyphrase_info(
-        self, request, keyphrase_list, g=None, is_pim=True, keyphrase_attr_dict=None
+        self,
+        request,
+        segment_object,
+        keyphrase_list,
+        g=None,
+        is_pim=True,
+        keyphrase_attr_dict=None,
+        phrase_hash_dict=None,
     ):
         if g is None:
             g = nx.DiGraph()
 
-        segment_list = request["segments"]
         mind_id = request.get("mindId", "undefinedMind")
         context_id = request["contextId"]
 
-        for segment in segment_list:
-            segment_node = segment["id"]
-            segment_keyphrase_edge_list = [
-                (segment_node, words, self.segment_keyphrase_rel)
-                for words in keyphrase_list
-            ]
+        # TODO Might need this when it is a separate service
+        # for segment in segment_list:
+        segment_node = segment_object["id"]
+        segment_keyphrase_edge_list = [
+            (segment_node, words, self.segment_keyphrase_rel)
+            for words in keyphrase_list
+        ]
 
-            g.add_edges_from(segment_keyphrase_edge_list)
+        g.add_edges_from(segment_keyphrase_edge_list)
 
         # Unload list and add the words individually in the graph
-        # Check if keyphrase_attr_dict contains keyword embedding attribute. If yes, unpack it
+        # Check if keyphrase_attr_dict contains hash of the phrase. If yes, unpack it
         keyphrase_node_list = []
         if is_pim:
             keyphrase_attr_dict.update(self.pim_keyphrase_label)
         else:
             keyphrase_attr_dict.update(self.keyphrase_label)
 
-        if (
-            keyphrase_attr_dict is not None
-            and keyphrase_attr_dict.get("embedding_vector") is not None
-        ):
-            embedding_array = keyphrase_attr_dict.get("embedding_vector")
-            embedding_array = np.asarray(embedding_array)
+        try:
+            for i, (hash_str, phrase) in enumerate(phrase_hash_dict.items()):
+                attr_dict = deepcopy(keyphrase_attr_dict)
+                attr_dict["phraseId"] = hash_str
+                attr_dict["phrase"] = phrase
+                keyphrase_node_list.append((phrase, attr_dict))
+        except Exception as e:
+            logger.warning(e)
 
-            if len(keyphrase_list) == embedding_array.shape[0]:
-                keyphrase_vector_zip = zip(keyphrase_list, embedding_array)
-                for i, (word, word_vector) in enumerate(keyphrase_vector_zip):
-                    attr_dict = deepcopy(keyphrase_attr_dict)
-                    attr_dict["embedding_vector"] = word_vector
-                    attr_dict["word"] = word
-                    keyphrase_node_list.append((word, attr_dict))
-
-                g.add_nodes_from(keyphrase_node_list)
-        else:
-            keyphrase_node_list = [
-                (word, keyphrase_attr_dict) for word in keyphrase_list
-            ]
-            g.add_nodes_from(keyphrase_node_list)
+        g.add_nodes_from(keyphrase_node_list)
 
         g.add_nodes_from([(mind_id, self.mind_label)])
         g.add_edges_from([(context_id, mind_id, self.context_mind_rel)])

@@ -54,16 +54,23 @@ def handler(event, context):
         json_request = event["body"]
 
     try:
-        ai_detector = ad.ActionItemDetector(json_request["segments"], model)
-        action_items, decisions = ai_detector.get_action_decision_subjects_list()
+        ai_detector = ad.ActionItemDetector(json_request['segments'], model)
+        action_items,decisions = ai_detector.get_action_decision_subjects_list()
 
-        response = json.dumps({"action_items": action_items, "decisions": decisions})
-        return {"statusCode": 200, "body": response}
+        response = json.dumps({"actions": action_items,
+            "decisions": decisions})
+        return {
+            "statusCode": 200,
+            "body" : response
+        }
         logger.info("Action and decision extraction success")
 
     except Exception as e:
         logger.error(
             "Error processing request", extra={"err": e, "request": json_request}
         )
-        response = json.dumps({"action_items": []})
-        return {"statusCode": 404, "body": response}
+        response = json.dumps({"actions": []})
+        return {
+            "statusCode": 404,
+            "body" : response
+        }

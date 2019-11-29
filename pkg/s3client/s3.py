@@ -20,7 +20,7 @@ class S3Manager(object):
         s3_sess = session.Session()
         self.conn = s3_sess.client("s3")
 
-    def upload_to_s3(self, object_name, file_name=None):
+    def upload_to_s3(self, file_name, object_name=None):
         """
         Upload given file to s3.
         Args:
@@ -32,8 +32,8 @@ class S3Manager(object):
         """
         s3_client = self.conn
 
-        if file_name is None:
-            file_name = object_name
+        if object_name is None:
+            object_name = file_name
 
         try:
             s3_client.upload_file(file_name, self.bucket_name, object_name)
