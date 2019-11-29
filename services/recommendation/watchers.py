@@ -5,6 +5,7 @@ import logging
 from nltk import word_tokenize, pos_tag
 import jsonlines
 from pathlib import Path
+import requests
 
 from .lsh import WordSearch, UserSearch
 
@@ -23,13 +24,22 @@ class RecWatchers(object):
         self.s3_client = s3_client
         self.pos_list = ["NN", "NNS", "NNP"]
 
-        # Load and read files for rec
-        self.reference_user_dict = self.read_json(
-            os.path.join(os.getcwd(), reference_user_file)
+        # # Load and read files for rec
+        # self.reference_user_dict = self.read_json(
+        #     os.path.join(os.getcwd(), reference_user_file)
+        # )
+        # self.user_vector_data = self.load_pickle(
+        #     file_name=reference_user_kw_vector
+        # )
+        self.web_hook_url = "https://hooks.slack.com/services/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"
+
+        # Download and transform recommendation objects
+        logger.info("Downloading reference objects from s3")
+        self.reference_user_dict, self.user_vector_data = self.download_reference_objects(
+            reference_user_file, reference_user_kw_vector
         )
-        self.user_vector_data = self.load_pickle(
-            file_name=reference_user_kw_vector
-        )
+
+        logger.info("loaded reference features")
 
         # Initialize User query
 
@@ -233,9 +243,12 @@ class RecWatchers(object):
 
         return user_names[:n_users], top_words[:n_kw]
 
-    def make_validation_data(self, req_data, user_list, word_list):
+    def make_validation_data(
+        self, req_data, user_list, word_list, upload=False
+    ):
         segment_obj = req_data["segments"]
         instance_id = req_data["instanceId"]
+        context_id = req_data["contextId"]
         input_keyphrase_list = req_data["keyphrases"]
 
         for i in range(len(segment_obj)):
@@ -254,7 +267,12 @@ class RecWatchers(object):
                 }
             )
 
-    def format_validation_data(
+        if upload:
+            self._upload_validation_data(
+                instance_id=instance_id, context_id=context_id
+            )
+
+    def _upload_validation_data(
         self, instance_id, context_id, prefix="watchers_"
     ):
         file_name = prefix + instance_id + ".jsonl"
@@ -291,3 +309,40 @@ class RecWatchers(object):
             os.remove(local_path)
 
         return s3_path
+
+    def download_reference_objects(
+        self, reference_user_file, reference_user_kw_vector
+    ):
+        reference_user_meta = self.s3_client.download_file(
+            file_name=reference_user_file
+        )
+        reference_user_meta_str = (
+            reference_user_meta["Body"].read().decode("utf8")
+        )
+        reference_user_meta_dict = js.loads(reference_user_meta_str)
+
+        reference_user_vector_object = self.s3_client.download_file(
+            file_name=reference_user_kw_vector
+        )
+        reference_user_vector_str = reference_user_vector_object["Body"].read()
+        reference_user_vector = pickle.loads(reference_user_vector_str)
+
+        return reference_user_meta_dict, reference_user_vector
+
+    def post_to_slack(self, req_data, user_list, word_list):
+        instance_id = req_data["instanceId"]
+        input_keyphrase_list = req_data["keyphrases"]
+
+        service_name = "recommendation-service"
+        msg_text = "Recommended users for meeting: {} \n Segment summary: {}\n".format(
+            instance_id, input_keyphrase_list
+        )
+
+        msg_format = "[{}]: {} Related Users: {} \nRelated Words: {}".format(
+            service_name, msg_text, user_list, word_list
+        )
+
+        slack_payload = {"text": msg_format}
+        requests.post(
+            url=self.web_hook_url, data=js.dumps(slack_payload).encode()
+        )

@@ -55,7 +55,6 @@ if __name__ == "__main__":
         queue_name="io.etherlabs.recommendation_service",
     )
 
-    logger.info("Downloading objects for recommendation")
     reference_user_file = "reference_prod_user.json"
     reference_user_kw_vector = "reference_user_kw_vector.pickle"
 
@@ -68,8 +67,6 @@ if __name__ == "__main__":
         vectorizer=vectorizer,
         s3_client=s3_client,
     )
-
-    logger.debug("download complete")
 
     nats_transport = NATSTransport(
         nats_manager=nats_manager,

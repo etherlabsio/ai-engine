@@ -93,10 +93,20 @@ class NATSTransport(object):
     async def context_end_handler(self, msg):
         request = json.loads(msg.data)
         instance_id = request["instanceId"]
-        context_id = request["contextId"]
+        keyphrase_list = request["keyphrases"]
+
         try:
-            self.watcher_service.format_validation_data(
-                instance_id=instance_id, context_id=context_id
+            rec_users, related_words = self.watcher_service.get_recommended_watchers(
+                kw_list=keyphrase_list
+            )
+            self.watcher_service.make_validation_data(
+                req_data=request,
+                user_list=rec_users,
+                word_list=related_words,
+                upload=True,
+            )
+            self.watcher_service.post_to_slack(
+                req_data=request, user_list=rec_users, word_list=related_words
             )
 
             logger.info(
@@ -127,6 +137,9 @@ class NATSTransport(object):
             # )
 
             self.watcher_service.make_validation_data(
+                req_data=request, user_list=rec_users, word_list=related_words
+            )
+            self.watcher_service.post_to_slack(
                 req_data=request, user_list=rec_users, word_list=related_words
             )
 
