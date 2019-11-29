@@ -8,7 +8,6 @@ def get_groups(segments, model1, mind_dict, for_pims=False):
     )
     try:
         pims = community_extraction.h_communities(h_flag=False)  # get hierarchy community
-        print (not pims, pims)
         if not pims:
             raise Exception
     except Exception as e:

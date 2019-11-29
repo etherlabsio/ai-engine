@@ -69,7 +69,7 @@ test-gs:
 update-lambda-function-sa:
 	./pants bundle cmd/segment_analyzer-server:segment_analyser_lambda
 	aws s3 cp --profile ${ENV} dist/segment_analyser_lambda.pex s3://io.etherlabs.artifacts/${ENV}/segment_analyser_lambda.pex
-	aws lambda update-function-code --function-name segment-analyser --s3-bucket io.etherlabs.artifacts --s3-key ${ENV}/segment_analyser_lambda.pex
+	aws lambda update-function-code --function-name segment-analyser --s3-bucket io.etherlabs.artifacts --s3-key ${ENV}/segment_analyser_lambda.pex --profile ${ENV}
 
 .PHONY: new-service
 new-service:
@@ -80,3 +80,13 @@ new-service:
 	@cp .template/BUILD.services services/${app}/BUILD
 	@echo -e '\n\n Added cmd/${app}-server with BUILD & main file \n Added services/${app} with BUILD file'
 	@echo -e '\nNote: Kindly go into the Build files present in the 'services/${app}/' and 'cmd/${app}-server/'. \n Change the service name from Keyphrase to your respective service name and, \n add/remove the dependencies mentioned in the cmd/${app}-server/BUILD file '
+
+.PHONY: update-vendor
+update-vendor:
+	@mkdir vendor
+	@cp .template/BUILD.vendor vendor/BUILD
+	@wget https://github.com/explosion/spacy-models/releases/download/en_core_web_sm-2.1.0/en_core_web_sm-2.1.0.tar.gz
+	@tar -xvf en_core_web_sm-2.1.0.tar.gz
+	@mv en_core_web_sm-2.1.0/en_core_web_sm vendor/
+	@rm -rf en_core_web_sm-2.1.0
+	@rm -rf en_core_web_sm-2.1.0.tar.gz

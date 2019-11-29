@@ -19,7 +19,6 @@ setup_server_logger(debug=False)
 
 
 def handler(event, context):
-    logger.info("POST request Recieved: ", extra={"Request": event})
     if isinstance(event['body'], str):
         json_request = json.loads(event['body'])
     else:
@@ -35,6 +34,7 @@ def handler(event, context):
                            "body": json.dumps({"analyzedSegment": True})}
 
         else:
+            logger.info("POST request Recieved: ", extra={"Request": event})
             Request_obj = tp_gs.decode_json_request(json_request['detail'])
             mindId = str(Request_obj.mind_id).lower()
             lambda_function = "mind-" + mindId
