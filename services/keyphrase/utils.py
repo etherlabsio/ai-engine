@@ -280,7 +280,10 @@ class KeyphraseUtils(object):
         )
 
         if final_sort:
-            ranked_entities_dict, ranked_keyphrase_dict = self._slice_phrase_dict(
+            (
+                ranked_entities_dict,
+                ranked_keyphrase_dict,
+            ) = self._slice_phrase_dict(
                 entities_dict=ranked_entities_dict,
                 keyphrase_dict=ranked_keyphrase_dict,
                 phrase_limit=phrase_limit,

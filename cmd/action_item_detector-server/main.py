@@ -46,7 +46,9 @@ logger.info(f"Model loaded for evaluation")
 
 def handler(event, context):
 
-    logger.info("POST request recieved", extra={"event['body']:": event["body"]})
+    logger.info(
+        "POST request recieved", extra={"event['body']:": event["body"]}
+    )
 
     if isinstance(event["body"], str):
         json_request = json.loads(event["body"])
@@ -54,23 +56,22 @@ def handler(event, context):
         json_request = event["body"]
 
     try:
-        ai_detector = ad.ActionItemDetector(json_request['segments'], model)
-        action_items,decisions = ai_detector.get_action_decision_subjects_list()
+        ai_detector = ad.ActionItemDetector(json_request["segments"], model)
+        (
+            action_items,
+            decisions,
+        ) = ai_detector.get_action_decision_subjects_list()
 
-        response = json.dumps({"actions": action_items,
-            "decisions": decisions})
-        return {
-            "statusCode": 200,
-            "body" : response
-        }
+        response = json.dumps(
+            {"actions": action_items, "decisions": decisions}
+        )
+        return {"statusCode": 200, "body": response}
         logger.info("Action and decision extraction success")
 
     except Exception as e:
         logger.error(
-            "Error processing request", extra={"err": e, "request": json_request}
+            "Error processing request",
+            extra={"err": e, "request": json_request},
         )
         response = json.dumps({"actions": []})
-        return {
-            "statusCode": 404,
-            "body" : response
-        }
+        return {"statusCode": 404, "body": response}

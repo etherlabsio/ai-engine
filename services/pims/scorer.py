@@ -8,7 +8,9 @@ from botocore.client import Config
 
 logger = logging.getLogger()
 
-config = Config(connect_timeout=60, read_timeout=240, retries={"max_attempts": 0},)
+config = Config(
+    connect_timeout=60, read_timeout=240, retries={"max_attempts": 0},
+)
 lambda_client = boto3_client("lambda", config=config)
 
 
@@ -29,7 +31,9 @@ def get_score(mind_input, lambda_function):
         InvocationType="RequestResponse",
         Payload=mind_input,
     )
-    out_json = invoke_response["Payload"].read().decode("utf8").replace("'", '"')
+    out_json = (
+        invoke_response["Payload"].read().decode("utf8").replace("'", '"')
+    )
     data = json.loads(json.loads(out_json)["body"])
     response = json.loads(out_json)["statusCode"]
 
@@ -67,7 +71,9 @@ def get_score(mind_input, lambda_function):
             transcript_score = np.mean(transcript_score_list)
     else:
         logger.debug(
-            "Invalid response from mind service for input: {}".format(mind_input)
+            "Invalid response from mind service for input: {}".format(
+                mind_input
+            )
         )
         logger.debug("Returning default score")
     return transcript_score

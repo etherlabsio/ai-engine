@@ -18,7 +18,9 @@ class NATSTransport(object):
             extra={"topic": context_created_topic},
         )
         await self.nats_manager.subscribe(
-            context_created_topic, handler=self.context_created_handler, queued=True
+            context_created_topic,
+            handler=self.context_created_handler,
+            queued=True,
         )
 
     async def context_created_handler(self, msg):
@@ -73,18 +75,24 @@ class NATSTransport(object):
         )
 
     async def unsubscribe_lifecycle_events(self):
-        await self.nats_manager.unsubscribe(topic="context.instance." + "started")
+        await self.nats_manager.unsubscribe(
+            topic="context.instance." + "started"
+        )
         await self.nats_manager.unsubscribe(
             topic="context.instance." + "context_changed"
         )
-        await self.nats_manager.unsubscribe(topic="context.instance." + "ended")
+        await self.nats_manager.unsubscribe(
+            topic="context.instance." + "ended"
+        )
         await self.nats_manager.unsubscribe(
             topic="keyphrase_service." + "extract_keyphrases"
         )
         await self.nats_manager.unsubscribe(
             topic="keyphrase_service." + "keyphrases_for_context_instance"
         )
-        await self.nats_manager.unsubscribe(topic="context.instance." + "add_segments")
+        await self.nats_manager.unsubscribe(
+            topic="context.instance." + "add_segments"
+        )
         await self.nats_manager.unsubscribe(
             topic="keyphrase_service." + "extract_keyphrases_with_offset"
         )
@@ -172,7 +180,10 @@ class NATSTransport(object):
 
         if populate_graph:
             output = self.keyphrase_service.get_keyphrases(
-                request, segment_object=segment_object, n_kw=limit, validate=validation
+                request,
+                segment_object=segment_object,
+                n_kw=limit,
+                validate=validation,
             )
         else:
             group_id = self.keyphrase_service.utils.hash_sha_object()
@@ -236,7 +247,9 @@ class NATSTransport(object):
                     "segmentsReceived": segment_ids,
                 },
             )
-        await self.nats_manager.conn.publish(msg.reply, json.dumps(output).encode())
+        await self.nats_manager.conn.publish(
+            msg.reply, json.dumps(output).encode()
+        )
 
     async def extract_instance_keyphrases(self, msg):
         start = timer()
@@ -244,7 +257,9 @@ class NATSTransport(object):
         context_info = request["contextId"] + ":" + request["instanceId"]
 
         limit = request.get("limit", 10)
-        output = self.keyphrase_service.get_instance_keyphrases(request, n_kw=limit)
+        output = self.keyphrase_service.get_instance_keyphrases(
+            request, n_kw=limit
+        )
         end = timer()
 
         deadline_time = end - start
@@ -267,7 +282,9 @@ class NATSTransport(object):
                 "requestReceived": request,
             },
         )
-        await self.nats_manager.conn.publish(msg.reply, json.dumps(output).encode())
+        await self.nats_manager.conn.publish(
+            msg.reply, json.dumps(output).encode()
+        )
 
     async def chapter_offset_handler(self, msg):
         start = timer()
@@ -277,7 +294,9 @@ class NATSTransport(object):
         segment_ids = [seg_ids["id"] for seg_ids in segment_object]
 
         limit = request.get("limit", 10)
-        output = self.keyphrase_service.get_keyphrases_with_offset(request, n_kw=limit)
+        output = self.keyphrase_service.get_keyphrases_with_offset(
+            request, n_kw=limit
+        )
         end = timer()
 
         deadline_time = end - start
@@ -301,7 +320,9 @@ class NATSTransport(object):
             },
         )
 
-        await self.nats_manager.conn.publish(msg.reply, json.dumps(output).encode())
+        await self.nats_manager.conn.publish(
+            msg.reply, json.dumps(output).encode()
+        )
 
     async def reset_keyphrases(self, msg):
         request = json.loads(msg.data)

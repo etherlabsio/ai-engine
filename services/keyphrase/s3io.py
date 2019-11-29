@@ -19,7 +19,9 @@ class S3IO(object):
         graph_id = graph_obj.graph.get("graphId")
 
         if graph_id == context_id + ":" + instance_id:
-            serialized_graph_string = self.gutils.write_to_pickle(graph_obj=graph_obj)
+            serialized_graph_string = self.gutils.write_to_pickle(
+                graph_obj=graph_obj
+            )
             s3_key = context_id + s3_dir + graph_id + file_format
 
             resp = self.s3_client.upload_object(
@@ -39,7 +41,9 @@ class S3IO(object):
             )
             return False
 
-    def download_s3(self, context_id, instance_id, s3_dir, file_format=".pickle"):
+    def download_s3(
+        self, context_id, instance_id, s3_dir, file_format=".pickle"
+    ):
         start = timer()
 
         graph_id = context_id + ":" + instance_id
@@ -48,7 +52,9 @@ class S3IO(object):
         file_obj = self.s3_client.download_file(file_name=s3_path)
         file_obj_bytestring = file_obj["Body"].read()
 
-        graph_obj = self.gutils.load_graph_from_pickle(byte_string=file_obj_bytestring)
+        graph_obj = self.gutils.load_graph_from_pickle(
+            byte_string=file_obj_bytestring
+        )
 
         end = timer()
         logger.info(
@@ -71,7 +77,9 @@ class S3IO(object):
             + "/features/segments/"
             + npz_file_name
         )
-        self.s3_client.upload_to_s3(file_name=npz_file_name, object_name=s3_path)
+        self.s3_client.upload_to_s3(
+            file_name=npz_file_name, object_name=s3_path
+        )
 
         # Once uploading is successful, check if NPZ exists on disk and delete it
         local_npz_path = Path(npz_file_name).absolute()
@@ -90,7 +98,9 @@ class S3IO(object):
             + "/validation/"
             + validation_file_name
         )
-        self.s3_client.upload_to_s3(file_name=validation_file_name, object_name=s3_path)
+        self.s3_client.upload_to_s3(
+            file_name=validation_file_name, object_name=s3_path
+        )
 
         # Once uploading is successful, check if NPZ exists on disk and delete it
         local_path = Path(validation_file_name).absolute()

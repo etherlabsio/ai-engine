@@ -28,7 +28,11 @@ class WordGraphBuilder(object):
     def process_text(
         self, text, filter_by_pos=True, stop_words=False, syntactic_filter=None
     ):
-        original_tokens, pos_tuple, filtered_pos_tuple = self.tp.preprocess_text(
+        (
+            original_tokens,
+            pos_tuple,
+            filtered_pos_tuple,
+        ) = self.tp.preprocess_text(
             text,
             filter_by_pos=filter_by_pos,
             pos_filter=syntactic_filter,
@@ -158,9 +162,11 @@ class WordGraphBuilder(object):
         segment_list = self.utils.read_segments(segment_object=segment_object)
         try:
             for text in segment_list:
-                original_tokens, pos_tuple, filtered_pos_tuple = self.process_text(
-                    text
-                )
+                (
+                    original_tokens,
+                    pos_tuple,
+                    filtered_pos_tuple,
+                ) = self.process_text(text)
 
                 keyphrase_list.extend(
                     self.get_custom_keyphrases(

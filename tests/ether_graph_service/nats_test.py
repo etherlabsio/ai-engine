@@ -60,7 +60,12 @@ async def start_context():
     nc = NATS()
     topic = "context.instance.started"
     await nc.connect(servers=[nats_url])
-    resp = {"instanceId": "*", "state": "started", "contextId": "*", "mindId": "776"}
+    resp = {
+        "instanceId": "*",
+        "state": "started",
+        "contextId": "*",
+        "mindId": "776",
+    }
     topic, resp = replace_ids(topic=topic, resp=resp)
     await nc.publish(topic, json.dumps(resp).encode())
     pass
@@ -113,7 +118,11 @@ if __name__ == "__main__":
         help="define nats topics for the ether-graph service to listen to",
     )
     parser.add_argument(
-        "-n", "--nats_url", type=str, default=NATS_URL, help="nats server url address"
+        "-n",
+        "--nats_url",
+        type=str,
+        default=NATS_URL,
+        help="nats server url address",
     )
     parser.add_argument(
         "-ti",

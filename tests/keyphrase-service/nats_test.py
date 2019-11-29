@@ -21,7 +21,9 @@ async def publish_keyphrase():
     topic, resp = replace_ids(
         test_json["contextId"], test_json["instanceId"], topic, resp={}
     )
-    msg = await nc.request(topic, json.dumps(test_json).encode(), timeout=TIMEOUT)
+    msg = await nc.request(
+        topic, json.dumps(test_json).encode(), timeout=TIMEOUT
+    )
     data = msg.data.decode()
     print("Received a message: {data}".format(data=data))
 
@@ -34,7 +36,9 @@ async def publish_chapter_keyphrase():
     topic, resp = replace_ids(
         test_json["contextId"], test_json["instanceId"], topic, resp={}
     )
-    msg = await nc.request(topic, json.dumps(test_json).encode(), timeout=TIMEOUT)
+    msg = await nc.request(
+        topic, json.dumps(test_json).encode(), timeout=TIMEOUT
+    )
     data = msg.data.decode()
     print("Received a message: {data}".format(data=data))
 
@@ -47,7 +51,9 @@ async def publish_chapter_offset_keyphrase():
     topic, resp = replace_ids(
         test_json["contextId"], test_json["instanceId"], topic, resp={}
     )
-    msg = await nc.request(topic, json.dumps(test_json).encode(), timeout=TIMEOUT)
+    msg = await nc.request(
+        topic, json.dumps(test_json).encode(), timeout=TIMEOUT
+    )
     data = msg.data.decode()
     print("Received a message: {data}".format(data=data))
 
@@ -60,7 +66,9 @@ async def publish_instance_keyphrase():
     topic, resp = replace_ids(
         test_json["contextId"], test_json["instanceId"], topic, resp={}
     )
-    msg = await nc.request(topic, json.dumps(test_json).encode(), timeout=TIMEOUT)
+    msg = await nc.request(
+        topic, json.dumps(test_json).encode(), timeout=TIMEOUT
+    )
     data = msg.data.decode()
     print("Received a message: {data}".format(data=data))
 
@@ -198,10 +206,14 @@ def post_process():
         processed_keyphrases.append((multi_keyphrase, multi_score))
 
     single_phrase = [
-        phrases for phrases in processed_keyphrases if len(phrases[0].split()) == 1
+        phrases
+        for phrases in processed_keyphrases
+        if len(phrases[0].split()) == 1
     ]
     multi_proc_phrases = [
-        phrases for phrases in processed_keyphrases if len(phrases[0].split()) > 1
+        phrases
+        for phrases in processed_keyphrases
+        if len(phrases[0].split()) > 1
     ]
     # Remove duplicates from the single phrases which are occurring in multi-keyphrases
     for tup in single_phrase:
@@ -311,7 +323,11 @@ if __name__ == "__main__":
         help="define nats topics for the keyphrase service to listent to",
     )
     parser.add_argument(
-        "-n", "--nats_url", type=str, default=NATS_URL, help="nats server url address"
+        "-n",
+        "--nats_url",
+        type=str,
+        default=NATS_URL,
+        help="nats server url address",
     )
     parser.add_argument(
         "-ti",

@@ -10,9 +10,14 @@ class CandidateKPExtractor(object):
         self.filter_small_sents = filter_small_sents
         self.stop_words = stop_words
 
-    def get_candidate_phrases(self, text, pos_search_pattern_list=[
-                                    r"""verbnoun:{<VB>+<.+>{0,2}<NN.*>+(<.+>{0,2}<JJ.*>*<NN.*>+)*}"""]):
-                                        #r"""verbnoun:{<VB>+<.+>{0,2}<NN.*>+}"""]):
+    def get_candidate_phrases(
+        self,
+        text,
+        pos_search_pattern_list=[
+            r"""verbnoun:{<VB>+<.+>{0,2}<NN.*>+(<.+>{0,2}<JJ.*>*<NN.*>+)*}"""
+        ],
+    ):
+        # r"""verbnoun:{<VB>+<.+>{0,2}<NN.*>+}"""]):
 
         all_chunks = []
 
@@ -22,7 +27,8 @@ class CandidateKPExtractor(object):
         candidates_tokens = [
             " ".join(word for word, pos, chunk in group).lower()
             for key, group in itertools.groupby(
-                all_chunks, self.lambda_unpack(lambda word, pos, chunk: chunk != "O")
+                all_chunks,
+                self.lambda_unpack(lambda word, pos, chunk: chunk != "O"),
             )
             if key
         ]
@@ -35,16 +41,21 @@ class CandidateKPExtractor(object):
 
         return candidate_phrases
 
-    def get_ai_subjects(self, text, prop_pattern=[r"""prpvb:{<PRP><MD><VB>+}"""]):
+    def get_ai_subjects(
+        self, text, prop_pattern=[r"""prpvb:{<PRP><MD><VB>+}"""]
+    ):
         ai_candidates = self.get_candidate_phrases(text)
         prop_candidates = self.get_candidate_phrases(text, prop_pattern)
         if len(ai_candidates) == 0 and len(prop_candidates) > 0:
             # search for ai subject with new candidates
 
-            ai_candidates = self.get_candidate_phrases(text, pos_search_pattern_list = [
-                r"""verbnoun:{<VB>+<.+>{0,5}<NN.*>+(<.+>{0,2}<JJ.*>*<NN.*>+)*}"""])
-                #r"""verbnoun:{<VB>+<.+>{0,5}<NN.*>+}"""])
-            
+            ai_candidates = self.get_candidate_phrases(
+                text,
+                pos_search_pattern_list=[
+                    r"""verbnoun:{<VB>+<.+>{0,5}<NN.*>+(<.+>{0,2}<JJ.*>*<NN.*>+)*}"""
+                ],
+            )
+            # r"""verbnoun:{<VB>+<.+>{0,5}<NN.*>+}"""])
 
         return ai_candidates
 

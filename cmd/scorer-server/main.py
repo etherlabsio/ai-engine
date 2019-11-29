@@ -8,7 +8,12 @@ import logging
 from log.logger import setup_server_logger
 import json
 from mind_utils import load_mind_features
-from transport import decode_json_request, Response, Request, AWSLambdaTransport
+from transport import (
+    decode_json_request,
+    Response,
+    Request,
+    AWSLambdaTransport,
+)
 from scorer.scorer import get_score
 from copy import deepcopy
 
@@ -21,7 +26,10 @@ def handler(event, context):
     Request = decode_json_request(event)
     mind_dict = load_mind_features(Request.mind_id)
     scores = list(
-        map(lambda s: get_score(Request.mind_id, mind_dict, s), Request.segments)
+        map(
+            lambda s: get_score(Request.mind_id, mind_dict, s),
+            Request.segments,
+        )
     )
     out_response = []
     assert len(Request.segments) == len(scores)

@@ -70,7 +70,9 @@ class community_detection:
                     )
                     fv[index] = transcript_score[index]
                     if segment["id"] in fv_mapped_score.keys():
-                        fv_mapped_score[segment["id"]].append(mind_score[index])
+                        fv_mapped_score[segment["id"]].append(
+                            mind_score[index]
+                        )
                     else:
                         fv_mapped_score[segment["id"]] = [mind_score[index]]
                     # fv_mapped_score[index] = (segment['id'], mind_score[index])
@@ -85,7 +87,9 @@ class community_detection:
         input_list = []
         fv = {}
         index = 0
-        bucket = "io.etherlabs." + os.getenv("ACTIVE_ENV", "staging2") + ".contexts"
+        bucket = (
+            "io.etherlabs." + os.getenv("ACTIVE_ENV", "staging2") + ".contexts"
+        )
         s3_obj = S3Manager(bucket_name=bucket)
         for segment in self.segments_list:
             if segment["originalText"] != []:
@@ -97,11 +101,15 @@ class community_detection:
                     + segment["id"]
                     + ".pkl"
                 )
-                bytestream = (s3_obj.download_file(file_name=s3_path))["Body"].read()
+                bytestream = (s3_obj.download_file(file_name=s3_path))[
+                    "Body"
+                ].read()
                 segment_fv = pickle.loads(bytestream)
                 # with open("/tmp/" + s3_path, "rb") as f:
                 #    segment_fv = pickle.load(f)
-                mind_score = scorer.get_mind_score(segment_fv, self.mind_features)
+                mind_score = scorer.get_mind_score(
+                    segment_fv, self.mind_features
+                )
                 assert len(mind_score) == len(segment_fv)
                 for ind, sent in enumerate(segment["originalText"]):
                     if sent != "":
@@ -166,9 +174,9 @@ class community_detection:
         c_weight = 0
         for nodea in graph_list.keys():
             for nodeb in graph_list.keys():
-                if self.segments_order[graph_list[nodeb][-1]] - self.segments_order[
-                    graph_list[nodea][-1]
-                ] in [0, 1]:
+                if self.segments_order[
+                    graph_list[nodeb][-1]
+                ] - self.segments_order[graph_list[nodea][-1]] in [0, 1]:
                     c_weight = cosine(fv[nodea], fv[nodeb])
                     meeting_graph.add_edge(nodea, nodeb, weight=c_weight)
                     yetto_prune.append((nodea, nodeb, c_weight))
@@ -217,14 +225,22 @@ class community_detection:
 
         for indexa, indexb, c_score in meeting_graph.edges.data():
             if c_score["weight"] >= q3:
-                meeting_graph_pruned.add_edge(indexa, indexb, weight=c_score["weight"])
+                meeting_graph_pruned.add_edge(
+                    indexa, indexb, weight=c_score["weight"]
+                )
 
         return meeting_graph_pruned
 
     def compute_louvain_community(self, meeting_graph_pruned, t):
-        community_set = community.best_partition(meeting_graph_pruned, resolution=t)
-        modularity_score = community.modularity(community_set, meeting_graph_pruned)
-        logger.info("Community results", extra={"modularity score": modularity_score})
+        community_set = community.best_partition(
+            meeting_graph_pruned, resolution=t
+        )
+        modularity_score = community.modularity(
+            community_set, meeting_graph_pruned
+        )
+        logger.info(
+            "Community results", extra={"modularity score": modularity_score}
+        )
         community_set_sorted = sorted(
             community_set.items(), key=lambda kv: kv[1], reverse=False
         )
@@ -318,11 +334,18 @@ class community_detection:
             ) in zip(enumerate(com[0:]), enumerate(com[1:])):
                 if id1 != id2:
                     # if ((extra_preprocess.format_time(time2, True) - extra_preprocess.format_time(time1, True)).seconds <= 120):
-                    if (self.segments_order[id2] - self.segments_order[id1]) in [0, 1]:
+                    if (
+                        self.segments_order[id2] - self.segments_order[id1]
+                    ) in [0, 1]:
                         if not flag:
                             pims[index_pim] = {
                                 "segment"
-                                + str(index_segment): [sent1, time1, user1, id1]
+                                + str(index_segment): [
+                                    sent1,
+                                    time1,
+                                    user1,
+                                    id1,
+                                ]
                             }
                             index_segment += 1
                             temp.append((sent1, time1, user1, id1))
@@ -340,14 +363,20 @@ class community_detection:
                             index_pim += 1
                             index_segment = 0
                         elif flag is False and index2 == len(com) - 1:
-                            pims[index_pim] = {"segment0": [sent1, time1, user1, id1]}
+                            pims[index_pim] = {
+                                "segment0": [sent1, time1, user1, id1]
+                            }
                             index_pim += 1
                             temp.append((sent1, time1, user1, id1))
-                            pims[index_pim] = {"segment0": [sent2, time2, user2, id2]}
+                            pims[index_pim] = {
+                                "segment0": [sent2, time2, user2, id2]
+                            }
                             index_pim += 1
                             temp.append((sent2, time2, user2, id2))
                         else:
-                            pims[index_pim] = {"segment0": [sent1, time1, user1, id1]}
+                            pims[index_pim] = {
+                                "segment0": [sent1, time1, user1, id1]
+                            }
                             index_pim += 1
                             temp.append((sent1, time1, user1, id1))
                         flag = False
@@ -386,30 +415,38 @@ class community_detection:
                     i != j
                     and pims_keys[i] in pims
                     and pims_keys[j] in pims
-                    and (len(pims[pims_keys[i]]) != 1 or len(pims[pims_keys[j]]) != 1)
+                    and (
+                        len(pims[pims_keys[i]]) != 1
+                        or len(pims[pims_keys[j]]) != 1
+                    )
                 ):
                     if (
                         pims[pims_keys[i]]["segment0"][1]
                         >= pims[pims_keys[j]]["segment0"][1]
                         and pims[pims_keys[i]]["segment0"][1]
                         <= pims[pims_keys[j]][
-                            "segment" + str(len(pims[pims_keys[j]].values()) - 1)
+                            "segment"
+                            + str(len(pims[pims_keys[j]].values()) - 1)
                         ][1]
                     ) and (
                         pims[pims_keys[i]][
-                            "segment" + str(len(pims[pims_keys[i]].values()) - 1)
+                            "segment"
+                            + str(len(pims[pims_keys[i]].values()) - 1)
                         ][1]
                         >= pims[pims_keys[j]]["segment0"][1]
                         and pims[pims_keys[i]][
-                            "segment" + str(len(pims[pims_keys[i]].values()) - 1)
+                            "segment"
+                            + str(len(pims[pims_keys[i]].values()) - 1)
                         ][1]
                         <= pims[pims_keys[j]][
-                            "segment" + str(len(pims[pims_keys[j]].values()) - 1)
+                            "segment"
+                            + str(len(pims[pims_keys[j]].values()) - 1)
                         ][1]
                     ):
                         for seg in pims[pims_keys[i]].values():
                             pims[pims_keys[j]][
-                                "segment" + str(len(pims[pims_keys[j]].values()))
+                                "segment"
+                                + str(len(pims[pims_keys[j]].values()))
                             ] = seg
                         del pims[pims_keys[i]]
 
@@ -548,10 +585,16 @@ class community_detection:
         if self.compute_fv:
             fv, graph_list, fv_mapped_score = self.compute_feature_vector_gpt()
         else:
-            fv, graph_list, fv_mapped_score = self.get_computed_feature_vector_gpt()
+            (
+                fv,
+                graph_list,
+                fv_mapped_score,
+            ) = self.get_computed_feature_vector_gpt()
         # _ = self.remove_preprocessed_segments(graph_list)
 
-        meeting_graph, yetto_prune = self.construct_graph_next_segment(fv, graph_list)
+        meeting_graph, yetto_prune = self.construct_graph_next_segment(
+            fv, graph_list
+        )
         meeting_graph_pruned = self.prune_edges_outlier(
             meeting_graph, graph_list, yetto_prune, v
         )
@@ -560,7 +603,9 @@ class community_detection:
         flag = False
         community_set_sorted = None
         for itr in range(5):
-            community_set, mod = self.compute_louvain_community(meeting_graph_pruned, t)
+            community_set, mod = self.compute_louvain_community(
+                meeting_graph_pruned, t
+            )
             if mod < l_mod:
                 l_mod = mod
                 community_set_sorted = community_set
@@ -597,9 +642,13 @@ class community_detection:
                     meeting_graph_pruned = self.prune_edges_outlier(
                         meeting_graph, graph_list_pruned, yetto_prune, v
                     )
-                    community_set = community.best_partition(meeting_graph_pruned)
+                    community_set = community.best_partition(
+                        meeting_graph_pruned
+                    )
                     community_set_sorted = sorted(
-                        community_set.items(), key=lambda kv: kv[1], reverse=False
+                        community_set.items(),
+                        key=lambda kv: kv[1],
+                        reverse=False,
                     )
                     i = 0
                     prev_cluster = 9999999999999999
@@ -656,7 +705,11 @@ class community_detection:
         if self.compute_fv:
             fv, graph_list, fv_mapped_score = self.compute_feature_vector_gpt()
         else:
-            fv, graph_list, fv_mapped_score = self.get_computed_feature_vector_gpt()
+            (
+                fv,
+                graph_list,
+                fv_mapped_score,
+            ) = self.get_computed_feature_vector_gpt()
         pims = {}
         for index, segment in enumerate(self.segments_org["segments"]):
             pims[index] = {}
@@ -702,7 +755,9 @@ class community_detection:
         community_set_sorted = self.compute_louvian_community(
             meeting_graph_pruned, community_set
         )
-        community_timerange = self.refine_community(community_set_sorted, graph_list)
+        community_timerange = self.refine_community(
+            community_set_sorted, graph_list
+        )
         pims = self.group_community_by_time(community_timerange)
         pims = self.wrap_community_by_time_refined(pims)
         logger.info("Final PIMs", extra={"PIMs": pims})

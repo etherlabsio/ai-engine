@@ -1,5 +1,9 @@
 __version__ = "0.6.2"
-from .tokenization_bert import BertTokenizer, BasicTokenizer, WordpieceTokenizer
+from .tokenization_bert import (
+    BertTokenizer,
+    BasicTokenizer,
+    WordpieceTokenizer,
+)
 
 from .modeling_bert import (
     BertConfig,

@@ -18,7 +18,9 @@ class NATSTransport(object):
             extra={"topic": context_created_topic},
         )
         await self.nats_manager.subscribe(
-            context_created_topic, handler=self.context_created_handler, queued=True
+            context_created_topic,
+            handler=self.context_created_handler,
+            queued=True,
         )
 
     async def context_created_handler(self, msg):
@@ -55,7 +57,9 @@ class NATSTransport(object):
     async def unsubscribe_lifecycle_events(self):
         await self.nats_manager.unsubscribe(topic="context.instance.started")
         await self.nats_manager.unsubscribe(topic="context.instance.ended")
-        await self.nats_manager.unsubscribe(topic="context.instance.add_segments")
+        await self.nats_manager.unsubscribe(
+            topic="context.instance.add_segments"
+        )
 
     # NATS context handlers
 

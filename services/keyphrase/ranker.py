@@ -28,7 +28,9 @@ class KeyphraseRanker(object):
 
     def _get_pairwise_embedding_distance(self, embedding_array):
 
-        dist = cosine(np.array(embedding_array[0]), np.array(embedding_array[1]))
+        dist = cosine(
+            np.array(embedding_array[0]), np.array(embedding_array[1])
+        )
 
         return dist
 
@@ -38,7 +40,9 @@ class KeyphraseRanker(object):
         if req_data is None:
             lambda_payload = {"body": {"text_input": input_list}}
         else:
-            lambda_payload = {"body": {"request": req_data, "text_input": input_list}}
+            lambda_payload = {
+                "body": {"request": req_data, "text_input": input_list}
+            }
 
         try:
             logger.info("Invoking lambda function")
@@ -49,7 +53,10 @@ class KeyphraseRanker(object):
             )
 
             lambda_output = (
-                invoke_response["Payload"].read().decode("utf8").replace("'", '"')
+                invoke_response["Payload"]
+                .read()
+                .decode("utf8")
+                .replace("'", '"')
             )
             response = json.loads(lambda_output)
             status_code = response["statusCode"]
@@ -57,7 +64,9 @@ class KeyphraseRanker(object):
 
             end = timer()
             if status_code == 200:
-                embedding_vector = np.asarray(json.loads(response_body)["embeddings"])
+                embedding_vector = np.asarray(
+                    json.loads(response_body)["embeddings"]
+                )
                 logger.info(
                     "Received response from encoder lambda function",
                     extra={
@@ -68,7 +77,9 @@ class KeyphraseRanker(object):
                 )
 
             else:
-                embedding_vector = np.asarray(json.loads(response_body)["embeddings"])
+                embedding_vector = np.asarray(
+                    json.loads(response_body)["embeddings"]
+                )
                 logger.warning(
                     "Invalid response from encoder lambda function",
                     extra={
@@ -93,12 +104,19 @@ class KeyphraseRanker(object):
         for node1, node2, attr in word_graph.edges.data("edge_emb_wt"):
             if attr is None:
                 node_list = [node1, node2]
-                node_embedding_array = self.get_embeddings(input_list=node_list)
-                emb_sim_edge_weight = 1 - self._get_pairwise_embedding_distance(
-                    embedding_array=node_embedding_array
+                node_embedding_array = self.get_embeddings(
+                    input_list=node_list
+                )
+                emb_sim_edge_weight = (
+                    1
+                    - self._get_pairwise_embedding_distance(
+                        embedding_array=node_embedding_array
+                    )
                 )
 
-                word_graph.add_edge(node1, node2, edge_emb_wt=emb_sim_edge_weight)
+                word_graph.add_edge(
+                    node1, node2, edge_emb_wt=emb_sim_edge_weight
+                )
                 counter += 1
             else:
                 continue
@@ -146,7 +164,9 @@ class KeyphraseRanker(object):
                 try:
                     phrase_id = self.utils.hash_phrase(phrase)
                     keyphrase_embedding = npz_file[phrase_id]
-                    seg_score = 1 - cosine(segment_embedding, keyphrase_embedding)
+                    seg_score = 1 - cosine(
+                        segment_embedding, keyphrase_embedding
+                    )
                 except KeyError:
                     logger.warning(
                         "Keyphrase does not exist in the graph... Setting score to 0",
@@ -156,7 +176,9 @@ class KeyphraseRanker(object):
 
                 if normalize:
                     if phrase_len > norm_limit:
-                        norm_seg_score = seg_score / (phrase_len - (norm_limit - 1))
+                        norm_seg_score = seg_score / (
+                            phrase_len - (norm_limit - 1)
+                        )
                     else:
                         norm_seg_score = seg_score / phrase_len
                 else:
@@ -172,7 +194,9 @@ class KeyphraseRanker(object):
                 entity_relevance_score.append(keyphrase_dict[phrase][2])
 
             if len(segment_relevance_score_list) > 0:
-                segment_confidence_score = np.mean(segment_relevance_score_list)
+                segment_confidence_score = np.mean(
+                    segment_relevance_score_list
+                )
                 median_score = np.median(segment_relevance_score_list)
 
                 entity_confidence_score = np.mean(entity_relevance_score)
@@ -209,11 +233,14 @@ class KeyphraseRanker(object):
 
         return ranked_keyphrase_dict
 
-    def compute_normalized_boosted_rank(self, keyphrase_object, dict_key="descriptive"):
+    def compute_normalized_boosted_rank(
+        self, keyphrase_object, dict_key="descriptive"
+    ):
 
         if dict_key == "descriptive":
             total_keyphrase_quality = [
-                kp_dict["medianKeyphraseQuality"] for kp_dict in keyphrase_object
+                kp_dict["medianKeyphraseQuality"]
+                for kp_dict in keyphrase_object
             ]
             total_quality_score = np.sum(total_keyphrase_quality)
         else:
@@ -254,7 +281,9 @@ class KeyphraseRanker(object):
                     embedding_uri = nattr.get("embedding_vector_group_uri")
 
                 # Download embedding file and deserialize it
-                npz_file = self.io_util.download_npz(npz_file_path=embedding_uri)
+                npz_file = self.io_util.download_npz(
+                    npz_file_path=embedding_uri
+                )
                 return npz_file
             else:
                 continue

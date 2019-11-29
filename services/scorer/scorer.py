@@ -27,7 +27,9 @@ import pickle
 
 logger = logging.getLogger()
 
-config = Config(connect_timeout=60, read_timeout=240, retries={"max_attempts": 0},)
+config = Config(
+    connect_timeout=60, read_timeout=240, retries={"max_attempts": 0},
+)
 lambda_client = boto3_client("lambda", config=config)
 
 
@@ -45,11 +47,20 @@ class Score(TextSegment):
 
 def upload_fv(fv_list, Request, context_id, instance_id):
     try:
-        bucket = "io.etherlabs." + os.getenv("ACTIVE_ENV", "staging2") + ".contexts"
-        s3_path = (
-            context_id + "/feature_vectors/" + instance_id + "/" + Request.id + ".pkl"
+        bucket = (
+            "io.etherlabs." + os.getenv("ACTIVE_ENV", "staging2") + ".contexts"
         )
-        logger.info("The path used for s3.", extra={"S3": s3_path, "bucket": bucket})
+        s3_path = (
+            context_id
+            + "/feature_vectors/"
+            + instance_id
+            + "/"
+            + Request.id
+            + ".pkl"
+        )
+        logger.info(
+            "The path used for s3.", extra={"S3": s3_path, "bucket": bucket}
+        )
         s3_obj = S3Manager(bucket_name=bucket)
         s3_obj.upload_object(pickle.dumps(fv_list), s3_path)
     except Exception as e:
@@ -76,7 +87,12 @@ def get_score(
         logger.info("sending request to mind service")
         if for_pims is False:
             transcript_score = get_feature_vector(
-                mind_input, lambda_function, mind_dict, Request, context_id, instance_id
+                mind_input,
+                lambda_function,
+                mind_dict,
+                Request,
+                context_id,
+                instance_id,
             )
         else:
             response = get_feature_vector(
@@ -126,7 +142,9 @@ def get_feature_vector(
         InvocationType="RequestResponse",
         Payload=mind_input,
     )
-    out_json = invoke_response["Payload"].read().decode("utf8").replace("'", '"')
+    out_json = (
+        invoke_response["Payload"].read().decode("utf8").replace("'", '"')
+    )
     data = json.loads(json.loads(out_json)["body"])
     response = json.loads(out_json)["statusCode"]
     if store_features is True:
@@ -168,7 +186,9 @@ def get_feature_vector(
             )
     else:
         logger.debug(
-            "Invalid response from mind service for input: {}".format(mind_input)
+            "Invalid response from mind service for input: {}".format(
+                mind_input
+            )
         )
         logger.debug("Returning default score")
 

@@ -30,7 +30,9 @@ def decode_json_request(req) -> Request:
         segments_data = deepcopy(seg["segments"])
         assert len(segments_text) == len(segments_data)
         for index, segment in enumerate(segments_data):
-            segments_data[index]["originalText"] = deepcopy(segments_text[index])
+            segments_data[index]["originalText"] = deepcopy(
+                segments_text[index]
+            )
         # segments_map = list(map(lambda x:segments_map[x['id']]=x,seg['segments']))
         return segments_data
 

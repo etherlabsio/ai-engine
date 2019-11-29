@@ -27,7 +27,12 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 """Tokenization classes for OpenAI GPT."""
-from __future__ import absolute_import, division, print_function, unicode_literals
+from __future__ import (
+    absolute_import,
+    division,
+    print_function,
+    unicode_literals,
+)
 
 import logging
 import os
@@ -142,7 +147,9 @@ class PreTrainedTokenizer(object):
     def additional_special_tokens(self):
         """ All the additional special tokens you may want to use (list of strings). Log an error if used while not having been set. """
         if self._additional_special_tokens is None:
-            logger.error("Using additional_special_tokens, but it is not set yet.")
+            logger.error(
+                "Using additional_special_tokens, but it is not set yet."
+            )
         return self._additional_special_tokens
 
     @bos_token.setter
@@ -195,7 +202,8 @@ class PreTrainedTokenizer(object):
             if key in self.SPECIAL_TOKENS_ATTRIBUTES:
                 if key == "additional_special_tokens":
                     assert isinstance(value, (list, tuple)) and all(
-                        isinstance(t, str) or (six.PY2 and isinstance(t, unicode))
+                        isinstance(t, str)
+                        or (six.PY2 and isinstance(t, unicode))
                         for t in value
                     )
                 else:
@@ -246,7 +254,9 @@ class PreTrainedTokenizer(object):
         return cls._from_pretrained(*inputs, **kwargs)
 
     @classmethod
-    def _from_pretrained(cls, pretrained_model_name_or_path, *inputs, **kwargs):
+    def _from_pretrained(
+        cls, pretrained_model_name_or_path, *inputs, **kwargs
+    ):
         cache_dir = kwargs.pop("cache_dir", None)
 
         s3_models = list(cls.max_model_input_sizes.keys())
@@ -278,7 +288,9 @@ class PreTrainedTokenizer(object):
                     full_file_name = pretrained_model_name_or_path
                 if not os.path.exists(full_file_name):
                     logger.info(
-                        "Didn't find file {}. We won't load it.".format(full_file_name)
+                        "Didn't find file {}. We won't load it.".format(
+                            full_file_name
+                        )
                     )
                     full_file_name = None
                 vocab_files[file_id] = full_file_name
@@ -291,19 +303,26 @@ class PreTrainedTokenizer(object):
 
             # If a path to a file was provided, get the parent directory
             saved_directory = pretrained_model_name_or_path
-            if os.path.exists(saved_directory) and not os.path.isdir(saved_directory):
+            if os.path.exists(saved_directory) and not os.path.isdir(
+                saved_directory
+            ):
                 saved_directory = os.path.dirname(saved_directory)
 
             for file_id, file_name in all_vocab_files_names.items():
                 full_file_name = os.path.join(saved_directory, file_name)
                 if not os.path.exists(full_file_name):
                     logger.info(
-                        "Didn't find file {}. We won't load it.".format(full_file_name)
+                        "Didn't find file {}. We won't load it.".format(
+                            full_file_name
+                        )
                     )
                     full_file_name = None
                 vocab_files[file_id] = full_file_name
 
-            if all(full_file_name is None for full_file_name in vocab_files.values()):
+            if all(
+                full_file_name is None
+                for full_file_name in vocab_files.values()
+            ):
                 logger.error(
                     "Model name '{}' was not found in model name list ({}). "
                     "We assumed '{}' was a path or url but couldn't find tokenizer files"
@@ -357,7 +376,9 @@ class PreTrainedTokenizer(object):
             # wont index sequences longer than the number of positional embeddings
             max_len = cls.max_model_input_sizes[pretrained_model_name_or_path]
             if max_len is not None and isinstance(max_len, (int, float)):
-                kwargs["max_len"] = min(kwargs.get("max_len", int(1e12)), max_len)
+                kwargs["max_len"] = min(
+                    kwargs.get("max_len", int(1e12)), max_len
+                )
 
         # Merge resolved_vocab_files arguments in kwargs.
         added_tokens_file = resolved_vocab_files.pop("added_tokens_file", None)
@@ -380,7 +401,9 @@ class PreTrainedTokenizer(object):
 
         # Add supplementary tokens.
         if added_tokens_file is not None:
-            added_tok_encoder = json.load(open(added_tokens_file, encoding="utf-8"))
+            added_tok_encoder = json.load(
+                open(added_tokens_file, encoding="utf-8")
+            )
             added_tok_decoder = {v: k for k, v in added_tok_encoder.items()}
             tokenizer.added_tokens_encoder.update(added_tok_encoder)
             tokenizer.added_tokens_decoder.update(added_tok_decoder)
@@ -395,11 +418,15 @@ class PreTrainedTokenizer(object):
         """
         if not os.path.isdir(save_directory):
             logger.error(
-                "Saving directory ({}) should be a directory".format(save_directory)
+                "Saving directory ({}) should be a directory".format(
+                    save_directory
+                )
             )
             return
 
-        special_tokens_map_file = os.path.join(save_directory, SPECIAL_TOKENS_MAP_FILE)
+        special_tokens_map_file = os.path.join(
+            save_directory, SPECIAL_TOKENS_MAP_FILE
+        )
         added_tokens_file = os.path.join(save_directory, ADDED_TOKENS_FILE)
 
         with open(special_tokens_map_file, "w", encoding="utf-8") as f:
@@ -407,7 +434,9 @@ class PreTrainedTokenizer(object):
 
         with open(added_tokens_file, "w", encoding="utf-8") as f:
             if self.added_tokens_encoder:
-                out_str = json.dumps(self.added_tokens_encoder, ensure_ascii=False)
+                out_str = json.dumps(
+                    self.added_tokens_encoder, ensure_ascii=False
+                )
             else:
                 out_str = "{}"
             f.write(out_str)
@@ -458,7 +487,9 @@ class PreTrainedTokenizer(object):
 
         to_add_tokens = []
         for token in new_tokens:
-            assert isinstance(token, str) or (six.PY2 and isinstance(token, unicode))
+            assert isinstance(token, str) or (
+                six.PY2 and isinstance(token, unicode)
+            )
             if token != self.unk_token and self.convert_tokens_to_ids(
                 token
             ) == self.convert_tokens_to_ids(self.unk_token):
@@ -521,7 +552,9 @@ class PreTrainedTokenizer(object):
                     six.PY2 and isinstance(value, unicode)
                 )
                 added_tokens += self.add_tokens([value])
-            logger.info("Assigning %s to the %s key of the tokenizer", value, key)
+            logger.info(
+                "Assigning %s to the %s key of the tokenizer", value, key
+            )
             setattr(self, key, value)
 
         return added_tokens
@@ -549,7 +582,9 @@ class PreTrainedTokenizer(object):
                 [],
             )[:-1]
 
-        added_tokens = list(self.added_tokens_encoder.keys()) + self.all_special_tokens
+        added_tokens = (
+            list(self.added_tokens_encoder.keys()) + self.all_special_tokens
+        )
         tokenized_text = split_on_tokens(added_tokens, text)
         return tokenized_text
 
@@ -566,7 +601,9 @@ class PreTrainedTokenizer(object):
         """ Converts a single token, or a sequence of tokens, (str/unicode) in a single integer id
             (resp. a sequence of ids), using the vocabulary.
         """
-        if isinstance(tokens, str) or (six.PY2 and isinstance(tokens, unicode)):
+        if isinstance(tokens, str) or (
+            six.PY2 and isinstance(tokens, unicode)
+        ):
             return self._convert_token_to_id_with_added_voc(tokens)
 
         ids = []
@@ -612,7 +649,8 @@ class PreTrainedTokenizer(object):
             self._convert_token_to_id(token) for token in self.tokenize(text)
         ]
         second_sentence_tokens = [
-            self._convert_token_to_id(token) for token in self.tokenize(text_pair)
+            self._convert_token_to_id(token)
+            for token in self.tokenize(text_pair)
         ]
 
         if add_special_tokens:
@@ -661,7 +699,10 @@ class PreTrainedTokenizer(object):
         return " ".join(self.convert_ids_to_tokens(tokens))
 
     def decode(
-        self, token_ids, skip_special_tokens=False, clean_up_tokenization_spaces=True
+        self,
+        token_ids,
+        skip_special_tokens=False,
+        clean_up_tokenization_spaces=True,
     ):
         """
         Converts a sequence of ids (integer) in a string, using the tokenizer and vocabulary
@@ -676,10 +717,15 @@ class PreTrainedTokenizer(object):
         if self.sep_token is not None and self.sep_token in text:
             text = text.replace(self.cls_token, self.sep_token)
             split_text = list(
-                filter(lambda sentence: len(sentence) > 0, text.split(self.sep_token))
+                filter(
+                    lambda sentence: len(sentence) > 0,
+                    text.split(self.sep_token),
+                )
             )
             if clean_up_tokenization_spaces:
-                clean_text = [self.clean_up_tokenization(text) for text in split_text]
+                clean_text = [
+                    self.clean_up_tokenization(text) for text in split_text
+                ]
                 return clean_text
             else:
                 return split_text
@@ -711,7 +757,9 @@ class PreTrainedTokenizer(object):
         set_attr = self.special_tokens_map
         for attr_value in set_attr.values():
             all_toks = all_toks + (
-                attr_value if isinstance(attr_value, (list, tuple)) else [attr_value]
+                attr_value
+                if isinstance(attr_value, (list, tuple))
+                else [attr_value]
             )
         all_toks = list(set(all_toks))
         return all_toks
