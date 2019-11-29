@@ -165,22 +165,14 @@ class ActionItemDetector:
                 candidate_ais = []
         if len(candidate_ais) >= 1:
             if (
-                len(
-                    set(candidate_text.lower().split(" "))
-                    & set(action_marker_list)
-                )
+                len(set(candidate_text.lower().split(" ")) & set(action_marker_list))
                 > 0
             ):
                 is_ai_flag = 1
         return is_ai_flag, candidate_ais
 
     def matcher(self, matchObj):
-        return (
-            matchObj.group(0)[0]
-            + matchObj.group(0)[1]
-            + " "
-            + matchObj.group(0)[2]
-        )
+        return matchObj.group(0)[0] + matchObj.group(0)[1] + " " + matchObj.group(0)[2]
 
     def get_ai_candidates(self, transcript_text, ai_confidence_threshold=0.5):
 
@@ -189,9 +181,7 @@ class ActionItemDetector:
         if type(transcript_text) != str:
             return [], []
         else:
-            transcript_text = re.sub(
-                "[a-z][.?][A-Z]", self.matcher, transcript_text
-            )
+            transcript_text = re.sub("[a-z][.?][A-Z]", self.matcher, transcript_text)
             sent_list = sent_tokenize(transcript_text)
             for sent in sent_list:
                 if len(sent.split(" ")) > 2:
@@ -204,9 +194,7 @@ class ActionItemDetector:
                         curr_ai_subjects = self.post_process_ai_check(sent)[1]
                         if len(curr_ai_subjects) > 1:
                             # merge action items
-                            start_idx = sent.lower().find(
-                                curr_ai_subjects[0].lower()
-                            )
+                            start_idx = sent.lower().find(curr_ai_subjects[0].lower())
                             end_idx = sent.lower().find(
                                 curr_ai_subjects[-1].lower()
                             ) + len(curr_ai_subjects[-1].lower())
@@ -224,12 +212,8 @@ class ActionItemDetector:
         for sent in ai_sent_list:
             assign_flag = 0  # default to first person
 
-            fp_list = set(sent.lower().split(" ")) & set(
-                self.first_person_list
-            )
-            sp_list = set(sent.lower().split(" ")) & set(
-                self.second_person_list
-            )
+            fp_list = set(sent.lower().split(" ")) & set(self.first_person_list)
+            sp_list = set(sent.lower().split(" ")) & set(self.second_person_list)
             com_list = set(sent.lower().split(" ")) & set(self.combine_list)
 
             if len(com_list) > 0 and len(fp_list) == 0 and len(sp_list) == 0:
@@ -260,9 +244,7 @@ class ActionItemDetector:
 
             transcript_text = seg_object["originalText"]
             # get the AI probabilities for each sentence in the transcript
-            curr_ai_list, curr_ai_sents = self.get_ai_candidates(
-                transcript_text
-            )
+            curr_ai_list, curr_ai_sents = self.get_ai_candidates(transcript_text)
             curr_ai_user_list = self.get_ai_users(curr_ai_sents)
             curr_segment_id_list = [seg_object["id"]] * len(curr_ai_list)
 
@@ -291,14 +273,7 @@ class ActionItemDetector:
         ai_response_list = []
         for i in range(len(ai_subject_list)):
             uuid_list.append(str(uuid.uuid1()))
-        for (
-            uuid_,
-            segment,
-            action_item,
-            assignee,
-            is_prev_user,
-            is_both,
-        ) in zip(
+        for (uuid_, segment, action_item, assignee, is_prev_user, is_both,) in zip(
             uuid_list,
             segment_id_list,
             ai_subject_list,
@@ -326,8 +301,7 @@ class ActionItemDetector:
                 )
             else:
                 if (
-                    len(action_item.split(" ")[-1]) > 4
-                    and len(filtered_ai) > 3
+                    len(action_item.split(" ")[-1]) > 4 and len(filtered_ai) > 3
                 ):  # minimum noun length
                     ai_response_list.append(
                         {

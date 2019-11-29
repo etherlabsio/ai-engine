@@ -29,15 +29,11 @@ else:
         except LookupError:
             nltk.download("wordnet", download_dir="/tmp/nltk_data")
             nltk.download("stopwords", download_dir="/tmp/nltk_data")
-            nltk.download(
-                "averaged_perceptron_tagger", download_dir="/tmp/nltk_data"
-            )
+            nltk.download("averaged_perceptron_tagger", download_dir="/tmp/nltk_data")
     else:
         nltk.download("wordnet", download_dir="/tmp/nltk_data")
         nltk.download("stopwords", download_dir="/tmp/nltk_data")
-        nltk.download(
-            "averaged_perceptron_tagger", download_dir="/tmp/nltk_data"
-        )
+        nltk.download("averaged_perceptron_tagger", download_dir="/tmp/nltk_data")
         nltk.data.path.append("/tmp/nltk_data")
 stop_words_nltk = stopwords.words("english")
 
@@ -366,11 +362,7 @@ contraction_mapping = {
     "you're": "you are",
     "you've": "you have",
 }
-punct = (
-    r"/-'?!,#$%'()*+-/:;<=>@[\\]^_`{|}~"
-    + r'""“”’'
-    + r"∞θ÷α•à−β∅³π‘₹´°£€\×™√²—–&"
-)
+punct = r"/-'?!,#$%'()*+-/:;<=>@[\\]^_`{|}~" + r'""“”’' + r"∞θ÷α•à−β∅³π‘₹´°£€\×™√²—–&"
 
 
 def expand_contractions(sentence):

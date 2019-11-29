@@ -41,13 +41,9 @@ class GraphUtils(object):
         """
 
         if order == "desc":
-            sorted_list = sorted(
-                item_list, key=lambda x: (x[1], x[0]), reverse=True
-            )
+            sorted_list = sorted(item_list, key=lambda x: (x[1], x[0]), reverse=True)
         else:
-            sorted_list = sorted(
-                item_list, key=lambda x: (x[1], x[0]), reverse=False
-            )
+            sorted_list = sorted(item_list, key=lambda x: (x[1], x[0]), reverse=False)
 
         return sorted_list
 

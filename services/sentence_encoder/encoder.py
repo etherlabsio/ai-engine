@@ -20,9 +20,7 @@ class SentenceEncoder(object):
                 os.path.dirname(os.path.abspath(__file__)), model_name
             )
 
-        logger.debug(
-            "Checking filesystem status: {}".format(file_io.stat(model_path))
-        )
+        logger.debug("Checking filesystem status: {}".format(file_io.stat(model_path)))
 
         g = tf.Graph()
         with g.as_default():
@@ -76,9 +74,7 @@ class SaveTFModel(object):
                 dtype=input_params["text"].dtype,
                 shape=input_params["text"].get_shape(),
             )
-            sess.run(
-                [tf.global_variables_initializer(), tf.tables_initializer()]
-            )
+            sess.run([tf.global_variables_initializer(), tf.tables_initializer()])
 
             embeddings = module(text_input)
 

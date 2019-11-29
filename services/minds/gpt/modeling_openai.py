@@ -56,22 +56,16 @@ OPENAI_GPT_PRETRAINED_CONFIG_ARCHIVE_MAP = {
 }
 
 
-def load_tf_weights_in_openai_gpt(
-    model, config, openai_checkpoint_folder_path
-):
+def load_tf_weights_in_openai_gpt(model, config, openai_checkpoint_folder_path):
     """ Load tf pre-trained weights in a pytorch model (from NumPy arrays here)
     """
     import re
     import numpy as np
 
     if ".ckpt" in openai_checkpoint_folder_path:
-        openai_checkpoint_folder_path = os.path.dirname(
-            openai_checkpoint_folder_path
-        )
+        openai_checkpoint_folder_path = os.path.dirname(openai_checkpoint_folder_path)
 
-    logger.info(
-        "Loading weights from {}".format(openai_checkpoint_folder_path)
-    )
+    logger.info("Loading weights from {}".format(openai_checkpoint_folder_path))
 
     names = json.load(
         open(
@@ -93,9 +87,7 @@ def load_tf_weights_in_openai_gpt(
         for n in range(10)
     ]
     init_params = np.split(np.concatenate(init_params, 0), offsets)[:-1]
-    init_params = [
-        param.reshape(shape) for param, shape in zip(init_params, shapes)
-    ]
+    init_params = [param.reshape(shape) for param, shape in zip(init_params, shapes)]
 
     # This was used when we had a single embedding matrix for positions and tokens
     # init_params[0] = np.concatenate([init_params[1], init_params[0]], 0)
@@ -160,12 +152,7 @@ def gelu(x):
     return (
         0.5
         * x
-        * (
-            1
-            + torch.tanh(
-                math.sqrt(2 / math.pi) * (x + 0.044715 * torch.pow(x, 3))
-            )
-        )
+        * (1 + torch.tanh(math.sqrt(2 / math.pi) * (x + 0.044715 * torch.pow(x, 3))))
     )
 
 
@@ -251,9 +238,7 @@ class OpenAIGPTConfig(PretrainedConfig):
             sys.version_info[0] == 2
             and isinstance(vocab_size_or_config_json_file, unicode)
         ):
-            with open(
-                vocab_size_or_config_json_file, "r", encoding="utf-8"
-            ) as reader:
+            with open(vocab_size_or_config_json_file, "r", encoding="utf-8") as reader:
                 json_config = json.loads(reader.read())
             for key, value in json_config.items():
                 self.__dict__[key] = value
@@ -308,8 +293,7 @@ class Attention(nn.Module):
         # [switch nx => n_state from Block to Attention to keep identical to TF implem]
         assert n_state % config.n_head == 0
         self.register_buffer(
-            "bias",
-            torch.tril(torch.ones(n_ctx, n_ctx)).view(1, 1, n_ctx, n_ctx),
+            "bias", torch.tril(torch.ones(n_ctx, n_ctx)).view(1, 1, n_ctx, n_ctx),
         )
         self.n_head = config.n_head
         self.split_size = n_state
@@ -337,9 +321,7 @@ class Attention(nn.Module):
         self.c_attn = prune_conv1d_layer(self.c_attn, index_attn, dim=1)
         self.c_proj = prune_conv1d_layer(self.c_proj, index, dim=0)
         # Update hyper params
-        self.split_size = (self.split_size // self.n_head) * (
-            self.n_head - len(heads)
-        )
+        self.split_size = (self.split_size // self.n_head) * (self.n_head - len(heads))
         self.n_head = self.n_head - len(heads)
 
     def _attn(self, q, k, v, head_mask=None):
@@ -449,13 +431,8 @@ class OpenAIGPTPreTrainedModel(PreTrainedModel):
         if isinstance(module, (nn.Linear, nn.Embedding, Conv1D)):
             # Slightly different from the TF version which uses truncated_normal for initialization
             # cf https://github.com/pytorch/pytorch/pull/5617
-            module.weight.data.normal_(
-                mean=0.0, std=self.config.initializer_range
-            )
-            if (
-                isinstance(module, (nn.Linear, Conv1D))
-                and module.bias is not None
-            ):
+            module.weight.data.normal_(mean=0.0, std=self.config.initializer_range)
+            if isinstance(module, (nn.Linear, Conv1D)) and module.bias is not None:
                 module.bias.data.zero_()
         elif isinstance(module, LayerNorm):
             module.bias.data.zero_()
@@ -542,10 +519,7 @@ class OpenAIGPTModel(OpenAIGPTPreTrainedModel):
         self.positions_embed = nn.Embedding(config.n_positions, config.n_embd)
         self.drop = nn.Dropout(config.embd_pdrop)
         self.h = nn.ModuleList(
-            [
-                Block(config.n_ctx, config, scale=True)
-                for _ in range(config.n_layer)
-            ]
+            [Block(config.n_ctx, config, scale=True) for _ in range(config.n_layer)]
         )
 
         self.apply(self.init_weights)
@@ -564,7 +538,7 @@ class OpenAIGPTModel(OpenAIGPTPreTrainedModel):
             self.h[layer].attn.prune_heads(heads)
 
     def forward(
-        self, input_ids, position_ids=None, token_type_ids=None, head_mask=None
+        self, input_ids, position_ids=None, token_type_ids=None, head_mask=None,
     ):
         if position_ids is None:
             # This was used when we had a single embedding matrice from position and token embeddings
@@ -583,14 +557,9 @@ class OpenAIGPTModel(OpenAIGPTPreTrainedModel):
         if head_mask is not None:
             if head_mask.dim() == 1:
                 head_mask = (
-                    head_mask.unsqueeze(0)
-                    .unsqueeze(0)
-                    .unsqueeze(-1)
-                    .unsqueeze(-1)
+                    head_mask.unsqueeze(0).unsqueeze(0).unsqueeze(-1).unsqueeze(-1)
                 )
-                head_mask = head_mask.expand(
-                    self.config.n_layer, -1, -1, -1, -1
-                )
+                head_mask = head_mask.expand(self.config.n_layer, -1, -1, -1, -1)
             elif head_mask.dim() == 2:
                 head_mask = (
                     head_mask.unsqueeze(1).unsqueeze(-1).unsqueeze(-1)
@@ -632,18 +601,14 @@ class OpenAIGPTModel(OpenAIGPTPreTrainedModel):
 
         # Add last layer
         if self.output_hidden_states:
-            all_hidden_states = all_hidden_states + (
-                hidden_states.view(*output_shape),
-            )
+            all_hidden_states = all_hidden_states + (hidden_states.view(*output_shape),)
 
         outputs = (hidden_states.view(*output_shape),)
         if self.output_hidden_states:
             outputs = outputs + (all_hidden_states,)
         if self.output_attentions:
             outputs = outputs + (all_attentions,)
-        return (
-            outputs  # last hidden state, (all hidden states), (all attentions)
-        )
+        return outputs  # last hidden state, (all hidden states), (all attentions)
 
 
 @add_start_docstrings(
@@ -723,14 +688,11 @@ class OpenAIGPTLMHeadModel(OpenAIGPTPreTrainedModel):
             # Flatten the tokens
             loss_fct = CrossEntropyLoss(ignore_index=-1)
             loss = loss_fct(
-                shift_logits.view(-1, shift_logits.size(-1)),
-                shift_labels.view(-1),
+                shift_logits.view(-1, shift_logits.size(-1)), shift_labels.view(-1),
             )
             outputs = (loss,) + outputs
 
-        return (
-            outputs  # (loss), lm_logits, (all hidden states), (all attentions)
-        )
+        return outputs  # (loss), lm_logits, (all hidden states), (all attentions)
 
 
 @add_start_docstrings(
@@ -846,24 +808,19 @@ class OpenAIGPTDoubleHeadsModel(OpenAIGPTPreTrainedModel):
         hidden_states = transformer_outputs[0]
 
         lm_logits = self.lm_head(hidden_states)
-        mc_logits = self.multiple_choice_head(
-            hidden_states, mc_token_ids
-        ).squeeze(-1)
+        mc_logits = self.multiple_choice_head(hidden_states, mc_token_ids).squeeze(-1)
 
         outputs = (lm_logits, mc_logits) + transformer_outputs[1:]
         if mc_labels is not None:
             loss_fct = CrossEntropyLoss()
-            loss = loss_fct(
-                mc_logits.view(-1, mc_logits.size(-1)), mc_labels.view(-1)
-            )
+            loss = loss_fct(mc_logits.view(-1, mc_logits.size(-1)), mc_labels.view(-1))
             outputs = (loss,) + outputs
         if lm_labels is not None:
             shift_logits = lm_logits[..., :-1, :].contiguous()
             shift_labels = lm_labels[..., 1:].contiguous()
             loss_fct = CrossEntropyLoss(ignore_index=-1)
             loss = loss_fct(
-                shift_logits.view(-1, shift_logits.size(-1)),
-                shift_labels.view(-1),
+                shift_logits.view(-1, shift_logits.size(-1)), shift_labels.view(-1),
             )
             outputs = (loss,) + outputs
 

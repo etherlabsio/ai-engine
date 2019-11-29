@@ -40,10 +40,7 @@ class ContextSessionParser(object):
         instance_id = req_data["instanceId"]
 
         context_node, instance_node, mind_node = self._context_instance_info(
-            context_id=context_id,
-            mind_id=mind_id,
-            instance_id=instance_id,
-            **kwargs,
+            context_id=context_id, mind_id=mind_id, instance_id=instance_id, **kwargs,
         )
         return context_node, instance_node, mind_node
 
@@ -86,9 +83,7 @@ class ContextSessionParser(object):
         recoder_node = {}
 
         for i, segment in enumerate(segment_object):
-            user_node = self._user_info(
-                segment=segment, user_attr=external_user_attr
-            )
+            user_node = self._user_info(segment=segment, user_attr=external_user_attr)
             provider_node = self._provider_info(
                 segment=segment, provider_attr=external_provider_attr
             )
@@ -124,9 +119,7 @@ class ContextSessionParser(object):
     def parse_decision_marker(self):
         pass
 
-    def _context_instance_info(
-        self, context_id, mind_id, instance_id, **kwargs
-    ):
+    def _context_instance_info(self, context_id, mind_id, instance_id, **kwargs):
         context_attr = kwargs.get("context_attr", dict())
         instance_attr = kwargs.get("instance_attr", dict())
         mind_attr = kwargs.get("mind_attr", dict())
@@ -136,9 +129,7 @@ class ContextSessionParser(object):
         context_node = {
             "uid": "_:" + context_id,
             "xid": context_id,
-            "dgraph.type": self.schema_type[
-                self.context_label.get("attribute")
-            ],
+            "dgraph.type": self.schema_type[self.context_label.get("attribute")],
             **self.context_label,
         }
 
@@ -156,9 +147,7 @@ class ContextSessionParser(object):
         instance_node = {
             "uid": "_:" + instance_id,
             "xid": instance_id,
-            "dgraph.type": self.schema_type[
-                self.instance_label.get("attribute")
-            ],
+            "dgraph.type": self.schema_type[self.instance_label.get("attribute")],
             **self.instance_label,
         }
 
@@ -172,9 +161,7 @@ class ContextSessionParser(object):
         instance_node = {
             "uid": "_:" + instance_id,
             "xid": instance_id,
-            "dgraph.type": self.schema_type[
-                self.instance_label.get("attribute")
-            ],
+            "dgraph.type": self.schema_type[self.instance_label.get("attribute")],
             **self.instance_label,
         }
 
@@ -188,9 +175,7 @@ class ContextSessionParser(object):
         segment_node = {
             "uid": "_:" + segment["id"],
             "xid": segment["id"],
-            "dgraph.type": self.schema_type[
-                self.segment_label.get("attribute")
-            ],
+            "dgraph.type": self.schema_type[self.segment_label.get("attribute")],
             **self.segment_label,
         }
 
@@ -217,9 +202,7 @@ class ContextSessionParser(object):
         self.transcriber_label.update(provider_attr)
         provider_node = {
             "name": provider_name,
-            "dgraph.type": self.schema_type[
-                self.transcriber_label.get("attribute")
-            ],
+            "dgraph.type": self.schema_type[self.transcriber_label.get("attribute")],
             **self.transcriber_label,
         }
 
@@ -233,9 +216,7 @@ class ContextSessionParser(object):
         recorder_node = {
             "uid": "_:" + recorder_id,
             "xid": recorder_id,
-            "dgraph.type": self.schema_type[
-                self.recording_label.get("attribute")
-            ],
+            "dgraph.type": self.schema_type[self.recording_label.get("attribute")],
             **self.recording_label,
         }
 

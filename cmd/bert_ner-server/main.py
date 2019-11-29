@@ -45,9 +45,7 @@ logger.info(f"Model loaded for evaluation")
 
 def handler(event, context):
 
-    logger.info(
-        "POST request recieved", extra={"event['body']:": event["body"]}
-    )
+    logger.info("POST request recieved", extra={"event['body']:": event["body"]})
 
     if isinstance(event["body"], str):
         json_request = json.loads(event["body"])
@@ -60,16 +58,13 @@ def handler(event, context):
         entities = ner_model.get_entities(segment)
         response = json.dumps({"entities": entities})
         logger.info(
-            "Entity Extraction successful with {} entities detected.".format(
-                entities
-            )
+            "Entity Extraction successful with {} entities detected.".format(entities)
         )
         return {"statusCode": 200, "body": response}
 
     except Exception as e:
         logger.error(
-            "Error processing request",
-            extra={"err": e, "request": json_request},
+            "Error processing request", extra={"err": e, "request": json_request},
         )
         response = json.dumps({"entities": {}})
         return {"statusCode": 404, "body": response}

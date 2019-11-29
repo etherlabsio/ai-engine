@@ -201,13 +201,9 @@ class BertTokenizer(PreTrainedTokenizer):
         """Save the tokenizer vocabulary to a directory or file."""
         index = 0
         if os.path.isdir(vocab_path):
-            vocab_file = os.path.join(
-                vocab_path, VOCAB_FILES_NAMES["vocab_file"]
-            )
+            vocab_file = os.path.join(vocab_path, VOCAB_FILES_NAMES["vocab_file"])
         with open(vocab_file, "w", encoding="utf-8") as writer:
-            for token, token_index in sorted(
-                self.vocab.items(), key=lambda kv: kv[1]
-            ):
+            for token, token_index in sorted(self.vocab.items(), key=lambda kv: kv[1]):
                 if index != token_index:
                     logger.warning(
                         "Saving vocabulary to {}: vocabulary indices are not consecutive."
@@ -224,10 +220,7 @@ class BertTokenizer(PreTrainedTokenizer):
     def from_pretrained(cls, pretrained_model_name_or_path, *inputs, **kwargs):
         """ Instantiate a BertTokenizer from pre-trained vocabulary files.
         """
-        if (
-            pretrained_model_name_or_path
-            in PRETRAINED_POSITIONAL_EMBEDDINGS_SIZES
-        ):
+        if pretrained_model_name_or_path in PRETRAINED_POSITIONAL_EMBEDDINGS_SIZES:
             if "-cased" in pretrained_model_name_or_path and kwargs.get(
                 "do_lower_case", True
             ):
@@ -237,9 +230,8 @@ class BertTokenizer(PreTrainedTokenizer):
                     "you may want to check this behavior."
                 )
                 kwargs["do_lower_case"] = False
-            elif (
-                "-cased" not in pretrained_model_name_or_path
-                and not kwargs.get("do_lower_case", True)
+            elif "-cased" not in pretrained_model_name_or_path and not kwargs.get(
+                "do_lower_case", True
             ):
                 logger.warning(
                     "The pre-trained model you are loading is an uncased model but you have set "

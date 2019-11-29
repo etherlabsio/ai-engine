@@ -105,9 +105,7 @@ class PreTrainedTokenizer(object):
     @property
     def additional_special_tokens(self):
         if self._additional_special_tokens is None:
-            logger.error(
-                "Using additional_special_tokens, but it is not set yet."
-            )
+            logger.error("Using additional_special_tokens, but it is not set yet.")
         return self._additional_special_tokens
 
     @bos_token.setter
@@ -200,16 +198,11 @@ class PreTrainedTokenizer(object):
                     full_file_name = pretrained_model_name_or_path
                 if not os.path.exists(full_file_name):
                     logger.info(
-                        "Didn't find file {}. We won't load it.".format(
-                            full_file_name
-                        )
+                        "Didn't find file {}. We won't load it.".format(full_file_name)
                     )
                     full_file_name = None
                 vocab_files[file_id] = full_file_name
-            if all(
-                full_file_name is None
-                for full_file_name in vocab_files.values()
-            ):
+            if all(full_file_name is None for full_file_name in vocab_files.values()):
                 logger.error(
                     "Model name '{}' was not found in model name list ({}). "
                     "We assumed '{}' was a path or url but couldn't find tokenizer files"
@@ -263,9 +256,7 @@ class PreTrainedTokenizer(object):
             # wont index sequences longer than the number of positional embeddings
             max_len = cls.max_model_input_sizes[pretrained_model_name_or_path]
             if max_len is not None and isinstance(max_len, (int, float)):
-                kwargs["max_len"] = min(
-                    kwargs.get("max_len", int(1e12)), max_len
-                )
+                kwargs["max_len"] = min(kwargs.get("max_len", int(1e12)), max_len)
 
         # Merge resolved_vocab_files arguments in kwargs.
         added_tokens_file = resolved_vocab_files.pop("added_tokens_file", None)
@@ -288,9 +279,7 @@ class PreTrainedTokenizer(object):
 
         # Add supplementary tokens.
         if added_tokens_file is not None:
-            added_tok_encoder = json.load(
-                open(added_tokens_file, encoding="utf-8")
-            )
+            added_tok_encoder = json.load(open(added_tokens_file, encoding="utf-8"))
             added_tok_decoder = {v: k for k, v in added_tok_encoder.items()}
             tokenizer.added_tokens_encoder.update(added_tok_encoder)
             tokenizer.added_tokens_decoder.update(added_tok_decoder)
@@ -304,15 +293,11 @@ class PreTrainedTokenizer(object):
         """
         if not os.path.isdir(save_directory):
             logger.error(
-                "Saving directory ({}) should be a directory".format(
-                    save_directory
-                )
+                "Saving directory ({}) should be a directory".format(save_directory)
             )
             return
 
-        special_tokens_map_file = os.path.join(
-            save_directory, SPECIAL_TOKENS_MAP_FILE
-        )
+        special_tokens_map_file = os.path.join(save_directory, SPECIAL_TOKENS_MAP_FILE)
         added_tokens_file = os.path.join(save_directory, ADDED_TOKENS_FILE)
 
         with open(special_tokens_map_file, "w", encoding="utf-8") as f:
@@ -320,9 +305,7 @@ class PreTrainedTokenizer(object):
 
         with open(added_tokens_file, "w", encoding="utf-8") as f:
             if self.added_tokens_encoder:
-                out_str = json.dumps(
-                    self.added_tokens_decoder, ensure_ascii=False
-                )
+                out_str = json.dumps(self.added_tokens_decoder, ensure_ascii=False)
             else:
                 out_str = "{}"
             f.write(out_str)
@@ -388,9 +371,7 @@ class PreTrainedTokenizer(object):
 
         added_special_tokens = self.add_tokens(special_tokens_dict.values())
         for key, value in special_tokens_dict.items():
-            logger.info(
-                "Assigning %s to the %s key of the tokenizer", value, key
-            )
+            logger.info("Assigning %s to the %s key of the tokenizer", value, key)
             setattr(self, key, value)
 
         return added_special_tokens
@@ -418,9 +399,7 @@ class PreTrainedTokenizer(object):
                 [],
             )[:-1]
 
-        added_tokens = (
-            list(self.added_tokens_encoder.keys()) + self.all_special_tokens
-        )
+        added_tokens = list(self.added_tokens_encoder.keys()) + self.all_special_tokens
         tokenized_text = split_on_tokens(added_tokens, text)
         return tokenized_text
 
@@ -437,9 +416,7 @@ class PreTrainedTokenizer(object):
         """ Converts a single token or a sequence of tokens (str/unicode) in a integer id
             (resp.) a sequence of ids, using the vocabulary.
         """
-        if isinstance(tokens, str) or (
-            six.PY2 and isinstance(tokens, unicode)
-        ):
+        if isinstance(tokens, str) or (six.PY2 and isinstance(tokens, unicode)):
             return self._convert_token_to_id_with_added_voc(tokens)
 
         ids = []
@@ -500,10 +477,7 @@ class PreTrainedTokenizer(object):
         return " ".join(self.convert_ids_to_tokens(tokens))
 
     def decode(
-        self,
-        token_ids,
-        skip_special_tokens=False,
-        clean_up_tokenization_spaces=True,
+        self, token_ids, skip_special_tokens=False, clean_up_tokenization_spaces=True,
     ):
         """ Converts a sequence of ids (integer) in a string, using the tokenizer and vocabulary
             with options to remove special tokens and clean up tokenization spaces.
@@ -537,9 +511,7 @@ class PreTrainedTokenizer(object):
         set_attr = self.special_tokens_map
         for attr_value in set_attr.values():
             all_toks = all_toks + (
-                attr_value
-                if isinstance(attr_value, (list, tuple))
-                else [attr_value]
+                attr_value if isinstance(attr_value, (list, tuple)) else [attr_value]
             )
         all_toks = list(set(all_toks))
         return all_toks

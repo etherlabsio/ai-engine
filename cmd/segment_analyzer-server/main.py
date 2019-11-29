@@ -25,9 +25,7 @@ def handler(event, context):
     else:
         json_request = event["body"]
     try:
-        mind_dict = load_mind_features(
-            json_request["detail"]["mindId"].lower()
-        )
+        mind_dict = load_mind_features(json_request["detail"]["mindId"].lower())
         if json_request["type"] == "segment_analyzer.extract_features":
             Request = tp_scorer.decode_json_request(json_request["detail"])
             scores = list(

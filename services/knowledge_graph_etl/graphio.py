@@ -59,9 +59,7 @@ class GraphIO(object):
             return graph_obj
 
         except Exception as e:
-            logger.error(
-                "Could not load graph object from file", extra={"err": e}
-            )
+            logger.error("Could not load graph object from file", extra={"err": e})
             raise
 
     def cleanup_graph(self, graph_obj):
@@ -82,9 +80,7 @@ class GraphIO(object):
             },
         )
         try:
-            nx.write_graphml(
-                graph_obj, output_filename, infer_numeric_types=True
-            )
+            nx.write_graphml(graph_obj, output_filename, infer_numeric_types=True)
 
         except Exception as e:
             logger.error(
@@ -172,37 +168,29 @@ class GraphTransforms(object):
         return key_dict
 
     def get_key_elements(self, elem, tag="key"):
-        if GraphTransforms.graphml_tag(
-            elem.tag
-        ) == GraphTransforms.graphml_tag(tag):
+        if GraphTransforms.graphml_tag(elem.tag) == GraphTransforms.graphml_tag(tag):
             # Replace elem's id with its name
             new_id = elem.attrib["attr.name"]
             elem.set("id", new_id)
 
     def modify_graph_attribute_keys(self, elem, key_dict, tag="graph"):
-        if GraphTransforms.graphml_tag(
-            elem.tag
-        ) == GraphTransforms.graphml_tag(tag):
+        if GraphTransforms.graphml_tag(elem.tag) == GraphTransforms.graphml_tag(tag):
             for data in elem:
-                if GraphTransforms.graphml_tag(
-                    data.tag
-                ) == GraphTransforms.graphml_tag("data"):
+                if GraphTransforms.graphml_tag(data.tag) == GraphTransforms.graphml_tag(
+                    "data"
+                ):
                     original_attr_val = data.attrib.get("key")
                     new_graph_key = key_dict[original_attr_val]
                     data.set("key", new_graph_key)
 
     def modify_node_attribute_keys(self, elem, key_dict, tag="node"):
-        if GraphTransforms.graphml_tag(
-            elem.tag
-        ) == GraphTransforms.graphml_tag(tag):
+        if GraphTransforms.graphml_tag(elem.tag) == GraphTransforms.graphml_tag(tag):
             for data in elem:
                 original_attr_val = data.attrib.get("key")
                 data.set("key", key_dict[original_attr_val])
 
     def modify_edge_attribute_keys(self, elem, key_dict, tag="edge"):
-        if GraphTransforms.graphml_tag(
-            elem.tag
-        ) == GraphTransforms.graphml_tag(tag):
+        if GraphTransforms.graphml_tag(elem.tag) == GraphTransforms.graphml_tag(tag):
             for data in elem:
                 original_attr_val = data.attrib.get("key")
                 data.set("key", key_dict[original_attr_val])

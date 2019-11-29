@@ -174,21 +174,14 @@ class PretrainedConfig(object):
                 pretrained_model_name_or_path
             ]
         elif os.path.isdir(pretrained_model_name_or_path):
-            config_file = os.path.join(
-                pretrained_model_name_or_path, CONFIG_NAME
-            )
+            config_file = os.path.join(pretrained_model_name_or_path, CONFIG_NAME)
         else:
             config_file = pretrained_model_name_or_path
         # redirect to the cache, if necessary
         try:
-            resolved_config_file = cached_path(
-                config_file, cache_dir=cache_dir
-            )
+            resolved_config_file = cached_path(config_file, cache_dir=cache_dir)
         except EnvironmentError:
-            if (
-                pretrained_model_name_or_path
-                in cls.pretrained_config_archive_map
-            ):
+            if pretrained_model_name_or_path in cls.pretrained_config_archive_map:
                 logger.error(
                     "Couldn't reach server at '{}' to download pretrained model configuration file.".format(
                         config_file
@@ -333,9 +326,9 @@ class PreTrainedModel(nn.Module):
 
         # Copy word embeddings from the previous weights
         num_tokens_to_copy = min(old_num_tokens, new_num_tokens)
-        new_embeddings.weight.data[
+        new_embeddings.weight.data[:num_tokens_to_copy, :] = old_embeddings.weight.data[
             :num_tokens_to_copy, :
-        ] = old_embeddings.weight.data[:num_tokens_to_copy, :]
+        ]
 
         return new_embeddings
 
@@ -409,9 +402,7 @@ class PreTrainedModel(nn.Module):
         torch.save(model_to_save.state_dict(), output_model_file)
 
     @classmethod
-    def from_pretrained(
-        cls, pretrained_model_name_or_path, *model_args, **kwargs
-    ):
+    def from_pretrained(cls, pretrained_model_name_or_path, *model_args, **kwargs):
         r"""Instantiate a pretrained pytorch model from a pre-trained model configuration.
 
         The model is set in evaluation mode by default using ``model.eval()`` (Dropout modules are deactivated)
@@ -498,9 +489,7 @@ class PreTrainedModel(nn.Module):
                     pretrained_model_name_or_path, TF_WEIGHTS_NAME + ".index"
                 )
             else:
-                archive_file = os.path.join(
-                    pretrained_model_name_or_path, WEIGHTS_NAME
-                )
+                archive_file = os.path.join(pretrained_model_name_or_path, WEIGHTS_NAME)
         else:
             if from_tf:
                 # Directly load from a TensorFlow checkpoint
@@ -509,14 +498,9 @@ class PreTrainedModel(nn.Module):
                 archive_file = pretrained_model_name_or_path
         # redirect to the cache, if necessary
         try:
-            resolved_archive_file = cached_path(
-                archive_file, cache_dir=cache_dir
-            )
+            resolved_archive_file = cached_path(archive_file, cache_dir=cache_dir)
         except EnvironmentError:
-            if (
-                pretrained_model_name_or_path
-                in cls.pretrained_model_archive_map
-            ):
+            if pretrained_model_name_or_path in cls.pretrained_model_archive_map:
                 logger.error(
                     "Couldn't reach server at '{}' to download pretrained weights.".format(
                         archive_file
@@ -579,9 +563,7 @@ class PreTrainedModel(nn.Module):
             state_dict._metadata = metadata
 
         def load(module, prefix=""):
-            local_metadata = (
-                {} if metadata is None else metadata.get(prefix[:-1], {})
-            )
+            local_metadata = {} if metadata is None else metadata.get(prefix[:-1], {})
             module._load_from_state_dict(
                 state_dict,
                 prefix,
@@ -692,17 +674,11 @@ class PoolerEndLogits(nn.Module):
         super(PoolerEndLogits, self).__init__()
         self.dense_0 = nn.Linear(config.hidden_size * 2, config.hidden_size)
         self.activation = nn.Tanh()
-        self.LayerNorm = nn.LayerNorm(
-            config.hidden_size, eps=config.layer_norm_eps
-        )
+        self.LayerNorm = nn.LayerNorm(config.hidden_size, eps=config.layer_norm_eps)
         self.dense_1 = nn.Linear(config.hidden_size, 1)
 
     def forward(
-        self,
-        hidden_states,
-        start_states=None,
-        start_positions=None,
-        p_mask=None,
+        self, hidden_states, start_states=None, start_positions=None, p_mask=None,
     ):
         """ Args:
             One of ``start_states``, ``start_positions`` should be not None.
@@ -727,9 +703,7 @@ class PoolerEndLogits(nn.Module):
             start_states = hidden_states.gather(
                 -2, start_positions
             )  # shape (bsz, 1, hsz)
-            start_states = start_states.expand(
-                -1, slen, -1
-            )  # shape (bsz, slen, hsz)
+            start_states = start_states.expand(-1, slen, -1)  # shape (bsz, slen, hsz)
 
         x = self.dense_0(torch.cat([hidden_states, start_states], dim=-1))
         x = self.activation(x)
@@ -752,11 +726,7 @@ class PoolerAnswerClass(nn.Module):
         self.dense_1 = nn.Linear(config.hidden_size, 1, bias=False)
 
     def forward(
-        self,
-        hidden_states,
-        start_states=None,
-        start_positions=None,
-        cls_index=None,
+        self, hidden_states, start_states=None, start_positions=None, cls_index=None,
     ):
         """
         Args:
@@ -890,9 +860,7 @@ class SQuADHead(nn.Module):
             if cls_index is not None and is_impossible is not None:
                 # Predict answerability from the representation of CLS and START
                 cls_logits = self.answer_class(
-                    hidden_states,
-                    start_positions=start_positions,
-                    cls_index=cls_index,
+                    hidden_states, start_positions=start_positions, cls_index=cls_index,
                 )
                 loss_fct_cls = nn.BCEWithLogitsLoss()
                 cls_loss = loss_fct_cls(cls_logits, is_impossible)
@@ -905,9 +873,7 @@ class SQuADHead(nn.Module):
         else:
             # during inference, compute the end logits based on beam search
             bsz, slen, hsz = hidden_states.size()
-            start_log_probs = F.softmax(
-                start_logits, dim=-1
-            )  # shape (bsz, slen)
+            start_log_probs = F.softmax(start_logits, dim=-1)  # shape (bsz, slen)
 
             start_top_log_probs, start_top_index = torch.topk(
                 start_log_probs, self.start_n_top, dim=-1
@@ -927,9 +893,7 @@ class SQuADHead(nn.Module):
             )  # shape (bsz, slen, start_n_top, hsz)
             p_mask = p_mask.unsqueeze(-1) if p_mask is not None else None
             end_logits = self.end_logits(
-                hidden_states_expanded,
-                start_states=start_states,
-                p_mask=p_mask,
+                hidden_states_expanded, start_states=start_states, p_mask=p_mask,
             )
             end_log_probs = F.softmax(
                 end_logits, dim=1
@@ -941,13 +905,9 @@ class SQuADHead(nn.Module):
             end_top_log_probs = end_top_log_probs.view(
                 -1, self.start_n_top * self.end_n_top
             )
-            end_top_index = end_top_index.view(
-                -1, self.start_n_top * self.end_n_top
-            )
+            end_top_index = end_top_index.view(-1, self.start_n_top * self.end_n_top)
 
-            start_states = torch.einsum(
-                "blh,bl->bh", hidden_states, start_log_probs
-            )
+            start_states = torch.einsum("blh,bl->bh", hidden_states, start_log_probs)
             cls_logits = self.answer_class(
                 hidden_states, start_states=start_states, cls_index=cls_index
             )
@@ -985,9 +945,7 @@ class SequenceSummary(nn.Module):
         super(SequenceSummary, self).__init__()
 
         self.summary_type = (
-            config.summary_type
-            if hasattr(config, "summary_use_proj")
-            else "last"
+            config.summary_type if hasattr(config, "summary_use_proj") else "last"
         )
         if self.summary_type == "attn":
             # We should use a standard multi-head attention module with absolute positional embedding for that.
@@ -1022,10 +980,7 @@ class SequenceSummary(nn.Module):
             self.first_dropout = nn.Dropout(config.summary_first_dropout)
 
         self.last_dropout = Identity()
-        if (
-            hasattr(config, "summary_last_dropout")
-            and config.summary_last_dropout > 0
-        ):
+        if hasattr(config, "summary_last_dropout") and config.summary_last_dropout > 0:
             self.last_dropout = nn.Dropout(config.summary_last_dropout)
 
     def forward(self, hidden_states, cls_index=None):
@@ -1090,9 +1045,7 @@ class SequenceSimilarity(nn.Module):
         super(SequenceSimilarity, self).__init__()
 
         self.summary_type = (
-            config.summary_type
-            if hasattr(config, "summary_use_proj")
-            else "last"
+            config.summary_type if hasattr(config, "summary_use_proj") else "last"
         )
         if self.summary_type == "attn":
             # We should use a standard multi-head attention module with absolute positional embedding for that.
@@ -1127,10 +1080,7 @@ class SequenceSimilarity(nn.Module):
             self.first_dropout = nn.Dropout(config.summary_first_dropout)
 
         self.last_dropout = Identity()
-        if (
-            hasattr(config, "summary_last_dropout")
-            and config.summary_last_dropout > 0
-        ):
+        if hasattr(config, "summary_last_dropout") and config.summary_last_dropout > 0:
             self.last_dropout = nn.Dropout(config.summary_last_dropout)
 
     def forward(self, hidden_states, cls_index=None):
@@ -1187,9 +1137,9 @@ def prune_linear_layer(layer, index, dim=0):
             b = layer.bias[index].clone().detach()
     new_size = list(layer.weight.size())
     new_size[dim] = len(index)
-    new_layer = nn.Linear(
-        new_size[1], new_size[0], bias=layer.bias is not None
-    ).to(layer.weight.device)
+    new_layer = nn.Linear(new_size[1], new_size[0], bias=layer.bias is not None).to(
+        layer.weight.device
+    )
     new_layer.weight.requires_grad = False
     new_layer.weight.copy_(W.contiguous())
     new_layer.weight.requires_grad = True
@@ -1234,6 +1184,4 @@ def prune_layer(layer, index, dim=None):
     elif isinstance(layer, Conv1D):
         return prune_conv1d_layer(layer, index, dim=1 if dim is None else dim)
     else:
-        raise ValueError(
-            "Can't prune layer of class {}".format(layer.__class__)
-        )
+        raise ValueError("Can't prune layer of class {}".format(layer.__class__))

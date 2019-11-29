@@ -101,9 +101,7 @@ def getGPTFeatures(model, text):
     encoded_data = tokenizer.convert_tokens_to_ids(tokenizer.tokenize(text))
 
     input_ids = (
-        [special_tokens_ids[0]]
-        + encoded_data[:max_length]
-        + [special_tokens_ids[2]]
+        [special_tokens_ids[0]] + encoded_data[:max_length] + [special_tokens_ids[2]]
     )
 
     input_tensor = torch.tensor([[input_ids]])

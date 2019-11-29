@@ -118,11 +118,7 @@ if __name__ == "__main__":
         help="define nats topics for the ether-graph service to listen to",
     )
     parser.add_argument(
-        "-n",
-        "--nats_url",
-        type=str,
-        default=NATS_URL,
-        help="nats server url address",
+        "-n", "--nats_url", type=str, default=NATS_URL, help="nats server url address",
     )
     parser.add_argument(
         "-ti",

@@ -58,7 +58,7 @@ class BasicTokenizer(object):
     """Runs basic tokenization (punctuation splitting, lower casing, etc.)."""
 
     def __init__(
-        self, do_lower_case=True, never_split=None, tokenize_chinese_chars=True
+        self, do_lower_case=True, never_split=None, tokenize_chinese_chars=True,
     ):
         """ Constructs a BasicTokenizer.
 

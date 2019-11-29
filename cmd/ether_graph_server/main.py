@@ -41,9 +41,7 @@ if __name__ == "__main__":
     nats_manager = Manager(
         loop=loop, url=nats_url, queue_name="io.etherlabs.ether_graph_service"
     )
-    nats_transport = NATSTransport(
-        nats_manager=nats_manager, eg_service=graph_handler
-    )
+    nats_transport = NATSTransport(nats_manager=nats_manager, eg_service=graph_handler)
 
     def shutdown():
         logger.info("received interrupt; shutting down")

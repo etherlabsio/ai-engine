@@ -21,7 +21,5 @@ def get_pims(Request):
                 used_topics.append(group_no)
                 index += 1
 
-    final_output = list(
-        map(lambda x: Request.group["group"][x], topic_pim.values())
-    )
+    final_output = list(map(lambda x: Request.group["group"][x], topic_pim.values()))
     return final_output

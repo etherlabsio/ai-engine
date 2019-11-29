@@ -15,9 +15,7 @@ setup_server_logger(debug=True)
 
 
 def handler(event, context):
-    logger.info(
-        "POST request recieved", extra={"event['body']:": event["body"]}
-    )
+    logger.info("POST request recieved", extra={"event['body']:": event["body"]})
     if isinstance(event["body"], str):
         json_request = json.loads(event["body"])
     else:

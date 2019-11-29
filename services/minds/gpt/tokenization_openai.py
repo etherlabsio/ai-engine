@@ -101,9 +101,7 @@ class OpenAIGPTTokenizer(PreTrainedTokenizer):
             import ftfy
             import spacy
 
-            self.nlp = spacy.load(
-                "en", disable=["parser", "tagger", "ner", "textcat"]
-            )
+            self.nlp = spacy.load("en", disable=["parser", "tagger", "ner", "textcat"])
             self.fix_text = ftfy.fix_text
         except ImportError:
             # logger.warning("ftfy or spacy is not installed using BERT BasicTokenizer instead of SpaCy & ftfy.")
@@ -131,9 +129,7 @@ class OpenAIGPTTokenizer(PreTrainedTokenizer):
             return token + "</w>"
 
         while True:
-            bigram = min(
-                pairs, key=lambda pair: self.bpe_ranks.get(pair, float("inf"))
-            )
+            bigram = min(pairs, key=lambda pair: self.bpe_ranks.get(pair, float("inf")))
             if bigram not in self.bpe_ranks:
                 break
             first, second = bigram
@@ -148,11 +144,7 @@ class OpenAIGPTTokenizer(PreTrainedTokenizer):
                     new_word.extend(word[i:])
                     break
 
-                if (
-                    word[i] == first
-                    and i < len(word) - 1
-                    and word[i + 1] == second
-                ):
+                if word[i] == first and i < len(word) - 1 and word[i + 1] == second:
                     new_word.append(first + second)
                     i += 2
                 else:
@@ -204,17 +196,11 @@ class OpenAIGPTTokenizer(PreTrainedTokenizer):
         """Save the tokenizer vocabulary and merge files to a directory."""
         if not os.path.isdir(save_directory):
             logger.error(
-                "Vocabulary path ({}) should be a directory".format(
-                    save_directory
-                )
+                "Vocabulary path ({}) should be a directory".format(save_directory)
             )
             return
-        vocab_file = os.path.join(
-            save_directory, VOCAB_FILES_NAMES["vocab_file"]
-        )
-        merge_file = os.path.join(
-            save_directory, VOCAB_FILES_NAMES["merges_file"]
-        )
+        vocab_file = os.path.join(save_directory, VOCAB_FILES_NAMES["vocab_file"])
+        merge_file = os.path.join(save_directory, VOCAB_FILES_NAMES["merges_file"])
 
         with open(vocab_file, "w", encoding="utf-8") as f:
             f.write(json.dumps(self.encoder, ensure_ascii=False))

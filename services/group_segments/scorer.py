@@ -11,9 +11,7 @@ import numpy as np
 
 logger = logging.getLogger(__name__)
 
-config = Config(
-    connect_timeout=240, read_timeout=240, retries={"max_attempts": 0},
-)
+config = Config(connect_timeout=240, read_timeout=240, retries={"max_attempts": 0},)
 lambda_client = boto3_client("lambda", config=config)
 
 
@@ -56,8 +54,7 @@ def get_feature_vector(input_list, lambda_function, mind_f):
         mind_input = json.dumps({"text": extra_input})
         mind_input = json.dumps({"body": mind_input})
         logger.info(
-            "getting feature vector from mind service",
-            extra={"iteration count:": itr},
+            "getting feature vector from mind service", extra={"iteration count:": itr},
         )
         invoke_response = lambda_client.invoke(
             FunctionName=lambda_function,
@@ -66,9 +63,7 @@ def get_feature_vector(input_list, lambda_function, mind_f):
         )
         logger.info("Request Sent", extra={"iteration count": itr})
         # logger.info("computing feature vector", extra={"msg": "Request Sent"})
-        out_json = (
-            invoke_response["Payload"].read().decode("utf8").replace("'", '"')
-        )
+        out_json = invoke_response["Payload"].read().decode("utf8").replace("'", '"')
         data = json.loads(json.loads(out_json)["body"])
         response = json.loads(out_json)["statusCode"]
 

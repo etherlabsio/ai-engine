@@ -45,14 +45,9 @@ class KnowledgeGraph(object):
         instance_id = request["instanceId"]
 
         g.add_nodes_from(
-            [
-                (context_id, self.context_label),
-                (instance_id, self.instance_label),
-            ]
+            [(context_id, self.context_label), (instance_id, self.instance_label),]
         )
-        g.add_edges_from(
-            [(context_id, instance_id, self.context_instance_rel)]
-        )
+        g.add_edges_from([(context_id, instance_id, self.context_instance_rel)])
 
         return g
 
@@ -137,12 +132,7 @@ class KnowledgeGraph(object):
         return g
 
     def populate_keyphrase_info(
-        self,
-        request,
-        keyphrase_list,
-        g=None,
-        is_pim=True,
-        keyphrase_attr_dict=None,
+        self, request, keyphrase_list, g=None, is_pim=True, keyphrase_attr_dict=None,
     ):
         if g is None:
             g = nx.DiGraph()
@@ -207,9 +197,7 @@ class KnowledgeGraph(object):
         )
 
         # Add edge between instanceId and word graph
-        context_graph.add_edge(
-            instance_id, word_graph, relation="hasWordGraph"
-        )
+        context_graph.add_edge(instance_id, word_graph, relation="hasWordGraph")
 
         return context_graph
 

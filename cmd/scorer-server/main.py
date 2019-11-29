@@ -26,10 +26,7 @@ def handler(event, context):
     Request = decode_json_request(event)
     mind_dict = load_mind_features(Request.mind_id)
     scores = list(
-        map(
-            lambda s: get_score(Request.mind_id, mind_dict, s),
-            Request.segments,
-        )
+        map(lambda s: get_score(Request.mind_id, mind_dict, s), Request.segments,)
     )
     out_response = []
     assert len(Request.segments) == len(scores)

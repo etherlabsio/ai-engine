@@ -52,9 +52,7 @@ class S3Manager(object):
         """
         s3_client = self.conn
         try:
-            s3_client.put_object(
-                Body=body, Key=s3_key, Bucket=self.bucket_name
-            )
+            s3_client.put_object(Body=body, Key=s3_key, Bucket=self.bucket_name)
             return True
         except Exception as e:
             logger.error("s3 upload failed", extra={"err": e})
@@ -80,14 +78,11 @@ class S3Manager(object):
         if download_dir is None:
             # Download the file as an object
             try:
-                file_obj = s3_client.get_object(
-                    Bucket=self.bucket_name, Key=file_name
-                )
+                file_obj = s3_client.get_object(Bucket=self.bucket_name, Key=file_name)
                 return file_obj
             except Exception as e:
                 logger.error(
-                    "Cannot download file",
-                    extra={"err": e, "fileName": file_name},
+                    "Cannot download file", extra={"err": e, "fileName": file_name},
                 )
                 return
         else:
@@ -99,8 +94,7 @@ class S3Manager(object):
                 return file_name
             except Exception as e:
                 logger.error(
-                    "Cannot download file",
-                    extra={"err": e, "fileName": file_name},
+                    "Cannot download file", extra={"err": e, "fileName": file_name},
                 )
                 return
 

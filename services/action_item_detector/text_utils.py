@@ -27,8 +27,7 @@ class CandidateKPExtractor(object):
         candidates_tokens = [
             " ".join(word for word, pos, chunk in group).lower()
             for key, group in itertools.groupby(
-                all_chunks,
-                self.lambda_unpack(lambda word, pos, chunk: chunk != "O"),
+                all_chunks, self.lambda_unpack(lambda word, pos, chunk: chunk != "O"),
             )
             if key
         ]
@@ -41,9 +40,7 @@ class CandidateKPExtractor(object):
 
         return candidate_phrases
 
-    def get_ai_subjects(
-        self, text, prop_pattern=[r"""prpvb:{<PRP><MD><VB>+}"""]
-    ):
+    def get_ai_subjects(self, text, prop_pattern=[r"""prpvb:{<PRP><MD><VB>+}"""]):
         ai_candidates = self.get_candidate_phrases(text)
         prop_candidates = self.get_candidate_phrases(text, prop_pattern)
         if len(ai_candidates) == 0 and len(prop_candidates) > 0:

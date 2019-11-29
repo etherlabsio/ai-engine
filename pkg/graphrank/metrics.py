@@ -55,9 +55,7 @@ class GraphSolvers(object):
 
     def get_betweenness(self, graph_obj):
         if nx.is_connected(graph_obj):
-            node_betweenness = nx.current_flow_betweenness_centrality(
-                graph_obj
-            )
+            node_betweenness = nx.current_flow_betweenness_centrality(graph_obj)
         else:
             node_betweenness = nx.betweenness_centrality(graph_obj)
 
@@ -128,9 +126,7 @@ class WeightMetrics(object):
     ranking keyphrases.
     """
 
-    def compute_weight_fn(
-        self, weight_metrics, key_terms, score_list, normalize=False
-    ):
+    def compute_weight_fn(self, weight_metrics, key_terms, score_list, normalize=False):
         weighted_score = 0
 
         if weight_metrics == "max":
@@ -150,9 +146,7 @@ class WeightMetrics(object):
 
         return weighted_score
 
-    def compute_max_score(
-        self, key_terms, score_list, normalize=False, threshold=3
-    ):
+    def compute_max_score(self, key_terms, score_list, normalize=False, threshold=3):
         unit_size = len(key_terms)
         if unit_size > threshold and normalize:
             weight_score = max(score_list) / float(unit_size)
@@ -161,9 +155,7 @@ class WeightMetrics(object):
 
         return weight_score
 
-    def compute_sum_score(
-        self, key_terms, score_list, normalize=False, threshold=3
-    ):
+    def compute_sum_score(self, key_terms, score_list, normalize=False, threshold=3):
         unit_size = len(key_terms)
         if unit_size > threshold and normalize:
             weight_score = sum(score_list) / float(unit_size)

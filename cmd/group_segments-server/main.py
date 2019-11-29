@@ -29,9 +29,7 @@ def handler(event, context):
             return json({"msg": "No segments to process"})
         topics = {}
         pim = {}
-        topics, pim = grouper.get_groups(
-            Request_obj, lambda_function, mind_dict
-        )
+        topics, pim = grouper.get_groups(Request_obj, lambda_function, mind_dict)
         topics["contextId"] = (json_request)["contextId"]
         topics["instanceId"] = (json_request)["instanceId"]
         topics["mindId"] = mindId

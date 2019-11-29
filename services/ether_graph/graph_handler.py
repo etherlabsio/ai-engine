@@ -58,8 +58,7 @@ class GraphHandler(object):
         try:
             node_uid = response["q"][0].get("uid")
             logger.info(
-                "Received response",
-                extra={"response": response, "uid": node_uid},
+                "Received response", extra={"response": response, "uid": node_uid},
             )
             node_obj["uid"] = node_uid
         except IndexError:
@@ -82,9 +81,7 @@ class GraphHandler(object):
         instance_id = instance_node["xid"]
         mind_id = mind_node["xid"]
 
-        context_node = self.query_transform_node(
-            xid=context_id, node_obj=context_node
-        )
+        context_node = self.query_transform_node(xid=context_id, node_obj=context_node)
         instance_node = self.query_transform_node(
             xid=instance_id, node_obj=instance_node
         )
@@ -111,9 +108,7 @@ class GraphHandler(object):
         instance_node = self.query_transform_node(
             xid=instance_id, node_obj=instance_node
         )
-        segment_node = self.query_transform_node(
-            xid=segment_id, node_obj=segment_node
-        )
+        segment_node = self.query_transform_node(xid=segment_id, node_obj=segment_node)
 
         instance_node.update({self.instance_segment_rel: segment_node})
         mutation_query_obj = instance_node
@@ -132,17 +127,13 @@ class GraphHandler(object):
             user_node,
             provider_node,
             recorder_node,
-        ) = self.context_parser.parse_segment_info(
-            segment_object=segment_object
-        )
+        ) = self.context_parser.parse_segment_info(segment_object=segment_object)
 
         segment_id = segment_node["xid"]
         user_id = user_node["xid"]
         recorder_id = recorder_node["xid"]
 
-        segment_node = self.query_transform_node(
-            xid=segment_id, node_obj=segment_node
-        )
+        segment_node = self.query_transform_node(xid=segment_id, node_obj=segment_node)
         user_node = self.query_transform_node(xid=user_id, node_obj=user_node)
         recorder_node = self.query_transform_node(
             xid=recorder_id, node_obj=recorder_node

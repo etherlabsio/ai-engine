@@ -62,9 +62,7 @@ class WarmupLinearSchedule(LambdaLR):
             if step < warmup_steps:
                 return float(step) / float(max(1, warmup_steps))
             return max(
-                0.0,
-                float(t_total - step)
-                / float(max(1.0, t_total - warmup_steps)),
+                0.0, float(t_total - step) / float(max(1.0, t_total - warmup_steps)),
             )
 
         super(WarmupLinearSchedule, self).__init__(
@@ -81,9 +79,7 @@ class WarmupCosineSchedule(LambdaLR):
 
     warn_t_total = True
 
-    def __init__(
-        self, optimizer, warmup_steps, t_total, cycles=0.5, last_epoch=-1
-    ):
+    def __init__(self, optimizer, warmup_steps, t_total, cycles=0.5, last_epoch=-1):
         def lr_lambda(step):
             if step < warmup_steps:
                 return float(step) / float(max(1.0, warmup_steps))
@@ -93,11 +89,7 @@ class WarmupCosineSchedule(LambdaLR):
                 )  # progress after warmup
                 return max(
                     0.0,
-                    0.5
-                    * (
-                        1.0
-                        + math.cos(math.pi * float(cycles) * 2.0 * progress)
-                    ),
+                    0.5 * (1.0 + math.cos(math.pi * float(cycles) * 2.0 * progress)),
                 )
 
         super(WarmupCosineSchedule, self).__init__(
@@ -112,9 +104,7 @@ class WarmupCosineWithHardRestartsSchedule(LambdaLR):
         learning rate (with hard restarts).
     """
 
-    def __init__(
-        self, optimizer, warmup_steps, t_total, cycles=1.0, last_epoch=-1
-    ):
+    def __init__(self, optimizer, warmup_steps, t_total, cycles=1.0, last_epoch=-1):
         def lr_lambda(step):
             if step < warmup_steps:
                 return float(step) / float(max(1, warmup_steps))
@@ -127,12 +117,7 @@ class WarmupCosineWithHardRestartsSchedule(LambdaLR):
                 return max(
                     0.0,
                     0.5
-                    * (
-                        1.0
-                        + math.cos(
-                            math.pi * ((float(cycles) * progress) % 1.0)
-                        )
-                    ),
+                    * (1.0 + math.cos(math.pi * ((float(cycles) * progress) % 1.0))),
                 )
 
         super(WarmupCosineWithHardRestartsSchedule, self).__init__(
@@ -161,25 +146,17 @@ class AdamW(Optimizer):
         correct_bias=True,
     ):
         if lr < 0.0:
-            raise ValueError(
-                "Invalid learning rate: {} - should be >= 0.0".format(lr)
-            )
+            raise ValueError("Invalid learning rate: {} - should be >= 0.0".format(lr))
         if not 0.0 <= betas[0] < 1.0:
             raise ValueError(
-                "Invalid beta parameter: {} - should be in [0.0, 1.0[".format(
-                    betas[0]
-                )
+                "Invalid beta parameter: {} - should be in [0.0, 1.0[".format(betas[0])
             )
         if not 0.0 <= betas[1] < 1.0:
             raise ValueError(
-                "Invalid beta parameter: {} - should be in [0.0, 1.0[".format(
-                    betas[1]
-                )
+                "Invalid beta parameter: {} - should be in [0.0, 1.0[".format(betas[1])
             )
         if not 0.0 <= eps:
-            raise ValueError(
-                "Invalid epsilon value: {} - should be >= 0.0".format(eps)
-            )
+            raise ValueError("Invalid epsilon value: {} - should be >= 0.0".format(eps))
         defaults = dict(
             lr=lr,
             betas=betas,
@@ -236,9 +213,7 @@ class AdamW(Optimizer):
                     bias_correction1 = 1.0 - beta1 ** state["step"]
                     bias_correction2 = 1.0 - beta2 ** state["step"]
                     step_size = (
-                        step_size
-                        * math.sqrt(bias_correction2)
-                        / bias_correction1
+                        step_size * math.sqrt(bias_correction2) / bias_correction1
                     )
 
                 p.data.addcdiv_(-step_size, exp_avg, denom)
