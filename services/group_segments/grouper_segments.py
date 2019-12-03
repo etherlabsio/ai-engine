@@ -311,6 +311,7 @@ class community_detection:
                     "segment0": [com[0][0], com[0][1], com[0][2], com[0][3]]
                 }
                 index_pim += 1
+                continue
 
             for (
                 (index1, (sent1, time1, user1, id1)),
