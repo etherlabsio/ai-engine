@@ -50,8 +50,7 @@ def handler(event, context):
             }
 
         else:
-            logger.info("POST request Recieved: ", extra={"Request": event})
-            Request_obj = tp_gs.decode_json_request(json_request["detail"])
+            Request_obj = tp_gs.decode_json_request(json_request['detail'])
             mindId = str(Request_obj.mind_id).lower()
             lambda_function = "mind-" + mindId
             if not Request_obj.segments:
