@@ -385,7 +385,7 @@ class community_detection:
         while i != len(pims_keys):
             j = 0
             while j != len(pims_keys):
-                if i != j and pims_keys[i] in pims and pims_keys[j] in pims and (len(pims[pims_keys[i]]) != 1 or len(pims[pims_keys[j]]) != 1):
+                if i != j and pims_keys[i] in pims and pims_keys[j] in pims:
                     if (
                         pims[pims_keys[i]]["segment0"][1]
                         >= pims[pims_keys[j]]["segment0"][1]
