@@ -20,6 +20,7 @@ setup_server_logger(debug=False)
 
 
 def handler(event, context):
+    logger.info("POST request Recieved: ", extra={"Request": event})
     if isinstance(event['body'], str):
         json_request = json.loads(event['body'])
     else:
