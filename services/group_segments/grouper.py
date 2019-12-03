@@ -8,9 +8,7 @@ def get_groups(segments, model1, mind_dict, for_pims=False):
         segments, model1, mind_dict, compute_fv=(not for_pims)
     )
     try:
-        pims = community_extraction.h_communities(
-            h_flag=False
-        )  # get hierarchy community
+        pims = community_extraction.h_communities(h_flag=False)  # get hierarchy community
         if not pims:
             raise Exception
     except Exception as e:

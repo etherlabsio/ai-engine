@@ -20,8 +20,8 @@ setup_server_logger(debug=False)
 
 
 def handler(event, context):
-    if isinstance(event["body"], str):
-        json_request = json.loads(event["body"])
+    if isinstance(event['body'], str):
+        json_request = json.loads(event['body'])
     else:
         json_request = event["body"]
     try:
