@@ -28,7 +28,12 @@
 # limitations under the License.
 """PyTorch BERT model. """
 
-from __future__ import absolute_import, division, print_function, unicode_literals
+from __future__ import (
+    absolute_import,
+    division,
+    print_function,
+    unicode_literals,
+)
 
 import json
 import logging
@@ -902,7 +907,7 @@ class BertForPreTraining(BertPreTrainedModel):
                 masked_lm_labels.view(-1),
             )
             next_sentence_loss = loss_fct(
-                seq_relationship_score.view(-1, 2), next_sentence_label.view(-1)
+                seq_relationship_score.view(-1, 2), next_sentence_label.view(-1),
             )
             total_loss = masked_lm_loss + next_sentence_loss
             outputs = (total_loss,) + outputs
@@ -1067,7 +1072,7 @@ class BertForNextSentencePrediction(BertPreTrainedModel):
         if next_sentence_label is not None:
             loss_fct = CrossEntropyLoss(ignore_index=-1)
             next_sentence_loss = loss_fct(
-                seq_relationship_score.view(-1, 2), next_sentence_label.view(-1)
+                seq_relationship_score.view(-1, 2), next_sentence_label.view(-1),
             )
             outputs = (next_sentence_loss,) + outputs
 

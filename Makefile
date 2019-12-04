@@ -83,11 +83,27 @@ update-lambda-function-scorer:
 
 .PHONY: update-lambda-function-gs
 update-lambda-function-gs:
+	./pants bundle cmd/group_segments-server:group_segments_code
 	aws s3 cp --profile ${ENV} dist/group_segments_code.pex s3://io.etherlabs.artifacts/${ENV}/group_segments_code.pex
 	aws lambda update-function-code --function-name group-segments --s3-bucket io.etherlabs.artifacts --s3-key ${ENV}/group_segments_code.pex
 
-.PHONY: build-upload-update-lambda
-build-upload-update-lambda:
-	./pants bundle cmd/${app-name}-server:${build-name}
-	aws s3 cp --profile production dist/${build-name}.pex s3://io.etherlabs.artifacts/${ENV}/${build-name}.pex
-	aws lambda update-function-code --function-name ${function-name} --s3-bucket io.etherlabs.artifacts --s3-key ${ENV}/${build-name}.pex
+.PHONY: test-gs
+test-gs:
+	aws s3 cp --profile staging2 dist/group_segments_code.pex s3://io.etherlabs.staging2.contexts/topics/group_segments_code.pex
+	aws lambda update-function-code --function-name pex_test --s3-bucket io.etherlabs.staging2.contexts --s3-key topics/group_segments_code.pex --region=us-east-1
+
+.PHONY: update-lambda-function-sa
+update-lambda-function-sa:
+	./pants bundle cmd/segment_analyzer-server:segment_analyser_lambda
+	aws s3 cp --profile production dist/segment_analyser_lambda.pex s3://io.etherlabs.artifacts/${ENV}/segment_analyser_lambda.pex
+	aws lambda update-function-code --function-name segment-analyser --s3-bucket io.etherlabs.artifacts --s3-key ${ENV}/segment_analyser_lambda.pex --profile ${ENV}
+
+.PHONY: new-service
+new-service:
+	@mkdir services/${app}
+	@mkdir cmd/${app}-server
+	@touch cmd/${app}-server/main.py
+	@cp .template/BUILD.cmd cmd/${app}-server/BUILD
+	@cp .template/BUILD.services services/${app}/BUILD
+	@echo -e '\n\n Added cmd/${app}-server with BUILD & main file \n Added services/${app} with BUILD file'
+	@echo -e '\nNote: Kindly go into the Build files present in the 'services/${app}/' and 'cmd/${app}-server/'. \n Change the service name from Keyphrase to your respective service name and, \n add/remove the dependencies mentioned in the cmd/${app}-server/BUILD file '

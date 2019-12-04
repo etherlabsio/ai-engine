@@ -272,9 +272,7 @@ class BERT_NER:
         text = re.sub(
             "[A-Z]\. ", lambda mobj: mobj.group(0)[0] + mobj.group(0)[1], text
         )
-        text = re.sub(
-            "\.(\w{2,})", lambda mobj: " " + mobj.group(1), text
-        )
+        text = re.sub("\.(\w{2,})", lambda mobj: " " + mobj.group(1), text)
         for word in text.split(" "):
             if self.contractions.get(word.lower()):
                 text = text.replace(word, self.contractions[word.lower()])
@@ -312,9 +310,7 @@ class BERT_NER:
         input_ids, token_to_word = self.prepare_input_for_model(pos_text)
 
         entities = self.extract_entities(input_ids, token_to_word)
-        sent_entity_list, sent_scores = self.concat_entities(
-            clean_text, entities
-        )
+        sent_entity_list, sent_scores = self.concat_entities(clean_text, entities)
         if len(sent_entity_list) > 0:
             sent_entity_list = self.capitalize_entities(sent_entity_list)
 
@@ -331,12 +327,7 @@ class BERT_NER:
         entity_list = list(
             map(
                 lambda entities: " ".join(
-                    list(
-                        map(
-                            lambda ent: capitalize_entity(ent),
-                            entities.split(),
-                        )
-                    )
+                    list(map(lambda ent: capitalize_entity(ent), entities.split(),))
                 ),
                 entity_list,
             )
@@ -360,9 +351,7 @@ class BERT_NER:
         # Calculating batch size based on nearest "." from mid-point of text if length exceeds 512
         if len(input_ids) > 512:
             batch_size = (
-                510
-                - 1
-                - input_ids[:510][::-1].index(self.tokenizer.encode(".")[0])
+                510 - 1 - input_ids[:510][::-1].index(self.tokenizer.encode(".")[0])
             )
         else:
             batch_size = 510
@@ -399,9 +388,7 @@ class BERT_NER:
         sent_scores = []
         seen = []
         # handling acronym followed by capitalized entitity
-        text = re.sub(
-            "\.(\w{2,})", lambda mobj: " " + mobj.group(1), text
-        ).casefold()
+        text = re.sub("\.(\w{2,})", lambda mobj: " " + mobj.group(1), text).casefold()
         # remove consecutive duplicate entities
         # (word, score, pos_tag)
         grouped_words = [

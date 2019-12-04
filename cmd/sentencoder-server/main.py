@@ -71,7 +71,7 @@ def handler(event, context):
         }
     except Exception as e:
         logger.error(
-            "Error processing request", extra={"err": e, "request": json_request}
+            "Error processing request", extra={"err": e, "request": json_request},
         )
         placeholder_embeddings = np.zeros(shape=(1, 512))
         response = json.dumps({"embeddings": placeholder_embeddings}, cls=NumpyEncoder)

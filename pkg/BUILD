@@ -4,6 +4,21 @@ python_library(
 )
 
 python_library(
+    name='tp-libs',
+    sources=['text_preprocessing/*']
+)
+
+
+python_library(
+    name='logger-libs',
+    sources=['log/*']
+)
+
+python_library(
+    name='s3-libs',
+    sources=['s3client/*']
+)
+python_library(
     name='graphrank-pkg',
     sources=['graphrank/*.py'],
     dependencies=[
