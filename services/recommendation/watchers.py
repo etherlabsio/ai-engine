@@ -19,19 +19,13 @@ class RecWatchers(object):
         reference_user_kw_vector,
         vectorizer=None,
         s3_client=None,
+        web_hook_url=None,
     ):
         self.vectorizer = vectorizer
         self.s3_client = s3_client
         self.pos_list = ["NN", "NNS", "NNP"]
 
-        # # Load and read files for rec
-        # self.reference_user_dict = self.read_json(
-        #     os.path.join(os.getcwd(), reference_user_file)
-        # )
-        # self.user_vector_data = self.load_pickle(
-        #     file_name=reference_user_kw_vector
-        # )
-        self.web_hook_url = "https://hooks.slack.com/services/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"
+        self.web_hook_url = web_hook_url
 
         # Download and transform recommendation objects
         logger.info("Downloading reference objects from s3")

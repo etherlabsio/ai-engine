@@ -61,11 +61,19 @@ if __name__ == "__main__":
     vectorizer = Vectorizer(
         lambda_client=lambda_client, lambda_function=encoder_lambda_function
     )
+
+    active_env = bucket_store.split(".")[2]
+    if active_env == "staging2":
+        web_hook_url = "https://hooks.slack.com/services/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"
+    else:
+        web_hook_url = "https://hooks.slack.com/services/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"
+
     rec_object = RecWatchers(
         reference_user_file,
         reference_user_kw_vector,
         vectorizer=vectorizer,
         s3_client=s3_client,
+        web_hook_url=web_hook_url,
     )
 
     nats_transport = NATSTransport(
