@@ -18,7 +18,7 @@ class NATSTransport(object):
             extra={"topic": context_created_topic},
         )
         await self.nats_manager.subscribe(
-            context_created_topic, handler=self.context_created_handler, queued=True
+            context_created_topic, handler=self.context_created_handler, queued=True,
         )
 
     async def context_created_handler(self, msg):
@@ -118,12 +118,16 @@ class NATSTransport(object):
         segment_object = request["segments"]
 
         try:
-            context_graph, meeting_word_graph = self.keyphrase_service.populate_word_graph(
-                request
-            )
+            (
+                context_graph,
+                meeting_word_graph,
+            ) = self.keyphrase_service.populate_word_graph(request)
 
             # Compute embeddings for segments and keyphrases
-            context_graph, meeting_word_graph = self.keyphrase_service.populate_context_embeddings(
+            (
+                context_graph,
+                meeting_word_graph,
+            ) = self.keyphrase_service.populate_context_embeddings(
                 req_data=request,
                 segment_object=segment_object,
                 context_graph=context_graph,
@@ -168,7 +172,7 @@ class NATSTransport(object):
 
         if populate_graph:
             output = self.keyphrase_service.get_keyphrases(
-                request, segment_object=segment_object, n_kw=limit, validate=validation
+                request, segment_object=segment_object, n_kw=limit, validate=validation,
             )
         else:
             group_id = self.keyphrase_service.utils.hash_sha_object()

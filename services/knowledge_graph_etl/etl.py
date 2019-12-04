@@ -150,19 +150,13 @@ class GraphETL(object):
         with open(transformed_graphml_filename, "rb") as graphml_string:
             self.gio.upload_s3(
                 file_name=graphml_string,
-                s3_path=s3_upload_path
-                + "GraphMLData/"
-                + transformed_graphml_filename,
+                s3_path=s3_upload_path + "GraphMLData/" + transformed_graphml_filename,
             )
 
         # Upload CSVs to s3
         with open(node_file, "rb") as nf, open(edge_file, "rb") as ef:
-            self.gio.upload_s3(
-                file_name=nf, s3_path=s3_upload_path + node_file
-            )
-            self.gio.upload_s3(
-                file_name=ef, s3_path=s3_upload_path + edge_file
-            )
+            self.gio.upload_s3(file_name=nf, s3_path=s3_upload_path + node_file)
+            self.gio.upload_s3(file_name=ef, s3_path=s3_upload_path + edge_file)
 
     def _dgraph_etl(self, graph_file_name, s3_path, s3_upload_path):
 
@@ -179,17 +173,11 @@ class GraphETL(object):
         with open(graph_file_name + ".json", "rb") as js_string:
             self.gio.upload_s3(
                 file_name=js_string,
-                s3_path=s3_upload_path
-                + "DgraphData/"
-                + graph_file_name
-                + ".json",
+                s3_path=s3_upload_path + "DgraphData/" + graph_file_name + ".json",
             )
 
         self.s3_client.download_file(
-            file_name=s3_upload_path
-            + "DgraphData/"
-            + graph_file_name
-            + ".json",
+            file_name=s3_upload_path + "DgraphData/" + graph_file_name + ".json",
             download_dir=str(self.download_loc),
         )
 

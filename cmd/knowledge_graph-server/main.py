@@ -17,9 +17,7 @@ logger = logging.getLogger()
 setup_server_logger(debug=True)
 
 bucket_store = os.getenv("STORAGE_BUCKET", "io.etherlabs.production.contexts")
-s2_bucket_store = os.getenv(
-    "S2_STORAGE_BUCKET", "io.etherlabs.staging2.contexts"
-)
+s2_bucket_store = os.getenv("S2_STORAGE_BUCKET", "io.etherlabs.staging2.contexts")
 profile_name = os.getenv("PROFILE", "default")
 
 if profile_name == "staging2":
@@ -90,8 +88,7 @@ def handler(event, context):
         }
     except Exception as e:
         logger.error(
-            "Error processing request",
-            extra={"err": e, "request": json_request},
+            "Error processing request", extra={"err": e, "request": json_request},
         )
         return {
             "statusCode": 404,

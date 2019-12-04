@@ -1,4 +1,1 @@
-python_library(
-	name="group_segments-libs",
-	sources=["*"]
-)
+python_library(name="group_segments-libs", sources=["*"])

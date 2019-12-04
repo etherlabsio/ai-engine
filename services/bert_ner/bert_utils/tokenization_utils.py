@@ -27,7 +27,12 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 """Tokenization classes for OpenAI GPT."""
-from __future__ import absolute_import, division, print_function, unicode_literals
+from __future__ import (
+    absolute_import,
+    division,
+    print_function,
+    unicode_literals,
+)
 
 import logging
 import os
@@ -661,7 +666,7 @@ class PreTrainedTokenizer(object):
         return " ".join(self.convert_ids_to_tokens(tokens))
 
     def decode(
-        self, token_ids, skip_special_tokens=False, clean_up_tokenization_spaces=True
+        self, token_ids, skip_special_tokens=False, clean_up_tokenization_spaces=True,
     ):
         """
         Converts a sequence of ids (integer) in a string, using the tokenizer and vocabulary
@@ -676,7 +681,7 @@ class PreTrainedTokenizer(object):
         if self.sep_token is not None and self.sep_token in text:
             text = text.replace(self.cls_token, self.sep_token)
             split_text = list(
-                filter(lambda sentence: len(sentence) > 0, text.split(self.sep_token))
+                filter(lambda sentence: len(sentence) > 0, text.split(self.sep_token),)
             )
             if clean_up_tokenization_spaces:
                 clean_text = [self.clean_up_tokenization(text) for text in split_text]
