@@ -24,14 +24,11 @@ def preprocess_text(text):
                 mod_texts.append(split2)
                 continue
 
-            if len(sent.split(" ")) <= 10:
+            if len(sent.split(" ")) <= 4:
                 continue
 
             mod_texts.append(sent)
-        if len(mod_texts) == 1:
-            if not (len(mod_texts[0].split(' ')) >= 20):
-                return ""
-        elif len(mod_texts) == 0:
+        if len(mod_texts) <= 1:
             return ""
     else:
         return ""
