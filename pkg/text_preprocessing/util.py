@@ -524,9 +524,6 @@ def st_getregexChunks(text, grammar):
             for tagged_sent in tagged_sents
         )
     )
-    # print(grammar)
-    # print(all_chunks)
-    # print()
 
     return all_chunks
 
