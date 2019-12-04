@@ -1,10 +1,26 @@
 {
-    "contextId":"6baa3490",
-    "instanceId":"b5d4",
-    "limit": 10,
-    "mindId": "mind123",
-    "segments": [
-        {"transcriber":"google_speech_api","confidence":0.82295096,"spokenBy":"b782dae506de4b7abc7d789a1ad005e5","languageCode":"en-US","originalText":"We go into that issue because we read the from the Json field column tables. We we have their columns available, but we are not breaking from that column which is creating a problem but then you know, bring a that solution we should start needed it from that columns and only few places we've done ready need to do that the is the case. I think this not of code is the if you want to use the column portion of the values json log then there will be George changes setting. U a D then we start fields and all not so in case of meeting meeting and recording and markers. We have both Json fields and the call proper call call let let can that like that what I telling is will not do anything with that in the Json and value of d there right. We will replace the swing field with the Hyphen iPhone that's. The we are reading the ID from the Json. I'm not from the column. So in the days very while waiting from a database we need to change oriented B a force layer. I I will from the value where it is like it a relationship right but then the column or as become the that valuation can value. So if we start reading from actual columns we should not ask that's what I thinking less less. Let's see. And also just ping up existing links which we have doing the recording link right. That we it work automatically because those will not having open do id. Yeah, maybe if we can translate like internally and finish through that again. From layer where we to transfer it okay let me do five okay. I'll make the new are you working today. Yeah. Actually yesterday was what little bit from this cloud distribution task like basically what you what we to do is that me or we want to point it in and if the API part has a slack in okay part will do it routed to API p gateway but if it doesn't have any other if you are anything with before we have go to load we will go back to the same whatever we have the proxy right? So so the distribution and all to so that that part from started working yesterday I talk to trishant. So there are no blockage from there are point of view so we can like today be able to read that reference script for it. So after this I want to work on a P a service solution connect and is moving back to external load. The API will directed of external. So that with the proper point id. ","duration":9,"createdAt":"2019-09-05T21:13:12.10566238Z","deleted":false,"transcriptId":"1cbf4fee-bf9c-4bb3-9be8-6bf97594d943","startTime":"2019-09-05T21:13:02Z","id":"354aa314d75142b791f178dacbe3a063","endTime":"2019-09-05T21:13:11Z","recordingId":"d1ad0c48a9af44119b0ea6b9c2aeec67","status":"completed","updatedAt":"2019-09-05T21:13:32.910095339Z"}
-    ]
+  "contextId": "6baa3490",
+  "instanceId": "b5d4",
+  "limit": 10,
+  "mindId": "mind123",
+  "segments": [
+    {
+      "transcriber": "google_speech_api",
+      "confidence": 0.82295096,
+      "spokenBy": "b782dae506de4b7abc7d789a1ad005e5",
+      "languageCode": "en-US",
+      "originalText": "We go into that issue because we read the from the Json field column tables. We we have their columns available, but we are not json and value from that column which is creating a problem but then you know, bring a that solution we should start needed it from that columns and only few places we've done ready need to do that the is the case. I think this not of code is the if you want to use the column portion of the values json log then there will be George changes setting. U a D then we start fields and all not so in case of meeting meeting and recording and markers. We have both Json fields and the call proper call call let let can that like that what I telling is will not do anything with that in the Json and value of d there right. We will replace the swing field with the Hyphen iPhone that's. The we are reading the ID from the Json. I'm not from the column. So in the days very while waiting from a database we need to change oriented B a force layer. I I will from the value where it is like it a relationship right but then the column or as become the that valuation can value. So if we start reading from actual columns we should not ask that's what I thinking less less. Let's see. And also just ping up existing links which we have doing the recording link right. That we it work automatically because those will not having open do id. Yeah, maybe if we can translate like internally and finish through that again. From layer where we to transfer it okay let me do five okay. I'll make the new are you working today. Yeah. Actually yesterday was what little bit from this cloud distribution task like basically what you what we to do is that me or we want to point it in and if the API part has a slack in okay part will do it routed to API p gateway but if it doesn't have any other if you are anything with before we have go to load we will go back to the same whatever we have the proxy right? So so the distribution and all to so that that part from started working yesterday I talk to trishant. So there are no blockage from there are point of view so we can like today be able to read that reference script for it. So after this I want to work on a P a service solution connect and is moving back to external load. The API will directed of external. So that with the proper point id. ",
+      "duration": 9,
+      "createdAt": "2019-09-05T21:13:12.10566238Z",
+      "deleted": false,
+      "transcriptId": "1cbf4fee-bf9c-4bb3-9be8-6bf97594d943",
+      "startTime": "2019-09-05T21:13:02Z",
+      "id": "354aa314d75142b791f178dacbe3a063",
+      "endTime": "2019-09-05T21:13:11Z",
+      "recordingId": "d1ad0c48a9af44119b0ea6b9c2aeec67",
+      "status": "completed",
+      "updatedAt": "2019-09-05T21:13:32.910095339Z"
+    }
+  ]
 }
 
