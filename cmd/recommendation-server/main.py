@@ -8,14 +8,14 @@ from os import getenv
 from boto3 import client
 from botocore.client import Config
 
-
-from keyphrase.extract_keyphrases import KeyphraseExtractor
-from keyphrase.transport.nats import NATSTransport
-
+from recommendation.transport.nats import NATSTransport
+from recommendation.watchers import RecWatchers
+from recommendation.vectorize import Vectorizer
 
 from nats.manager import Manager
 from log.logger import setup_server_logger
 from s3client.s3 import S3Manager
+
 
 logger = logging.getLogger()
 load_dotenv(find_dotenv())
@@ -50,20 +50,36 @@ if __name__ == "__main__":
     loop = asyncio.get_event_loop()
 
     nats_manager = Manager(
-        loop=loop, url=nats_url, queue_name="io.etherlabs.keyphrase_service"
+        loop=loop,
+        url=nats_url,
+        queue_name="io.etherlabs.recommendation_service",
     )
 
-    # Initialize keyphrase-service client
-    keyphrase_extractor = KeyphraseExtractor(
-        s3_client=s3_client,
-        encoder_lambda_client=lambda_client,
-        lambda_function=encoder_lambda_function,
-        ner_lambda_function=ner_lambda_function,
+    reference_user_file = "reference_prod_user.json"
+    reference_user_kw_vector = "reference_user_kw_vector.pickle"
+
+    vectorizer = Vectorizer(
+        lambda_client=lambda_client, lambda_function=encoder_lambda_function
     )
-    logger.debug("download complete")
+
+    active_env = bucket_store.split(".")[2]
+    if active_env == "staging2":
+        web_hook_url = "https://hooks.slack.com/services/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"
+    else:
+        web_hook_url = "https://hooks.slack.com/services/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"
+
+    rec_object = RecWatchers(
+        reference_user_file,
+        reference_user_kw_vector,
+        vectorizer=vectorizer,
+        s3_client=s3_client,
+        web_hook_url=web_hook_url,
+    )
 
     nats_transport = NATSTransport(
-        nats_manager=nats_manager, keyphrase_service=keyphrase_extractor
+        nats_manager=nats_manager,
+        watcher_service=rec_object,
+        meeting_service=None,
     )
 
     def shutdown():

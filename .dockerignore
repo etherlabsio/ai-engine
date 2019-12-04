@@ -8,3 +8,5 @@ pyproject.toml
 virtualenv-16.4.3.tar.gz
 */__pycache__/*
 models/
+*.ipynb_checkpoints/
+.dvc

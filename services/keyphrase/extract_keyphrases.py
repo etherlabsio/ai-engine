@@ -6,7 +6,6 @@ from typing import List, Dict, Tuple
 from collections import OrderedDict
 from copy import deepcopy
 import numpy as np
-import uuid
 
 from graphrank.core import GraphRank
 from graphrank.utils import TextPreprocess, GraphUtils
@@ -67,6 +66,7 @@ class KeyphraseExtractor(object):
             "NNPS",
             "FW",
         ]
+        self.meeting_keywords = []
 
     def get_graph_id(self, req_data):
         context_id = req_data["contextId"]
@@ -690,6 +690,8 @@ class KeyphraseExtractor(object):
                 )
                 logger.info("Updated context graph with PIM keyphrases")
 
+            self.meeting_keywords.extend(keyphrases)
+
             result = {"keyphrases": keyphrases}
             return result
 
@@ -824,6 +826,8 @@ class KeyphraseExtractor(object):
                 "keyphrases extracted successfully for new summary",
                 extra={"result": keyphrases, "output": keyphrase_object},
             )
+
+            self.meeting_keywords.extend(keyphrases)
 
             result = {"keyphrases": keyphrases}
             return result
@@ -1253,6 +1257,8 @@ class KeyphraseExtractor(object):
 
         word_graph.clear()
 
+        result = {"keyphrases": self.meeting_keywords}
+
         end = timer()
         logger.info(
             "Post-reset: Graph info",
@@ -1263,5 +1269,8 @@ class KeyphraseExtractor(object):
                 "kgNodes": context_graph.number_of_nodes(),
                 "kgEdges": context_graph.number_of_edges(),
                 "responseTime": end - start,
+                "instanceId": req_data["instanceId"],
             },
         )
+
+        return result
