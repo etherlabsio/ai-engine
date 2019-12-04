@@ -168,41 +168,41 @@ class community_detection:
             for nodeb in graph_list.keys():
                 if self.segments_order[graph_list[nodeb][-1]] - self.segments_order[
                     graph_list[nodea][-1]
-                ] == (0 or 1):
+                ] in [0, 1]:
                     c_weight = cosine(fv[nodea], fv[nodeb])
                     meeting_graph.add_edge(nodea, nodeb, weight=c_weight)
                     yetto_prune.append((nodea, nodeb, c_weight))
 
-        X = nx.to_numpy_array(meeting_graph)
+        # X = nx.to_numpy_array(meeting_graph)
 
-        for i in range(len(X)):
-            X[i][i] = X[i].mean()
+        # for i in range(len(X)):
+        #     X[i][i] = X[i].mean()
 
-        norm_mat = (X - X.min(axis=1)) / (X.max(axis=1) - X.min(axis=1))
-        norm_mat = (np.transpose(np.tril(norm_mat)) + np.triu(norm_mat)) / 2
-        norm_mat = norm_mat + np.transpose(norm_mat)
-        meeting_graph = nx.from_numpy_array(norm_mat)
-        logger.info(
-            "Completed Normalization",
-            extra={
-                "nodes: ": meeting_graph.number_of_nodes(),
-                "edges: ": meeting_graph.number_of_edges(),
-            },
-        )
+        # norm_mat = (X - X.min(axis=1)) / (X.max(axis=1) - X.min(axis=1))
+        # norm_mat = (np.transpose(np.tril(norm_mat)) + np.triu(norm_mat)) / 2
+        # norm_mat = norm_mat + np.transpose(norm_mat)
+        # meeting_graph = nx.from_numpy_array(norm_mat)
+        # logger.info(
+        #     "Completed Normalization",
+        #     extra={
+        #         "nodes: ": meeting_graph.number_of_nodes(),
+        #         "edges: ": meeting_graph.number_of_edges(),
+        #     },
+        # )
 
-        for index in range(meeting_graph.number_of_nodes()):
-            meeting_graph[index][index]["weight"] = 1
+        # for index in range(meeting_graph.number_of_nodes()):
+        #     meeting_graph[index][index]["weight"] = 1
 
-        logger.info(
-            "Completed Normalization and after removing diagonal values",
-            extra={
-                "nodes: ": meeting_graph.number_of_nodes(),
-                "edges: ": meeting_graph.number_of_edges(),
-            },
-        )
-        yetto_prune = []
-        for nodea, nodeb, weight in meeting_graph.edges.data():
-            yetto_prune.append((nodea, nodeb, weight["weight"]))
+        # logger.info(
+        #     "Completed Normalization and after removing diagonal values",
+        #     extra={
+        #         "nodes: ": meeting_graph.number_of_nodes(),
+        #         "edges: ": meeting_graph.number_of_edges(),
+        #     },
+        # )
+        # yetto_prune = []
+        # for nodea, nodeb, weight in meeting_graph.edges.data():
+        #     yetto_prune.append((nodea, nodeb, weight["weight"]))
         return meeting_graph, yetto_prune
 
     def prune_edges_outlier(self, meeting_graph, graph_list, yetto_prune, v):
@@ -229,7 +229,7 @@ class community_detection:
             community_set.items(), key=lambda kv: kv[1], reverse=False
         )
 
-        return community_set_sorted
+        return community_set_sorted, modularity_score
 
     def refine_community(self, community_set_sorted, graph_list):
         clusters = []
@@ -311,6 +311,7 @@ class community_detection:
                     "segment0": [com[0][0], com[0][1], com[0][2], com[0][3]]
                 }
                 index_pim += 1
+                continue
 
             for (
                 (index1, (sent1, time1, user1, id1)),
@@ -318,9 +319,7 @@ class community_detection:
             ) in zip(enumerate(com[0:]), enumerate(com[1:])):
                 if id1 != id2:
                     # if ((extra_preprocess.format_time(time2, True) - extra_preprocess.format_time(time1, True)).seconds <= 120):
-                    if (self.segments_order[id2] - self.segments_order[id1]) == (
-                        0 or 1 or 2
-                    ):
+                    if (self.segments_order[id2] - self.segments_order[id1]) in [0, 1]:
                         if not flag:
                             pims[index_pim] = {
                                 "segment"
@@ -384,7 +383,12 @@ class community_detection:
         while i != len(pims_keys):
             j = 0
             while j != len(pims_keys):
-                if i != j and pims_keys[i] in pims and pims_keys[j] in pims:
+                if (
+                    i != j
+                    and pims_keys[i] in pims
+                    and pims_keys[j] in pims
+                    and (len(pims[pims_keys[i]]) != 1 or len(pims[pims_keys[j]]) != 1)
+                ):
                     if (
                         pims[pims_keys[i]]["segment0"][1]
                         >= pims[pims_keys[j]]["segment0"][1]
@@ -468,45 +472,53 @@ class community_detection:
                     inverse_dangling_pims.append(pims[p][seg][3])
 
         # if a segment wasn't present in a group and can be placed right next to the last segment of a group, based on time, add it.
-        for segmentid in self.segments_order.keys():
-            if segmentid not in inverse_dangling_pims:
-                order = self.segments_order[segmentid]
-                for pim in pims.keys():
-                    if len(pims[pim].keys()) != 1:
-                        if (
-                            self.segments_order[
-                                pims[pim]["segment" + str(len(pims[pim].values()) - 1)][
-                                    -1
-                                ]
-                            ]
-                            == order - 1
-                        ):
-                            print(
-                                "appending extra segment based on order: ",
-                                self.segments_map[segmentid],
-                                pim,
-                            )
-                            pims[pim]["segment" + str(len(pims[pim].values()))] = (
-                                self.segments_map[segmentid]["originalText"],
-                                self.segments_map[segmentid]["spokenBy"],
-                                self.segments_map[segmentid]["startTime"],
-                                self.segments_map[segmentid]["id"],
-                            )
-                            break
+        # for segmentid in self.segments_order.keys():
+        #     if segmentid not in inverse_dangling_pims:
+        #         order = self.segments_order[segmentid]
+        #         for pim in pims.keys():
+        #             if len(pims[pim].keys()) != 1:
+        #                 if (
+        #                     self.segments_order[
+        #                         pims[pim]["segment" + str(len(pims[pim].values()) - 1)][
+        #                             -1
+        #                         ]
+        #                     ]
+        #                     == order - 1
+        #                 ):
+        #                     print(
+        #                         "appending extra segment based on order: ",
+        #                         self.segments_map[segmentid],
+        #                         pim,
+        #                     )
+        #                     pims[pim]["segment" + str(len(pims[pim].values()))] = (
+        #                         self.segments_map[segmentid]["originalText"],
+        #                         self.segments_map[segmentid]["spokenBy"],
+        #                         self.segments_map[segmentid]["startTime"],
+        #                         self.segments_map[segmentid]["id"],
+        #                     )
+        #                     break
 
         # Remove Redundent PIMs in a group and also for single segment as a topic accept it as a topic only if the word count is greater than 120.
+        flag = False
+        index = 0
+        for pim in list(pims.keys()):
+            if len(pims[pim]) > 1:
+                flag = True
+        if not flag:
+            return pims
+
         index = 0
         for pim in list(pims.keys()):
             if len(pims[pim]) == 1:
-                if (
-                    len(
-                        self.segments_map[pims[pim]["segment0"][-1]][
-                            "originalText"
-                        ].split(" ")
-                    )
-                    < 120
-                ):
-                    del pims[pim]
+                # if (
+                #     len(
+                #         self.segments_map[pims[pim]["segment0"][-1]][
+                #             "originalText"
+                #         ].split(" ")
+                #     )
+                #     < 120
+                # ):
+                del pims[pim]
         return pims
 
     def order_groups_by_score(self, pims, fv_mapped_score):
@@ -540,11 +552,22 @@ class community_detection:
             (fv, graph_list, fv_mapped_score,) = self.get_computed_feature_vector_gpt()
         # _ = self.remove_preprocessed_segments(graph_list)
 
-        meeting_graph, yetto_prune = self.construct_graph(fv, graph_list)
+        meeting_graph, yetto_prune = self.construct_graph_next_segment(fv, graph_list)
         meeting_graph_pruned = self.prune_edges_outlier(
             meeting_graph, graph_list, yetto_prune, v
         )
-        community_set_sorted = self.compute_louvain_community(meeting_graph_pruned, t)
+        # meeting_graph_pruned = deepcopy(meeting_graph)
+        l_mod = 1
+        flag = False
+        community_set_sorted = None
+        for itr in range(5):
+            community_set, mod = self.compute_louvain_community(meeting_graph_pruned, t)
+            if mod < l_mod:
+                l_mod = mod
+                community_set_sorted = community_set
+                flag = True
+        if not flag:
+            community_set_sorted = community_set
         clusters = []
         temp = []
         prev_com = 0
@@ -647,7 +670,7 @@ class community_detection:
         pims = self.order_groups_by_score(pims, fv_mapped_score)
         new_pims = {}
         for key in pims.keys()[:5]:
-            new_pims = deepcopy(pims[key])
+            new_pims[key] = deepcopy(pims[key])
         logger.info("Final PIMs", extra={"PIMs": new_pims})
 
         return new_pims
@@ -658,7 +681,7 @@ class community_detection:
         meeting_graph, yetto_prune = self.construct_graph(fv, graph_list)
         max_meeting_grap_pruned = None
         max_community_set = None
-        v = 0.10
+        v = 0
         i = 0
         edge_count = meeting_graph.number_of_edges()
         meeting_graph_pruned = meeting_graph

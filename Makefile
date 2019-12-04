@@ -80,7 +80,7 @@ test-gs:
 .PHONY: update-lambda-function-sa
 update-lambda-function-sa:
 	./pants bundle cmd/segment_analyzer-server:segment_analyser_lambda
-	aws s3 cp --profile ${ENV} dist/segment_analyser_lambda.pex s3://io.etherlabs.artifacts/${ENV}/segment_analyser_lambda.pex
+	aws s3 cp --profile production dist/segment_analyser_lambda.pex s3://io.etherlabs.artifacts/${ENV}/segment_analyser_lambda.pex
 	aws lambda update-function-code --function-name segment-analyser --s3-bucket io.etherlabs.artifacts --s3-key ${ENV}/segment_analyser_lambda.pex --profile ${ENV}
 
 .PHONY: new-service
