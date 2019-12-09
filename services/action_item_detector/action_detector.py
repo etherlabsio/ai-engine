@@ -95,7 +95,7 @@ yet you your yours yourself yourselves
 
 stop_words = set(list(stop_words) + stop_words_spacy)
 stop_words = set(list(stop_words) + list(stop_words_spacy))
-stop_words = stop_words - set(["get", "give", "go", "do", "make", "please"])
+stop_words = stop_words - set(["get", "give", "go", "do", "make", "please"])    
 action_marker_list = ["we", "i", "you", "let's", "i'll", "we'll"]
 
 
@@ -294,7 +294,7 @@ class ActionItemDetector:
                         "id": uuid_,
                         "subject": action_item,
                         "segment_ids": [segment],
-                        "assignees": [assignee],
+                        "assignees": [],
                         "is_assignee_previous": is_prev_user,
                         "is_assignee_both": is_both,
                     }
@@ -308,7 +308,7 @@ class ActionItemDetector:
                             "id": uuid_,
                             "subject": action_item,
                             "segment_ids": [segment],
-                            "assignees": [assignee],
+                            "assignees": [],
                             "is_assignee_previous": is_prev_user,
                             "is_assignee_both": is_both,
                         }
