@@ -37,7 +37,7 @@ class CandidateKPExtractor(object):
             if cand not in self.stop_words
             and not all(char in self.punct for char in cand)
         ]
-
+        candidate_phrases = [self.fixRegexPattern(candidate) for candidate in candidate_phrases]
         return candidate_phrases
 
     def get_ai_subjects(self, text, prop_pattern=[r"""prpvb:{<PRP><MD><VB>+}"""]):
@@ -72,3 +72,15 @@ class CandidateKPExtractor(object):
 
     def lambda_unpack(self, f):
         return lambda args: f(*args)
+
+    def fixRegexPattern(self,text):    
+        filtered_tok_list = []
+        for i in range(len(text.split(' '))):
+            tok = text.split(' ')[i]
+            if tok[0] == "'":
+                if len(filtered_tok_list)>0:
+                    merge_tok = filtered_tok_list.pop()
+                    filtered_tok_list.append(merge_tok+tok)
+            else:
+                filtered_tok_list.append(tok)
+        return(' '.join(filtered_tok_list))
