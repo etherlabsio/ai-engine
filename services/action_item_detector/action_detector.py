@@ -94,8 +94,8 @@ yet you your yours yourself yourselves
 )
 
 stop_words = set(list(stop_words) + stop_words_spacy)
-stop_words = stop_words - set(["get", "give", "go", "do", "make", "please"])
 stop_words = set(list(stop_words) + list(stop_words_spacy))
+stop_words = stop_words - set(["get", "give", "go", "do", "make", "please"])
 action_marker_list = ["we", "i", "you", "let's", "i'll", "we'll"]
 
 
