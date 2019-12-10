@@ -96,7 +96,10 @@ class NATSTransport(object):
         keyphrase_list = request["keyphrases"]
 
         try:
-            rec_users, related_words = self.watcher_service.get_recommended_watchers(
+            (
+                rec_users,
+                related_words,
+            ) = self.watcher_service.get_recommended_watchers(
                 kw_list=keyphrase_list
             )
             self.watcher_service.make_validation_data(
@@ -127,10 +130,13 @@ class NATSTransport(object):
         keyphrase_list = request["keyphrases"]
 
         try:
-            rec_users, related_words = self.watcher_service.get_recommended_watchers(
+            (
+                rec_users,
+                related_words,
+            ) = self.watcher_service.get_recommended_watchers(
                 kw_list=keyphrase_list
             )
-            watcher_response = {"users": rec_users, "words": related_words}
+            # watcher_response = {"users": rec_users, "words": related_words}
 
             # await self.nats_manager.conn.publish(
             #     msg.reply, json.dumps(watcher_response).encode()

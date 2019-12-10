@@ -34,7 +34,7 @@ class Schema(object):
                     authoredBy: User
                     hasKeywords: [Keyphrase]
                     hasSource: [Source]
-                    providedBy: Provider    
+                    providedBy: Provider
                 }
 
                 type User {
