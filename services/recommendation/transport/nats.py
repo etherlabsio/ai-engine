@@ -91,31 +91,7 @@ class NATSTransport(object):
             raise
 
     async def context_end_handler(self, msg):
-        request = json.loads(msg.data)
-        instance_id = request["instanceId"]
-        keyphrase_list = request["keyphrases"]
-
-        try:
-            (
-                rec_users,
-                related_words,
-            ) = self.watcher_service.get_recommended_watchers(
-                kw_list=keyphrase_list
-            )
-            self.watcher_service.prepare_slack_validation(
-                req_data=request,
-                user_dict=rec_users,
-                word_list=related_words,
-                upload=True,
-            )
-
-            logger.info(
-                "Uploading recommended results",
-                extra={"instanceId": instance_id},
-            )
-        except Exception as e:
-            logger.error("Error uploading", extra={"err": e})
-            raise
+        pass
 
     # Topic Handler functions
 
@@ -149,6 +125,7 @@ class NATSTransport(object):
                 user_dict=rec_users_dict,
                 word_list=related_words,
                 suggested_users=suggested_user_list,
+                upload=True,
             )
 
             end = timer()

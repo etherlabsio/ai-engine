@@ -6,6 +6,8 @@ from pathlib import Path
 from collections import OrderedDict
 import requests
 import numpy as np
+import uuid
+import hashlib
 
 logger = logging.getLogger(__name__)
 
@@ -16,6 +18,13 @@ class Utils(object):
         self.s3_client = s3_client
         self.reference_user_dict = reference_user_dict
         self.validation_dict = {}
+
+    def hash_sha_object(self) -> str:
+        uid = uuid.uuid4()
+        uid = str(uid)
+        hash_object = hashlib.sha1(uid.encode())
+        hash_str = hash_object.hexdigest()
+        return hash_str
 
     def make_validation_data(
         self,
@@ -57,17 +66,12 @@ class Utils(object):
     def _upload_validation_data(
         self, instance_id, context_id, prefix="watchers_"
     ):
-        file_name = prefix + instance_id + ".jsonl"
+        validation_id = self.hash_sha_object()
+        file_name = prefix + instance_id + "_" + validation_id + ".jsonl"
         with jsonlines.open(file_name, mode="w") as writer:
             writer.write(self.validation_dict)
 
-        s3_path = (
-            context_id
-            + "/sessions/"
-            + instance_id
-            + "/validation/recommendations/"
-            + file_name
-        )
+        s3_path = "/validation/recommendations/" + file_name
 
         try:
             self.s3_client.upload_to_s3(
