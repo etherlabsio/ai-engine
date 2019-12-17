@@ -250,6 +250,7 @@ class KeyphraseUtils(object):
 
         if remove_phrases:
             for entity, scores in entities_dict.items():
+                preference_value = scores[sort_key_dict.get("preference")]
                 boosted_score = scores[rank_key_dict.get("boosted_score")]
                 norm_boosted_score = scores[
                     rank_key_dict.get("norm_boosted_score")
@@ -259,8 +260,13 @@ class KeyphraseUtils(object):
                 if final_sort:
                     entity_score = norm_boosted_score
 
-                if entity_score >= entity_quality_score:
-                    modified_entity_dict[entity] = scores
+                # Check for relevance scores if the entity type is other than Organization or Product
+                if preference_value > 2:
+                    if entity_score >= entity_quality_score:
+                        modified_entity_dict[entity] = scores
+                else:
+                    if entity_score > 0:
+                        modified_entity_dict[entity] = scores
 
             for phrase, scores in keyphrase_dict.items():
                 boosted_score = scores[rank_key_dict.get("boosted_score")]
@@ -339,8 +345,8 @@ class KeyphraseUtils(object):
         # Sort Entities by preference
         ranked_entities_dict = self.sort_dict_by_value(
             dict_var=entity_dict,
-            key=rank_key_dict["boosted_score"],
-            order=rank_key_dict["order"],
+            key=sort_key_dict["preference"],
+            order=sort_key_dict["order"],
         )
         if final_sort:
             ranked_entities_dict = self.sort_dict_by_value(
