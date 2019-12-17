@@ -1,17 +1,94 @@
 {
-    "contextId":"6baa3490",
-    "instanceId":"b5d4",
-    "relativeTime": "2019-01-29T06:03:39.783385299Z",
-    "limit": 6,
-    "mindId": "bad123",
-    "segments": [
-        {"transcriber":"google_speech_api","confidence":0.82295096,"spokenBy":"b782dae506de4b7abc7d789a1ad005e5","languageCode":"en-US","originalText":"We go into that issue because we read the from the Json field column tables. We we have their columns available, but we are not breaking from that column which is creating a problem but then you know, bring a that solution we should start needed it from that columns and only few places we've done ready need to do that the is the case. I think this not of code is the if you want to use the column portion of the values json log then there will be George changes setting. U a D then we start fields and all not so in case of meeting meeting and recording and markers. We have both Json fields and the call proper call call let let can that like that what I telling is will not do anything with that in the Json and value of d there right. We will replace the swing field with the Hyphen iPhone that's. The we are reading the ID from the Json. I'm not from the column. So in the days very while waiting from a database we need to change oriented B a force layer. I I will from the value where it is like it a relationship right but then the column or as become the that valuation can value. So if we start reading from actual columns we should not ask that's what I thinking less less. Let's see. And also just ping up existing links which we have doing the recording link right. That we it work automatically because those will not having open do id. Yeah, maybe if we can translate like internally and finish through that again. From layer where we to transfer it okay let me do five okay. I'll make the new are you working today. Yeah. Actually yesterday was what little bit from this cloud distribution task like basically what you what we to do is that me or we want to point it in and if the API part has a slack in okay part will do it routed to API p gateway but if it doesn't have any other if you are anything with before we have go to load we will go back to the same whatever we have the proxy right? So so the distribution and all to so that that part from started working yesterday I talk to trishant. So there are no blockage from there are point of view so we can like today be able to read that reference script for it. So after this I want to work on a P a service solution connect and is moving back to external load. The API will directed of external. So that with the proper point id. ","duration":9,"createdAt":"2019-09-05T21:13:12.10566238Z","deleted":false,"transcriptId":"1cbf4fee-bf9c-4bb3-9be8-6bf97594d943","startTime":"2019-09-05T21:13:02Z","id":"354aa314d75142b791f178dacbe3a063","endTime":"2019-09-05T21:13:11Z","recordingId":"d1ad0c48a9af44119b0ea6b9c2aeec67","status":"completed","updatedAt":"2019-09-05T21:13:32.910095339Z"}, {"transcriber":"google_speech_api","confidence":0.91206425,"spokenBy":"b782dae506de4b7abc7d789a1ad005e5","languageCode":"en-US","originalText":"Will be logged out by default because we will be checking open in. I'm bidding to it it is like. Okay Okay We will we do integrations like yeah i. To Franklin do a test for it. Yeah, go like call but we can't test this stuff app staging to that is I don't. I can release a build for it. So once I like I'll do like once I get sometime time I'll set up the commands to build file for to. Yeah because like you attach a recorder test say and yeah i. So what kind was thinking that I like instead of posting pushing directly to I'll just make a local then give it to to then after E s test stated then I'll push it. Yeah yeah that you can like two staging to build for then I got it one. I was working on Desktop of sharing screen sharing so the next stop pal like for the next it's working fine now but the changes I had made in the background for the has started the current or that browser meet. So today I'll work on the that of our browser because I had to change the version so electron so I'll work on that to the and then I'll pick the device selection like or for the call if it is not said in the if let's say has not handling if when we have sent it a configuration or options. We have to explicitly set those devices that's pretty small. So first I'll completely complete this task and then I'll pick them. What is it because I thought with that started and what is issue there guys is right. There can be the device Id D we we are sending it to account configuration okay, but sometimes you say rights server options and takes voice okay itself. So once the API call the how we have down display my Java files the same thing we have to make it for the video or not the device selection. ","duration":13,"createdAt":"2019-09-05T21:13:58.133175693Z","deleted":false,"transcriptId":"1cbf4fee-bf9c-4bb3-9be8-6bf97594d943","startTime":"2019-09-05T21:13:44Z","id":"787d4a93409b48649dd20a32288d95b9","endTime":"2019-09-05T21:13:57Z","recordingId":"8cf14122bc5d4a8d9562d0c6c913c594","status":"completed","updatedAt":"2019-09-05T21:14:18.892528297Z"},
-
-        {"transcriber":"google_speech_api","confidence":0.904494065,"spokenBy":"b782dae506de4b7abc7d789a1ad005e5","languageCode":"en-US","originalText":"Direction whatever comes to Key Service under theme service to say payment come to this from this action. I think we text themselves that's right so I'll I'll have it ready from my side and then I'll sit with how you the and go what is needed may by tomorrow. Okay.","duration":89,"createdAt":"2019-09-05T21:15:29.280978333Z","deleted":false,"transcriptId":"1cbf4fee-bf9c-4bb3-9be8-6bf97594d943","startTime":"2019-09-05T21:13:58Z","id":"e47e7d4202fb451fac65809bdbd670cd","endTime":"2019-09-05T21:15:27Z","recordingId":"728a237f3cf84e23a6448aad18b33174","status":"completed","updatedAt":"2019-09-05T21:16:10.558598263Z"},
-
-        {"transcriber":"google_speech_api","confidence":0.72072726,"spokenBy":"b782dae506de4b7abc7d789a1ad005e5","languageCode":"en-US","originalText":"I so once I've finished this small testing. Then I need that team as well. I'm writing of writing the code for that training it on this statement. So you are not both are working together and this one yeah okay yeah more to front end for sure is going. Yeah so I'm pretty I just raised the P have like my and deployed on sitting to basically stop we stop using cookies and using local. So the issue was that ill staging to it was not sending cookies in the request call not for some production was sending cookies like all the store cookies keys and all like like a P a calls I couldn't find a reason for it like by first doing so we are using x C s, but even with victory credentials all circles still sending it. So for now we have this switch to local storage for all like wherever we need to stop completely using the local stories for it now I'm working on like in index I the web website is not like meeting the is not working. So when we like for when we disable in web update it does not like it's not the are not being worried basically so I will add a call back function for that so that from text of for text of we use call once and instead of the to push updates. So that should fix that. Okay Any you have to ice of using images address like those that we shall want right now. M are like it's simpler to use like works like on Browser. It's basically like add event and listening link through that it's pretty forward straightforward. But for some reason like they have deployed even in electron and they want test to use I P C for it but then if we start using that then it will be like a step the implementation for decks of our together. So that function would be much better in case like from the E dot usage and implementation. Okay Okay We have we have done the same thing for recorded plan is still the currently. No no, we got on web on production both the call L are using web sockets. Is that that's the only thing that yesterday column me. ","duration":22,"createdAt":"2019-09-05T21:41:04.656023107Z","deleted":false,"transcriptId":"1cbf4fee-bf9c-4bb3-9be8-6bf97594d943","startTime":"2019-09-05T21:40:42Z","id":"6e11050545fb4cbcb875b6325b3843f6","endTime":"2019-09-05T21:41:04Z","recordingId":"8204461e65eb4d8998203ddda20b37ea","status":"completed","updatedAt":"2019-09-05T21:41:25.687856455Z"},
-
-        {"transcriber":"google_speech_api","confidence":0.7407482,"spokenBy":"b782dae506de4b7abc7d789a1ad005e5","languageCode":"en-US","originalText":"Also as the experiment to test on staging to what time what I've done is calculated in phrase and ent*ties code with respect to segment. I and the overall medium code is also a noted right. So now what I do is I check if any of the key for is lower than this overall quality code and if it is then I just remove it before sending it to platform.","duration":3,"createdAt":"2019-09-05T21:40:42.079417597Z","deleted":false,"transcriptId":"1cbf4fee-bf9c-4bb3-9be8-6bf97594d943","startTime":"2019-09-05T21:40:38Z","id":"360d4b054cd44d14b67c34c99e0dbe30","endTime":"2019-09-05T21:40:41Z","recordingId":"b5231c16ba8547cbb6a6219f194ce2ad","status":"completed","updatedAt":"2019-09-05T21:41:03.063634909Z"}
-
-        ]
+  "contextId": "6baa3490",
+  "instanceId": "b5d4",
+  "relativeTime": "2019-01-29T06:03:39.783385299Z",
+  "limit": 6,
+  "mindId": "bad123",
+  "segments": [
+    {
+      "transcriber": "google_speech_api",
+      "confidence": 0.82295096,
+      "spokenBy": "b782dae506de4b7abc7d789a1ad005e5",
+      "languageCode": "en-US",
+      "originalText": "We go into that issue because we read the from the Json field column tables. JSon We we have their columns available, but we are not breaking from that column which is creating a problem but then you know, bring a that solution we should start needed it from that columns and only few places we've done ready need to do that the is the case. I think this not of code is the if you want to use the column portion of the values json log then there will be George changes setting. U a D then we start fields and all not so in case of meeting meeting and recording and markers. We have both Json fields and the call proper call call let let can that like that what I telling is will not do anything with that in the json and value of d there right. We will replace the swing field with the Hyphen iPhone that's. The we are reading the ID from the Json. I'm not from the column. So in the days very while waiting from a database we need to change oriented B a force layer. I I will from the value where it is like it a relationship right but then the column or as become the that valuation can value. So if we start reading from actual columns we should not ask that's what I thinking less less. Let's see. And also just ping up existing links which we have doing the recording link right. That we it work automatically because those will not having open do id. Yeah, maybe if we can translate like internally and finish through that again. From layer where we to transfer it okay let me do five okay. I'll make the new are you working today. Yeah. Actually yesterday was what little bit from this cloud distribution task like basically what you what we to do is that me or we want to point it in and if the API part has a slack in okay part will do it routed to API p gateway but if it doesn't have any other if you are anything with before we have go to load we will go back to the same whatever we have the proxy right? So so the distribution and all to so that that part from started working yesterday I talk to trishant. So there are no blockage from there are point of view so we can like today be able to read that reference script for it. So after this I want to work on a P a service solution connect and is moving back to external load. The API will directed of external. So that with the proper point id. ",
+      "duration": 9,
+      "createdAt": "2019-09-05T21:13:12.10566238Z",
+      "deleted": false,
+      "transcriptId": "1cbf4fee-bf9c-4bb3-9be8-6bf97594d943",
+      "startTime": "2019-09-05T21:13:02Z",
+      "id": "354aa314d75142b791f178dacbe3a063",
+      "endTime": "2019-09-05T21:13:11Z",
+      "recordingId": "d1ad0c48a9af44119b0ea6b9c2aeec67",
+      "status": "completed",
+      "updatedAt": "2019-09-05T21:13:32.910095339Z"
+    },
+    {
+      "transcriber": "google_speech_api",
+      "confidence": 0.91206425,
+      "spokenBy": "b782dae506de4b7abc7d789a1ad005e5",
+      "languageCode": "en-US",
+      "originalText": "Will be logged out by default because we will be checking open in. I'm bidding to it it is like. Okay Okay We will we do integrations like yeah i. To Franklin do a test for it. Yeah, go like call but we can't test this stuff app staging to that is I don't. I can release a build for it. So once I like I'll do like once I get sometime time I'll set up the commands to build file for to. Yeah because like you attach a recorder test say and yeah i. So what kind was thinking that I like instead of posting pushing directly to I'll just make a local then give it to to then after E s test stated then I'll push it. Yeah yeah that you can like two staging to build for then I got it one. I was working on Desktop of sharing screen sharing so the next stop pal like for the next it's working fine now but the changes I had made in the background for the has started the current or that browser meet. So today I'll work on the that of our browser because I had to change the version so electron so I'll work on that to the and then I'll pick the device selection like or for the call if it is not said in the if let's say has not handling if when we have sent it a configuration or options. We have to explicitly set those devices that's pretty small. So first I'll completely complete this task and then I'll pick them. What is it because I thought with that started and what is issue there guys is right. There can be the device Id D we we are sending it to account configuration okay, but sometimes you say rights server options and takes voice okay itself. So once the API call the how we have down display api Call my Java files the same API Call thing we have to make it for the video or not the device selection. ",
+      "duration": 13,
+      "createdAt": "2019-09-05T21:13:58.133175693Z",
+      "deleted": false,
+      "transcriptId": "1cbf4fee-bf9c-4bb3-9be8-6bf97594d943",
+      "startTime": "2019-09-05T21:13:44Z",
+      "id": "787d4a93409b48649dd20a32288d95b9",
+      "endTime": "2019-09-05T21:13:57Z",
+      "recordingId": "8cf14122bc5d4a8d9562d0c6c913c594",
+      "status": "completed",
+      "updatedAt": "2019-09-05T21:14:18.892528297Z"
+    },
+    {
+      "transcriber": "google_speech_api",
+      "confidence": 0.904494065,
+      "spokenBy": "b782dae506de4b7abc7d789a1ad005e5",
+      "languageCode": "en-US",
+      "originalText": "Direction whatever comes to Key Service under theme service to say payment come to this from this action. I think we text themselves that's right so I'll I'll have it ready from my side and then I'll sit with how you the and go what is needed may by tomorrow. Okay.",
+      "duration": 89,
+      "createdAt": "2019-09-05T21:15:29.280978333Z",
+      "deleted": false,
+      "transcriptId": "1cbf4fee-bf9c-4bb3-9be8-6bf97594d943",
+      "startTime": "2019-09-05T21:13:58Z",
+      "id": "e47e7d4202fb451fac65809bdbd670cd",
+      "endTime": "2019-09-05T21:15:27Z",
+      "recordingId": "728a237f3cf84e23a6448aad18b33174",
+      "status": "completed",
+      "updatedAt": "2019-09-05T21:16:10.558598263Z"
+    },
+    {
+      "transcriber": "google_speech_api",
+      "confidence": 0.72072726,
+      "spokenBy": "b782dae506de4b7abc7d789a1ad005e5",
+      "languageCode": "en-US",
+      "originalText": "I so once I've finished this small testing. Then I need that team as well. I'm writing of writing the code for that training it on this statement. So you are not both are working together and this one yeah okay yeah more to front end for sure is going. Yeah so I'm pretty I just raised the P have like my and deployed on sitting to basically stop we stop using cookies and using local. So the issue was that ill staging to it was not sending cookies in the request call not for some production was sending cookies like all the store cookies keys and all like like a P a calls I couldn't find a reason for it like by first doing so we are using x C s, but even with victory credentials all circles still sending it. So for now we have this switch to local storage for all like wherever we need to stop completely using the local stories for it now I'm working on like in index I the web website is not like meeting the is not working. So when we like for when we disable in web update it does not like it's not the are not being worried basically so I will add a call back function for that so that from text of for text of we use call once and instead of the to push updates. So that should fix that. Okay Any you have to ice of using images address like those that we shall want right now. M are like it's simpler to use like works like on Browser. It's basically like add event and listening link through that it's pretty forward straightforward. But for some reason like they have deployed even in electron and they want test to use I P C for it but then if we start using that then it will be like a step the implementation for decks of our together. So that function would be much better in case like from the E dot usage and implementation. Okay Okay We have we have done the same thing for recorded plan is still the currently. No no, we got on web on production both the call L are using web sockets. Is that that's the only thing that yesterday column me. ",
+      "duration": 22,
+      "createdAt": "2019-09-05T21:41:04.656023107Z",
+      "deleted": false,
+      "transcriptId": "1cbf4fee-bf9c-4bb3-9be8-6bf97594d943",
+      "startTime": "2019-09-05T21:40:42Z",
+      "id": "6e11050545fb4cbcb875b6325b3843f6",
+      "endTime": "2019-09-05T21:41:04Z",
+      "recordingId": "8204461e65eb4d8998203ddda20b37ea",
+      "status": "completed",
+      "updatedAt": "2019-09-05T21:41:25.687856455Z"
+    },
+    {
+      "transcriber": "google_speech_api",
+      "confidence": 0.7407482,
+      "spokenBy": "b782dae506de4b7abc7d789a1ad005e5",
+      "languageCode": "en-US",
+      "originalText": "Also as the experiment to test on staging to what time what I've done is calculated in phrase and ent*ties code with respect to segment. I and the overall medium code is also a noted right. So now what I do is I check if any of the key for is lower than this overall quality code and if it is then I just remove it before sending it to platform.",
+      "duration": 3,
+      "createdAt": "2019-09-05T21:40:42.079417597Z",
+      "deleted": false,
+      "transcriptId": "1cbf4fee-bf9c-4bb3-9be8-6bf97594d943",
+      "startTime": "2019-09-05T21:40:38Z",
+      "id": "360d4b054cd44d14b67c34c99e0dbe30",
+      "endTime": "2019-09-05T21:40:41Z",
+      "recordingId": "b5231c16ba8547cbb6a6219f194ce2ad",
+      "status": "completed",
+      "updatedAt": "2019-09-05T21:41:03.063634909Z"
+    }
+  ]
 }
