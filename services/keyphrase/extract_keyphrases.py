@@ -81,7 +81,7 @@ class KeyphraseExtractor(object):
         logger.info("Invoking lambda to reduce cold-start ...")
         test_segment = ["Wake up Sesame!"]
         self.ranker.get_embeddings(input_list=test_segment, req_data=req_data)
-        self.wg.call_custom_ner(input_segment=test_segment)
+        self.wg.call_custom_ner(input_segment=test_segment[0])
 
     def initialize_meeting_graph(self, req_data: dict):
         graph_id = self.get_graph_id(req_data=req_data)
