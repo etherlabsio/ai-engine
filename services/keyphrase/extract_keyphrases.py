@@ -877,8 +877,8 @@ class KeyphraseExtractor(object):
             )
 
             self.meeting_keywords.extend(keyphrases)
-
-            result = {"keyphrases": keyphrases}
+            user_id_list = [seg["spokenBy"] for seg in segment_object]
+            result = {"keyphrases": keyphrases, "segment_users": user_id_list}
             return result
 
         except Exception as e:

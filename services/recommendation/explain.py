@@ -1,5 +1,5 @@
 from nltk import word_tokenize, pos_tag
-from .lsh import WordSearch
+from lsh import WordSearch
 from typing import List, Dict, Tuple
 from fuzzywuzzy import process, fuzz
 from scipy.spatial.distance import cosine
@@ -23,7 +23,16 @@ class Explainability(object):
         self.utils = utils_obj
         self.num_buckets = num_buckets
         self.hash_size = hash_size
-        self.pos_list = ["NN", "NNS", "NNP"]
+        self.pos_list = [
+            "JJ",
+            "JJR",
+            "JJS",
+            "NN",
+            "NNP",
+            "NNS",
+            "NNPS",
+            "FW",
+        ]
 
         self.ws = WordSearch(
             vectorizer=self.vectorizer,
@@ -71,7 +80,7 @@ class Explainability(object):
 
             top_words = {
                 sorted_user_meta[u]["name"]: sorted_user_meta[u]["topPhrases"][
-                    :20
+                    :50
                 ]
                 for u in filtered_sim_user_dict.keys()
             }
@@ -88,6 +97,7 @@ class Explainability(object):
                 extra={
                     "users": list(top_user_object.keys()),
                     "userScore": list(top_user_object.values()),
+                    "relatedWords": top_words_dict,
                 },
             )
 
@@ -97,9 +107,10 @@ class Explainability(object):
 
     def _filter_pos(self, word_list):
         filtered_word = []
-        single_phrases = []
+        multi_phrase = []
 
         for word in word_list:
+            single_phrases = []
             pos_word = pos_tag(word_tokenize(word))
             counter = 0
             for tags in pos_word:
@@ -107,11 +118,16 @@ class Explainability(object):
                 if p in self.pos_list:
                     counter += 1
                     single_phrases.append(tags[0])
+                else:
+                    if len(single_phrases) > 1:
+                        multi_phrase = [" ".join(single_phrases)]
+
+                    single_phrases = []
 
             if counter == len(word_tokenize(word)):
                 filtered_word.append(word)
 
-        filtered_word.extend(single_phrases)
+        # filtered_word.extend(single_phrases)
         return filtered_word
 
     def filter_related_words(
@@ -153,7 +169,7 @@ class Explainability(object):
 
         return input_query_text
 
-    def _get_best_fuzzy_match(self, input_query, input_list, limit=5):
+    def _get_best_fuzzy_match(self, input_query, input_list, limit=20):
         try:
             best_words = dict(
                 process.extractBests(
@@ -166,11 +182,6 @@ class Explainability(object):
             )
             sorted_best_words = self.utils.sort_dict_by_value(best_words)
 
-            logger.debug(
-                "Related words found",
-                extra={"relatedWords": sorted_best_words},
-            )
-
             return sorted_best_words
         except Exception as e:
             logger.warning(e)
@@ -182,13 +193,13 @@ class Explainability(object):
     ) -> [List, Dict]:
         filtered_sim_user_info = similar_users_info_dict.copy()
         for u, words in similar_users_info_dict.items():
-            filtered_sim_user_info[u] = [
-                filtered_w
-                for filtered_w, dist in process.extractWithoutOrder(
-                    str(input_query), words
-                )
-                if dist >= 50
-            ]
+            # filtered_sim_user_info[u] = [
+            #     filtered_w
+            #     for filtered_w, dist in process.extractWithoutOrder(
+            #         str(input_query), words
+            #     )
+            #     if dist >= 50
+            # ]
             filtered_sim_user_info[u] = list(
                 process.dedupe(filtered_sim_user_info[u])
             )

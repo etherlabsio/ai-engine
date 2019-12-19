@@ -15,7 +15,7 @@ class DgraphClient(object):
             )
             response = js.loads(res.json)
 
-            return response
+            return response, res
         finally:
             # Clean up. Calling this after txn.commit() is a no-op and hence safe.
             txn.discard()

@@ -33,6 +33,7 @@ class Utils(object):
         user_scores,
         suggested_user_list,
         word_list,
+        segment_users,
         upload=False,
     ):
         segment_obj = req_data["segments"]
@@ -54,6 +55,7 @@ class Utils(object):
                         "userScore": user_scores,
                         "keyphrases": input_keyphrase_list,
                         "relatedWords": word_list,
+                        "positiveLabels": segment_users,
                     },
                 }
             )
@@ -71,7 +73,7 @@ class Utils(object):
         with jsonlines.open(file_name, mode="w") as writer:
             writer.write(self.validation_dict)
 
-        s3_path = "/validation/recommendations/" + file_name
+        s3_path = "validation/recommendations/" + file_name
 
         try:
             self.s3_client.upload_to_s3(
