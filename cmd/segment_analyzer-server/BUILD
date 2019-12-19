@@ -22,6 +22,9 @@ python_library(
         '3rdparty/python:python-json-logger',
         '3rdparty/python:nltk',
         '3rdparty/python:python-louvain',
+        '3rdparty/python:networkx',
+        '3rdparty/python:scikit-learn',
+        '3rdparty/python:requests',
 	],
 
 )

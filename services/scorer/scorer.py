@@ -13,6 +13,8 @@
 # ---
 
 import numpy as np
+from networkx import pagerank
+from copy import deepcopy
 from numpy import dot
 from numpy.linalg import norm
 from boto3 import client as boto3_client
@@ -22,6 +24,7 @@ from botocore.client import Config
 from dataclasses import dataclass
 from scorer.pre_process import preprocess_text
 from s3client.s3 import S3Manager
+from group_segments.extra_preprocess import preprocess_text as pt
 import os
 import pickle
 
@@ -67,13 +70,13 @@ def get_score(
     for_pims=False,
 ) -> Score:
     score = []
-    pre_processed_input = preprocess_text(Request.text)
+    pre_processed_input = pt(Request.text, scorer=True)
     lambda_function = "mind-" + mind_id
     transcript_text = Request.text
     if len(pre_processed_input) != 0:
         mind_input = json.dumps({"text": pre_processed_input})
         mind_input = json.dumps({"body": mind_input})
-        logger.info("sending request to mind service")
+        # logger.info("sending request to mind service")
         if for_pims is False:
             transcript_score = get_feature_vector(
                 mind_input,
@@ -93,8 +96,8 @@ def get_score(
                 instance_id,
                 store_features=True,
             )
-            if response is True:
-                return True
+            if response is not False:
+                return response
             else:
                 return False
     else:
@@ -108,6 +111,8 @@ def get_score(
     score = 1 / transcript_score
     return score
 
+def cosine(vec1, vec2):
+    return dot(vec1, vec2) / (norm(vec1) * norm(vec2))
 
 def getClusterScore(mind_vec, sent_vec):
     n1 = norm(mind_vec, axis=1).reshape(1, -1)
@@ -137,7 +142,7 @@ def get_feature_vector(
     if store_features is True:
         vector_list = data["sent_feats"][0]
         upload_fv(vector_list, Request, context_id, instance_id)
-        return True
+        return vector_list
 
     feats = list(mind_dict["feature_vector"].values())
     mind_vector = np.array(feats).reshape(len(feats), -1)
@@ -178,3 +183,60 @@ def get_feature_vector(
         logger.debug("Returning default score")
 
     return transcript_score
+
+def get_similar_entities(ent_fv, segment_info, sent_fv ):
+    ent_score = []
+    segment_fv = np.mean(sent_fv, axis=0)
+    for ent in ent_fv.keys():
+        ent_score.append((ent, cosine(segment_fv, ent_fv[ent])))
+    ent_score_sorted = (sorted(ent_score, key=lambda kv: kv[1], reverse=True))[:10]
+    return (segment_info.id, ent_score_sorted)
+
+def get_segment_rank(ent_list, ent_graph):
+    current_ent_list = [ent for ent, score in ent_list[1]]
+    subgraph = deepcopy(ent_graph.subgraph(current_ent_list))
+    mod_graph = deepcopy(ent_graph)
+    mod_graph.add_node('-1')
+    nodes_list_modgraph = mod_graph.nodes()
+    for nodea, nodeb, param in subgraph.edges.data():
+
+        if nodea in nodes_list_modgraph:
+            mod_graph.remove_node(nodea)
+            for node1, param1 in dict(ent_graph[nodea]).items():
+                mod_graph.add_edge(node1,  '-1', edge_freq = param1['edge_freq'], edge_ctr = param1['edge_ctr'])
+
+        if nodeb in nodes_list_modgraph:
+            mod_graph.remove_node(nodeb)
+            for node1, param1 in dict(ent_graph[nodeb]).items():
+                mod_graph.add_edge(node1,  '-1', edge_freq = param1['edge_freq'], edge_ctr = param1['edge_ctr'])
+
+    if dict(mod_graph['-1']) != {}:
+        pg = pagerank(mod_graph, weight = 'edge_freq')
+
+        for index, (node, score) in enumerate(sorted(pg.items(), key=lambda kv: kv[1], reverse=True)):
+            if node == '-1':
+                return (ent_list[0], index)
+    else:
+        return (ent_list[0], 10**6)
+
+def get_segment_rank_pc(ent_list, ent_graph, pg_scores):
+    current_ent_list = [ent for ent, score in ent_list[1]]
+    degree_score_filtered = [pg_scores[ent] for ent in current_ent_list]
+    return (ent_list[0], np.median(degree_score_filtered))
+
+def upload_segment_rank(segment_rank, instance_id, context_id, segment):
+    try:
+        bucket = "io.etherlabs." + os.getenv("ACTIVE_ENV", "staging2") + ".contexts"
+        s3_obj = S3Manager(bucket_name=bucket)
+        for segid, rank in segment_rank:
+            segment_rank_dict = {}
+            segment_rank_dict[segid] = rank
+            s3_path = (
+                context_id + "/segment_rank/" + instance_id + "/" + segid + ".pkl"
+            )
+            logger.info("The path used for s3.", extra={"S3": s3_path, "bucket": bucket})
+            s3_obj.upload_object(pickle.dumps(segment_rank_dict), s3_path)
+    except Exception as e:
+        logger.info("Uploading failed ", extra={"exception:": e})
+        return False
+    return True

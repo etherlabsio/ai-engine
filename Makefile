@@ -98,6 +98,12 @@ update-lambda-function-sa:
 	aws s3 cp --profile production dist/segment_analyser_lambda.pex s3://io.etherlabs.artifacts/${ENV}/segment_analyser_lambda.pex
 	aws lambda update-function-code --function-name segment-analyser --s3-bucket io.etherlabs.artifacts --s3-key ${ENV}/segment_analyser_lambda.pex --profile ${ENV}
 
+.PHONY: test-lambda-function-sa
+test-lambda-function-sa:
+	./pants bundle cmd/segment_analyzer-server:segment_analyser_lambda
+	aws s3 cp --profile staging2 dist/segment_analyser_lambda.pex s3://io.etherlabs.staging2.contexts/topics/segment_analyser_lambda.pex
+	aws lambda update-function-code --function-name pex_test --s3-bucket io.etherlabs.staging2.contexts --s3-key topics/segment_analyser_lambda.pex --profile staging2
+
 .PHONY: new-service
 new-service:
 	@mkdir services/${app}

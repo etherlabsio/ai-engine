@@ -8,6 +8,7 @@ import re
 def matcher(matchObj):
     return matchObj.group(0)[0] + matchObj.group(0)[1] + " " + matchObj.group(0)[2]
 
+#    TO DO :- synchronize this preprocessing with group_segments preprocessing.
 
 def preprocess_text(text: str) -> List[str]:
     text = re.sub("[a-z][.?][A-Z]", matcher, text)
@@ -21,3 +22,4 @@ def preprocess_text(text: str) -> List[str]:
                 sentence = sentence.replace("?.", "?")
                 mod_texts.append(sentence)
     return mod_texts
+

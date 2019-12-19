@@ -4,7 +4,7 @@ from typing import List
 import logging
 from copy import deepcopy
 from scorer.scorer import TextSegment, Score
-
+from group_segments.extra_preprocess import preprocess_text as pt
 
 @dataclass
 class Request:
@@ -23,6 +23,9 @@ def decode_json_request(body) -> Request:
     req = body
 
     def decode_segments(seg):
+        pre_processed_text = pt(seg["originalText"], scorer=True)
+        if pre_processed_text == "":
+            return False
         seg_id = seg["id"]
         text = seg["originalText"]
         speaker = seg["spokenBy"]
@@ -31,7 +34,9 @@ def decode_json_request(body) -> Request:
     mind_id = str(req["mindId"]).lower()
     context_id = req["contextId"]
     instance_id = req["instanceId"]
-    segments = list(map(lambda x: decode_segments(x), req["segments"]))
+    segments = [ res for res in list(map(lambda x: decode_segments(x), req["segments"])) if res!=False]
+    if segments == []:
+        return False
     return Request(mind_id, context_id, instance_id, list(segments))
 
 

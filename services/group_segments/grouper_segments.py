@@ -1,3 +1,4 @@
+import statistics
 import pickle
 import numpy as np
 import json
@@ -17,7 +18,11 @@ import os
 from s3client.s3 import S3Manager
 from group_segments import scorer
 from log.logger import setup_server_logger
-
+from collections import Counter
+from sklearn.cluster import KMeans
+from group_segments.publish_info import post_to_slack, post_to_slack_topic
+from group_segments.summarise import ClusterFeatures
+from group_segments.extract_topic import get_topics
 logger = logging.getLogger()
 
 
@@ -32,6 +37,8 @@ class community_detection:
     context_id = None
     instance_id = None
     compute_fv = True
+    segment_fv = {}
+    segid_index = {}
 
     def __init__(self, Request, lambda_function, mind_f, compute_fv):
         self.segments_list = Request.segments
@@ -84,11 +91,13 @@ class community_detection:
         fv_mapped_score = {}
         input_list = []
         fv = {}
+        segments_fv = {}
+        segid_index = {}
         index = 0
         bucket = "io.etherlabs." + os.getenv("ACTIVE_ENV", "staging2") + ".contexts"
         s3_obj = S3Manager(bucket_name=bucket)
         for segment in self.segments_list:
-            if segment["originalText"] != []:
+            if segment["originalText"] != "":
                 s3_path = (
                     self.context_id
                     + "/feature_vectors/"
@@ -99,8 +108,6 @@ class community_detection:
                 )
                 bytestream = (s3_obj.download_file(file_name=s3_path))["Body"].read()
                 segment_fv = pickle.loads(bytestream)
-                # with open("/tmp/" + s3_path, "rb") as f:
-                #    segment_fv = pickle.load(f)
                 mind_score = scorer.get_mind_score(segment_fv, self.mind_features)
                 assert len(mind_score) == len(segment_fv)
                 for ind, sent in enumerate(segment["originalText"]):
@@ -112,11 +119,43 @@ class community_detection:
                             segment["id"],
                         )
                         fv[index] = segment_fv[ind]
+                        if segment["id"] in segments_fv.keys():
+                            segments_fv[segment["id"]].append(fv[index])
+                            segid_index[segment["id"]].append((sent, fv[index]))
+                        else:
+                            segments_fv[segment["id"]] = [fv[index]]
+                            segid_index[segment["id"]] = [(sent, fv[index])]
                         fv_mapped_score[segment["id"]] = mind_score[ind]
                         index += 1
+        self.segid_index = segid_index
+        for key in segments_fv.keys():
+            segments_fv[key] = np.mean(segments_fv[key], axis=0)
+        self.segment_fv = segments_fv
         for segi in fv_mapped_score.keys():
             fv_mapped_score[segi] = np.mean(fv_mapped_score[segi])
         return fv, graph_list, fv_mapped_score
+
+    def get_segment_scores(self):
+        segments_score = {}
+        bucket = "io.etherlabs." + os.getenv("ACTIVE_ENV", "staging2") + ".contexts"
+        s3_obj = S3Manager(bucket_name=bucket)
+        for segid in self.segments_order.keys():
+            segments_score_dict = {}
+            s3_path = (
+                self.context_id
+                + "/segment_rank/"
+                + self.instance_id
+                + "/"
+                + segid
+                + ".pkl"
+            )
+            bytestream = (s3_obj.download_file(file_name=s3_path))["Body"].read()
+            segments_score_dict = pickle.loads(bytestream)
+            for keys in segments_score_dict.keys():
+                segments_score[keys] = segments_score_dict[keys]
+        print (s3_path, bucket)
+        print (segments_score)
+        return segments_score
 
     def construct_graph(self, fv, graph_list):
         meeting_graph = nx.Graph()
@@ -203,6 +242,51 @@ class community_detection:
         # yetto_prune = []
         # for nodea, nodeb, weight in meeting_graph.edges.data():
         #     yetto_prune.append((nodea, nodeb, weight["weight"]))
+        return meeting_graph, yetto_prune
+
+    def construct_graph_ns_max(self, fv, graph_list):
+        meeting_graph = nx.Graph()
+        yetto_prune = []
+        c_weight = 0
+
+        for nodea in graph_list.keys():
+            for nodeb in graph_list.keys():
+                c_weight = cosine(fv[nodea], fv[nodeb])
+                meeting_graph.add_edge(nodea, nodeb, weight=c_weight)
+                yetto_prune.append((nodea, nodeb, c_weight))
+
+        max_connection = {}
+        max_score = {}
+        outlier_score = {}
+        for node in meeting_graph.nodes():
+            closest_connection_n = sorted(dict(meeting_graph[node]).items(), key=lambda kv:kv[1]["weight"], reverse=True)
+            max_score_current = []
+            max_connection[node] = closest_connection_n
+            weights_n = list(map(lambda kv: (kv[1]["weight"]).tolist(), closest_connection_n))
+            q3 = np.percentile(weights_n, 75)
+            iqr = np.subtract(*np.percentile(weights_n, [75, 25]))
+            outlier_score[node] = {}
+            outlier_score[node]["outlier"] = q3 + 1 * iqr
+            outlier_score[node]["iqr"] = iqr
+            outlier_score[node]["q3"] = q3
+            outlier_score[node]["weights_n"] = closest_connection_n
+            outlier_score[node]["avg+pstd"] = statistics.mean(weights_n)+statistics.pstdev(weights_n)
+
+
+        graph_data = deepcopy(meeting_graph.edges.data())
+        for nodea, nodeb, weight in graph_data:
+            if weight["weight"] > outlier_score[nodea]["outlier"] or (((self.segments_order[graph_list[nodeb][-1]] - self.segments_order[graph_list[nodea][-1]]) in [0])):
+                pass
+            elif (self.segments_order[graph_list[nodeb][-1]] - self.segments_order[graph_list[nodea][-1]]) in [2, -1, 1, 2] and weight["weight"] >= outlier_score[nodea]["q3"] :
+                    #print (graph_list[nodea], graph_list[nodeb])
+                pass
+            else:
+                meeting_graph.remove_edge(nodea, nodeb)
+        for nodea, nodeb, weight in graph_data:
+            if (self.segments_order[graph_list[nodeb][-1]] - self.segments_order[graph_list[nodea][-1]]) in [0]:
+                #meeting_graph[nodea][nodeb]["Weight"] = outlier_score[nodea]["weights_n"][1][1]["weight"]
+                meeting_graph[nodea][nodeb]["Weight"] = 1
+
         return meeting_graph, yetto_prune
 
     def prune_edges_outlier(self, meeting_graph, graph_list, yetto_prune, v):
@@ -317,7 +401,8 @@ class community_detection:
                 (index1, (sent1, time1, user1, id1)),
                 (index2, (sent2, time2, user2, id2)),
             ) in zip(enumerate(com[0:]), enumerate(com[1:])):
-                if id1 != id2:
+                #if id1 != id2:
+                if True:
                     # if ((extra_preprocess.format_time(time2, True) - extra_preprocess.format_time(time1, True)).seconds <= 120):
                     if (self.segments_order[id2] - self.segments_order[id1]) in [0, 1]:
                         if not flag:
@@ -361,19 +446,19 @@ class community_detection:
 
     def wrap_community_by_time_refined(self, pims):
         # Add segments which were removed while pre-processing.
-        c_len = 0
-        for segment in self.segments_org["segments"]:
-            if segment["id"] not in self.segments_order.keys():
-                while c_len in pims.keys():
-                    c_len += 1
-                pims[c_len] = {
-                    "segment0": [
-                        " ".join(text for text in segment["originalText"]),
-                        segment["startTime"],
-                        segment["spokenBy"],
-                        segment["id"],
-                    ]
-                }
+        # c_len = 0
+        # for segment in self.segments_org["segments"]:
+        #     if segment["id"] not in self.segments_order.keys():
+        #         while c_len in pims.keys():
+        #             c_len += 1
+        #         pims[c_len] = {
+        #             "segment0": [
+        #                 " ".join(text for text in segment["originalText"]),
+        #                 segment["startTime"],
+        #                 segment["spokenBy"],
+        #                 segment["id"],
+        #             ]
+        #         }
 
         # If one group can be placed in-between an another group, with a factor of time, then combine them into single group.
         inverse_dangling_pims = []
@@ -481,7 +566,7 @@ class community_detection:
         #                     self.segments_order[
         #                         pims[pim]["segment" + str(len(pims[pim].values()) - 1)][
         #                             -1
-        #                         ]
+        #                         ]n
         #                     ]
         #                     == order - 1
         #                 ):
@@ -498,28 +583,44 @@ class community_detection:
         #                     )
         #                     break
 
+        new_pim = {}
+        track_single_seg = []
+        for pim in list(pims.keys()):
+            #if len(pims[pim]) == 1:
+            #    track_single_seg.append(pims[pim]["segment0"][3])
+            seen = []
+            new_pim[pim] = {}
+            index = 0
+            for seg in list(pims[pim]):
+                if pims[pim][seg][3] in seen:
+                    pass
+                else:
+                    new_pim[pim]['segment' + str(index)] = {}
+                    new_pim[pim]['segment' + str(index)] = pims[pim][seg]
+                    index += 1
+                    seen.append(pims[pim][seg][3])
         # Remove Redundent PIMs in a group and also for single segment as a topic accept it as a topic only if the word count is greater than 120.
         flag = False
         index = 0
-        for pim in list(pims.keys()):
-            if len(pims[pim]) > 1:
+        for pim in list(new_pim.keys()):
+            if len(new_pim[pim]) > 1:
                 flag = True
         if not flag:
-            return pims
+            return new_pim
 
         index = 0
-        for pim in list(pims.keys()):
-            if len(pims[pim]) == 1:
-                # if (
-                #     len(
-                #         self.segments_map[pims[pim]["segment0"][-1]][
-                #             "originalText"
-                #         ].split(" ")
-                #     )
-                #     < 120
-                # ):
-                del pims[pim]
-        return pims
+        for pim in list(new_pim.keys()):
+            if len(new_pim[pim]) == 1:
+                if (
+                    len(
+                        self.segments_map[new_pim[pim]["segment0"][-1]][
+                            "originalText"
+                        ].split(" ")
+                    )
+                    < 30
+                ):
+                    del new_pim[pim]
+        return new_pim
 
     def order_groups_by_score(self, pims, fv_mapped_score):
         new_pims = {}
@@ -549,7 +650,7 @@ class community_detection:
         if self.compute_fv:
             fv, graph_list, fv_mapped_score = self.compute_feature_vector_gpt()
         else:
-            (fv, graph_list, fv_mapped_score,) = self.get_computed_feature_vector_gpt()
+            (fv, graph_list, fv_mapped_score) = self.get_computed_feature_vector_gpt()
         # _ = self.remove_preprocessed_segments(graph_list)
 
         meeting_graph, yetto_prune = self.construct_graph_next_segment(fv, graph_list)
@@ -648,16 +749,15 @@ class community_detection:
             # logger.info("commnity timerange", extra={"timerange": community_timerange})
             pims = self.group_community_by_time(community_timerange)
             pims = self.wrap_community_by_time_refined(pims)
-            pims = self.order_groups_by_score(pims, fv_mapped_score)
             logger.info("Final PIMs", extra={"PIMs": pims})
         return pims
 
     def fallback_pims(self):
-        print("Unable to compute Groups, falling back to PIMs approach.")
+        logger.info("Unable to compute Groups, falling back to PIMs approach.")
         if self.compute_fv:
             fv, graph_list, fv_mapped_score = self.compute_feature_vector_gpt()
         else:
-            (fv, graph_list, fv_mapped_score,) = self.get_computed_feature_vector_gpt()
+            fv, graph_list, fv_mapped_score = self.get_computed_feature_vector_gpt()
         pims = {}
         for index, segment in enumerate(self.segments_org["segments"]):
             pims[index] = {}
@@ -669,11 +769,301 @@ class community_detection:
             )
         pims = self.order_groups_by_score(pims, fv_mapped_score)
         new_pims = {}
-        for key in pims.keys()[:5]:
+        for key in list(pims.keys())[:5]:
             new_pims[key] = deepcopy(pims[key])
         logger.info("Final PIMs", extra={"PIMs": new_pims})
 
         return new_pims
+
+    def combine_pims_by_time(self, pims, group_info):
+        print("Before Merging", len(pims.keys()))
+        sorted_pims = sorted(pims.items(), key=lambda kv: kv[1]["segment0"][1], reverse=False)
+        new_pims = {}
+        merge_group = []
+#         for pos, (index, pim) in enumerate(sorted_pims):
+#             for pos1 ,(index1, pim1) in enumerate(sorted_pims):
+#                 if index != index1 and pos1 - pos == 1:
+#                     if self.segments_order[pim["segment" + str(len(pim.keys())-1)][-1]] - self.segments_order[pim1["segment0"][-1]] != -1:
+#                         merge_group.append((index, index1))
+        for pos, (index, pim) in enumerate(sorted_pims):
+            for pos1 ,(index1, pim1) in enumerate(sorted_pims):
+                if index != index1 and pos1 - pos == 1:
+                    if group_info[pim["segment" + str(len(pim.keys())-1)][-1]] == group_info[pim1["segment0"][-1]]:
+                        merge_group.append((index, index1))
+        tracking_changes = {}
+        pim_seg = {}
+        for group1, group2 in merge_group:
+            seg_update = []
+            if group1 in tracking_changes.keys():
+                already_appended_group = tracking_changes[group1]
+                for seg in list(pims[group2].values()):
+                    seg_update.append(seg)
+                tracking_changes[group2] = already_appended_group
+                pim_seg[already_appended_group].append(seg_update)
+            else:
+                for seg in list(pims[group1].values()) + list(pims[group2].values()):
+                    seg_update.append(seg)
+                tracking_changes[group2] = group1
+                if group1 in pim_seg.keys():
+                    pim_seg[group1].append(seg_update)
+                else:
+                    pim_seg[group1] = [seg_update]
+
+        for index, (groupno, group) in enumerate(pim_seg.items()):
+            index_n = 0
+            new_pims[index] = {}
+            for seg in [i for j in group for i in j]:
+                new_pims[index]["segment" + str(index_n)] = seg
+                index_n += 1
+        inverse_merge_group = [group for group in pims.keys() if group not in [i for j in merge_group for i in j]]
+        index = len(new_pims)
+        for group in inverse_merge_group:
+            new_pims[index] = pims[group]
+            index +=1
+        print("After Merging", len(new_pims.keys()))
+        return new_pims
+
+    def get_group_scores(self, group, segment_scores):
+        group_scores = {}
+        for groupid in group.keys():
+            group_scores[groupid] = [segment_scores[segid] for segid in [group[groupid][s][-1] for s in group[groupid]] if segid in segment_scores.keys()]
+            if group_scores[groupid] == []:
+                group_scores[groupid] = 0
+                print ("group which had no score: ", group[groupid])
+            else:
+                group_scores[groupid] = np.median(group_scores[groupid])
+        print ("computed Group Scores")
+        print ("group_scores:", group_scores)
+        for groupid, position in sorted(group_scores.items(), key=lambda kv: kv[1], reverse=False):
+            print ("Group ID: ", groupid, "   Group Ranking: ", position ,"\n\n")
+            print (*[group[groupid][segkey][0] for segkey in group[groupid].keys()], sep="\n\n", end="\n\n")
+        return group_scores
+
+    def filter_groups(self, group, group_scores, segid_score):
+        filtered_group = {}
+        seg_list_fv = list(self.segment_fv.values())
+        seg_list_id = list(self.segment_fv.keys())
+        kmeans = KMeans(n_clusters=2, random_state=0).fit(seg_list_fv)
+        s_map = {}
+        for index, assigned in enumerate(kmeans.labels_):
+            s_map[index] = assigned
+        ###
+        prev = 0
+        print ("------------cluster  1--------------")
+        for seg, cls in sorted(s_map.items(), key=lambda kv:kv[1]):
+            if prev!=cls:
+                print ("------------cluster  2--------------")
+                prev=cls
+            print (self.segments_map[seg_list_id[seg]]["originalText"], "\n\n")
+        ###
+        clusters = []
+        temp = []
+        prev_com = 0
+        for index,(word,cluster) in enumerate(sorted(s_map.items(), key=lambda kv:kv[1])):
+            if prev_com==cluster:
+                temp.append(word)
+                if index==len(s_map.items())-1:
+                    clusters.append(temp)
+            else:
+                clusters.append(temp)
+                temp = []
+                prev_com = cluster
+                temp.append(word)
+
+        cluster_score = []
+        for cls in clusters:
+            temp = []
+            for cluster in cls:
+                if seg_list_id[cluster] in segid_score.keys():
+                    temp.append(segid_score[seg_list_id[cluster]])
+            cluster_score.append(temp)
+        print ("clusters ", clusters)
+        if len(clusters) != 2:
+            return group
+
+        cluster1 = cluster_score[0]
+        cluster2 = cluster_score[1]
+        final_score = []
+        for index, cluster in enumerate(cluster_score):
+            temp = []
+            for cls in cluster:
+                # True indicates the element is the lower than all the elements in the next cluster
+                if index == 0:
+                    temp.append([False if cls>score else True for score in cluster2])
+                else:
+                    temp.append([False if cls>score else True for score in cluster1])
+            final_score.append(temp)
+
+        final = []
+        for cluster in final_score:
+            final_temp = []
+            for cls in cluster:
+                res = Counter(cls)
+                final_temp.append( [True if res[True]>=res[False] else False][0])
+            final.append(final_temp)
+
+        print ("final score:", final)
+        out = []
+        prob = []
+
+        final_score[0] = final[0]
+        final_score[1] = final[1]
+        for itr in [0,1]:
+            result = dict(Counter(final_score[itr]))
+            if True not in result.keys():
+                result[True] = 0
+            if False not in result.keys():
+                result[False] = 0
+            prob.append(result[True]/(result[False] + result[True]))
+        print ("prob:", prob)
+        threshold = 0.75
+        out = []
+        flag = False
+        if prob[0] <= 0.75 and prob[1] <= 0.75:
+            out = cluster[0] + cluster[1]
+            flag = True
+        if not flag and prob[0] >= threshold:
+            out += clusters[0]
+        if not flag and prob[1] >= threshold:
+            out += clusters[1]
+        if out == []:
+            out = clusters[0] + clusters[1]
+        print ("out: ", out)
+        filtered_seg = [seg_list_id[x] for x in out]
+        removed_seg = []
+        for groupid in group.keys():
+            count = Counter([True if seg in filtered_seg else False for seg in [group[groupid][x][-1] for x in group[groupid].keys()]])
+            if True in count.keys():
+                true_count = count[True]
+            else:
+                true_count = 0
+            if False in count.keys():
+                false_count = count[False]
+            else:
+                false_count = 0
+
+            if (true_count)/(true_count+false_count) > 0.75:
+                filtered_group[groupid] = group[groupid]
+            else:
+                for seg in [group[groupid][x][-1] for x in group[groupid]]:
+                    removed_seg.append(seg)
+
+        res = post_to_slack(self.instance_id, [self.segments_map[segid]["originalText"] for segid in removed_seg])
+        return filtered_group
+
+    def order_groups_by_group_scores(self, segment_scores, pims):
+        ordered_groups = {}
+        ss_sorted = sorted(segment_scores.items(), key = lambda kv: kv[1],reverse=False)
+        index = 0
+        for groupid, _ in ss_sorted:
+            ordered_groups[index] = pims[groupid]
+            index+=1
+            if index==7:
+                break
+        return ordered_groups
+
+    def summarise_groups(self, graph_list, sent_fv, group):
+        summarised_text = []
+        potential_topics = []
+        for groupid in group.keys():
+            group_info = []
+            group_info = [self.segid_index[segid] for segid in [group[groupid][x][-1] for x in group[groupid].keys()]][0]
+            text_list = [info[0] for info in group_info]
+            fv_list = [info[1] for info in group_info]
+            cf = ClusterFeatures(np.asarray(fv_list))
+            res = cf.cluster(ratio=0.3)
+            summarised_text.append([text_list[s] for s in res])
+        potential_topics.append([tp.st_get_candidate_phrases(x[0]) for x in summarised_text])
+        #post_to_slack_topic(self.instance_id, potential_topics)
+        return True
+
+    def itr_communities(self):
+        v = 0
+        t = 1
+        if self.compute_fv:
+            fv, graph_list, fv_mapped_score = self.compute_feature_vector_gpt()
+        else:
+            (fv, graph_list, fv_mapped_score) = self.get_computed_feature_vector_gpt()
+            if (self.mind_id).lower() in ["01daaqy88qzb19jqz5prjfr76y", "01daatanxnrqa35e6004hb7mbn"] :
+                segment_scores = self.get_segment_scores()
+        print ("Number of sentences: ", len(graph_list))
+        meeting_graph_pruned, yetto_prune = self.construct_graph_ns_max(fv, graph_list)
+        #meeting_graph_pruned = self.prune_edges_outlier(meeting_graph, graph_list, yetto_prune, v)
+        print ("Graph population done.")
+        l_mod = 1
+        flag = False
+        community_set = None
+        for itr in range(5):
+            community_set, mod = self.compute_louvain_community(meeting_graph_pruned, t)
+            if mod < l_mod:
+                l_mod = mod
+                community_set_collection = community_set
+                flag = True
+        if not flag:
+            community_set_collection = community_set
+
+        print ("Computed Community.")
+        community_timerange = self.refine_community(community_set_collection, graph_list)
+        pims = self.group_community_by_time(community_timerange)
+        pims = self.wrap_community_by_time_refined(pims)
+        pims = self.order_groups_by_score(pims, fv_mapped_score)
+        print ("Computed Groups.", len(pims.keys()))
+        #pims = self.combine_pims_by_time(pims)
+        graph_list_index = {}
+        for index, g in enumerate(graph_list.values()):
+            if g[-1] not in graph_list_index.keys():
+                graph_list_index[g[-1]] = [index]
+            else:
+                graph_list_index[g[-1]].append(index)
+        group = []
+        pim_fv = []
+        for pim in pims.keys():
+            pim_seg = []
+            fv_index= []
+            for seg in pims[pim].keys():
+                if pims[pim][seg][-1] in self.segments_order.keys():
+                    pim_seg.append(pims[pim][seg])
+                    fv_index.append([fv[x] for x in graph_list_index[pims[pim][seg][-1]]])
+            group.append(pim_seg)
+            pim_fv.append(np.mean([ i for j in fv_index for i in j], axis=0))
+        print ("Getting para features for phase 2.")
+        G2 = nx.Graph()
+        for index1 in range(len(pim_fv)):
+            for index2 in range(len(pim_fv)):
+                G2.add_edge(index1, index2, weight = cosine(pim_fv[index1], pim_fv[index2]))
+        #G3 = deepcopy(self.construct_graph_para_new(G2))
+        print ("Populated phase 2 graph.")
+        cs2 = community.best_partition(G2, resolution=1.0)
+        cs2_sorted = sorted(cs2.items(), key = lambda x: x[1], reverse=False)
+        prev = 0
+        group_seg_list = {}
+        for seg, cluster in cs2_sorted:
+            if prev !=cluster:
+                prev=cluster
+            for segi in list(map(lambda kv: kv[-1], group[seg])):
+                group_seg_list[segi] = cluster
+        print ("Computed phase 2 community.")
+        pims = self.combine_pims_by_time(pims, group_seg_list)
+        print ("Computed phase 2 Groups")
+        if (self.mind_id).lower() not in ["01daaqy88qzb19jqz5prjfr76y", "01daatanxnrqa35e6004hb7mbn"] :
+
+            logger.info("Final PIMs", extra={"PIMs": pims})
+            return pims
+        logger.info("Intermediate PIMs", extra={"PIMs": pims})
+        print ("Ranking and filtering groups based on domain mind.")
+        group_score = self.get_group_scores(pims, segment_scores)
+        filtered_groups = self.filter_groups(pims, group_score, segment_scores)
+        group_score = self.get_group_scores(filtered_groups, segment_scores)
+        print ("Ordering based on group scores.")
+        filtered_groups = self.order_groups_by_group_scores(group_score, filtered_groups)
+        print ("Summarizing groups")
+        self.summarise_groups(graph_list, fv, filtered_groups)
+        print ("Extracting Topics")
+        topics_extracted = get_topics(filtered_groups)
+        # post_to_slack_topic(self.instance_id, topics_extracted)
+        logger.info("Final PIMs", extra={"PIMs": filtered_groups})
+        return filtered_groups
+
 
     def get_communities_without_outlier(self):
         fv, graph_list = self.compute_feature_vector()

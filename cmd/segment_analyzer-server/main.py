@@ -7,29 +7,48 @@ import os
 import logging
 from log.logger import setup_server_logger
 import json
-from mind_utils import load_mind_features
+from mind_utils import load_mind_features, load_entity_features, load_entity_graph, load_pg_scores
 from scorer import transport as tp_scorer
 from group_segments import transport as tp_gs
 from group_segments import grouper
-from scorer.scorer import get_score
+from scorer.scorer import get_score, get_similar_entities, get_segment_rank, upload_segment_rank, get_segment_rank_pc
 from group_segments import extra_preprocess
 from copy import deepcopy
+import numpy as np
 
 logger = logging.getLogger()
 setup_server_logger(debug=False)
 
 
 def handler(event, context):
-    logger.info("POST request Recieved: ", extra={"Request": event})
     if isinstance(event['body'], str):
         json_request = json.loads(event['body'])
     else:
         json_request = event["body"]
     try:
         mind_dict = load_mind_features(json_request["detail"]["mindId"].lower())
+        if (json_request["detail"]["mindId"]).lower() in ["01daaqy88qzb19jqz5prjfr76y", "01daatanxnrqa35e6004hb7mbn"] :
+
+            entity_dict_full = load_entity_features(json_request["detail"]["mindId"].lower())
+            entity_graph = load_entity_graph(json_request["detail"]["mindId"].lower())
+            pg_scores = load_pg_scores(json_request["detail"]["mindId"].lower())
+            common_entities = entity_dict_full.keys() & entity_graph.nodes()
+            entity_dict = {}
+            for ent in common_entities:
+                if True not in np.isnan([entity_dict_full[ent]]):
+                    entity_dict[ent] = entity_dict_full[ent]
+
         if json_request["type"] == "segment_analyzer.extract_features":
             Request = tp_scorer.decode_json_request(json_request["detail"])
-            scores = list(
+            if isinstance(Request, bool) and not Request:
+                logger.info("Warning: No fv upload. removed segments because of preprocessing conditions.")
+                output_pims = {
+                    "statusCode": 200,
+                    "headers": {"Content-Type": "application/json"},
+                    "body": json.dumps({"analyzedSegment": True}),
+                }
+                return output_pims
+            vector_list = list(
                 map(
                     lambda s: get_score(
                         Request.mind_id,
@@ -42,14 +61,40 @@ def handler(event, context):
                     Request.segments,
                 )
             )
+            assert(len(vector_list) == len(Request.segments))
+            if (json_request["detail"]["mindId"]).lower() in ["01daaqy88qzb19jqz5prjfr76y", "01daatanxnrqa35e6004hb7mbn"] :
+                if vector_list is not False:
+                    similar_entities = list(
+                        map(
+                            lambda s: get_similar_entities(
+                                entity_dict,
+                                s[0],
+                                s[1]
+                            ),
+                            zip(Request.segments, vector_list),
+                        )
+                    )
 
+                    segment_rank = list(
+                        map(
+                            lambda ent_list: get_segment_rank_pc(
+                                ent_list,
+                                entity_graph,
+                                pg_scores
+                            ),
+                            similar_entities,
+                        )
+                    )
+
+                    result = upload_segment_rank(segment_rank, Request.instance_id, Request.context_id, Request.segments)
             output_pims = {
-                "statusCode": 200,
-                "headers": {"Content-Type": "application/json"},
-                "body": json.dumps({"analyzedSegment": True}),
+               "statusCode": 200,
+               "headers": {"Content-Type": "application/json"},
+               "body": json.dumps({"analyzedSegment": True}),
             }
 
         else:
+            logger.info("POST request Recieved: ", extra={"Request": json_request['detail']})
             Request_obj = tp_gs.decode_json_request(json_request['detail'])
             mindId = str(Request_obj.mind_id).lower()
             lambda_function = "mind-" + mindId
@@ -72,8 +117,8 @@ def handler(event, context):
     except Exception as e:
         logger.warning("Unable to compute PIMs", extra={"exception": e})
         output_pims = {
-            "statusCode": 200,
-            "headers": {"Content-Type": "application/json"},
-            "body": json.dumps({"err": "Unable to extract topics " + str(e)}),
+           "statusCode": 200,
+           "headers": {"Content-Type": "application/json"},
+           "body": json.dumps({"err": "Unable to extract topics " + str(e)}),
         }
     return output_pims
