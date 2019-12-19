@@ -77,8 +77,6 @@ class NATSTransport(object):
     async def context_start_handler(self, msg):
         request = json.loads(msg.data)
         try:
-            # self.watcher_service.featurize_reference_users()
-
             logger.info(
                 "Vectorizing reference users",
                 extra={"instanceId": request["instanceId"]},
@@ -105,7 +103,7 @@ class NATSTransport(object):
         segment_user_ids = request["segment_users"]
 
         try:
-            hash_result = self.watcher_service.featurize_reference_users(
+            hash_result = self.watcher_service.re_hash_users(
                 input_list=keyphrase_list
             )
             (

@@ -40,11 +40,10 @@ class RecWatchers(object):
         self.web_hook_url = web_hook_url
         self.num_buckets = num_buckets
         self.hash_size = hash_size
+        self.user_vector_data = user_vector_data
+        self.reference_user_dict = reference_user_dict
 
-        if user_vector_data is not None and reference_user_dict is not None:
-            self.user_vector_data = user_vector_data
-            self.reference_user_dict = reference_user_dict
-        else:
+        if user_vector_data is None and reference_user_dict is None:
             self.initialize_downloads()
 
         if self.active_env_ab_test != "production":
@@ -130,7 +129,7 @@ class RecWatchers(object):
 
         return reference_user_meta_dict, reference_user_vector
 
-    def featurize_reference_users(self, input_list):
+    def featurize_reference_users(self):
         # Featurize reference users
         self.us = UserSearch(
             input_dict=self.ref_user_info_dict,
@@ -140,6 +139,11 @@ class RecWatchers(object):
             hash_size=self.hash_size,
         )
         self.us.featurize()
+        # hash_result = self.us.query(input_list=input_list)
+        #
+        # return hash_result
+
+    def perform_hash_query(self, input_list):
         hash_result = self.us.query(input_list=input_list)
 
         return hash_result
@@ -154,17 +158,21 @@ class RecWatchers(object):
         n_kw=6,
     ):
         if hash_result is None:
-            hash_result = self.featurize_reference_users(
-                input_list=input_query_list
-            )
+            rehash_result = self.re_hash_users(input_list=input_kw_query)
             similar_user_scores_dict = self.query_similar_users(
-                hash_result=hash_result, input_list=input_query_list
+                hash_result=rehash_result, input_list=input_query_list
             )
 
         else:
-            similar_user_scores_dict = self.query_similar_users(
-                hash_result=hash_result, input_list=input_query_list
-            )
+            if len(list(hash_result.keys())) < 1:
+                rehash_result = self.re_hash_users(input_list=input_kw_query)
+                similar_user_scores_dict = self.query_similar_users(
+                    hash_result=rehash_result, input_list=input_kw_query
+                )
+            else:
+                similar_user_scores_dict = self.query_similar_users(
+                    hash_result=hash_result, input_list=input_kw_query
+                )
 
         logger.info("Computing explainability...")
         top_n_user_object, top_related_words = self.exp.get_explanation(
@@ -222,9 +230,7 @@ class RecWatchers(object):
                     "Recomputing hashes - Re-try {}".format(i),
                     extra={"currentScore": top_similar_users},
                 )
-                hash_result = self.featurize_reference_users(
-                    input_list=input_list
-                )
+                hash_result = self.re_hash_users(input_list=input_list)
                 top_similar_users = self.utils.sort_dict_by_value(hash_result)
 
             else:
@@ -262,19 +268,11 @@ class RecWatchers(object):
 
         return filtered_similar_users_dict
 
-    def _re_hash_users(self, input_list):
-        self.us = UserSearch(
-            input_dict=self.ref_user_info_dict,
-            vectorizer=self.vectorizer,
-            user_vector_data=self.user_vector_data,
-            num_buckets=self.num_buckets,
-            hash_size=self.hash_size,
-        )
-        self.us.featurize()
-        result = self.us.query(input_list=input_list)
-        top_similar_users = self.utils.sort_dict_by_value(result)
+    def re_hash_users(self, input_list):
+        self.featurize_reference_users()
+        hash_result = self.perform_hash_query(input_list=input_list)
 
-        return top_similar_users
+        return hash_result
 
     def _check_high_user_deviation(self, similar_user_scores_dict, limit=3):
         user_scores = list(similar_user_scores_dict.values())
