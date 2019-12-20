@@ -4,15 +4,14 @@ import pydgraph
 from os import getenv
 
 from context_parser import ContextSessionParser
-from schema import Schema
+from graph_schema import Schema
 
 logger = logging.getLogger(__name__)
-DGRAPH_URL = getenv("DGRAPH_URL", "localhost:9080")
 
 
 class GraphHandler(object):
-    def __init__(self, dgraph_client):
-        self.dgraph = dgraph_client
+    def __init__(self, dgraph_url):
+        # self.dgraph = dgraph_client
         self.context_parser = ContextSessionParser()
         self.context_schema = Schema()
 
@@ -24,8 +23,8 @@ class GraphHandler(object):
         self.segment_keyphrase_rel = "hasKeywords"
         self.context_mind_rel = "associatedMind"
 
-        client_stub = pydgraph.DgraphClientStub(DGRAPH_URL)
-        client = pydgraph.DgraphClient(client_stub)
+        self.client_stub = pydgraph.DgraphClientStub(dgraph_url)
+        client = pydgraph.DgraphClient(self.client_stub)
 
         self.dgraph = client
 
@@ -38,6 +37,10 @@ class GraphHandler(object):
         with open(json_file) as f_:
             meeting = js.load(f_)
         return meeting
+
+    async def close_client(self):
+        logger.info("Client stub connection is closed.")
+        self.client_stub.close()
 
     def query_transform_node(self, xid, node_obj, extra_field=None):
         """
@@ -240,15 +243,15 @@ class GraphHandler(object):
             txn.discard()
 
 
-# For testing locally
-if __name__ == "__main__":
-    gh = GraphHandler(dgraph_client="")
-
-    req_data = gh.read_json("meeting_test.json")
-
-    # Execute one-by-one in sequence
-
-    gh.set_schema()
-    # gh.populate_context_info(req_data)
-    # gh.populate_instance_segment_info(req_data)
-    # gh.populate_segment_info(req_data)
+# # For testing locally
+# if __name__ == "__main__":
+#     gh = GraphHandler(dgraph_client="")
+#
+#     req_data = gh.read_json("meeting_test.json")
+#
+#     # Execute one-by-one in sequence
+#
+#     gh.set_schema()
+#     # gh.populate_context_info(req_data)
+#     # gh.populate_instance_segment_info(req_data)
+#     # gh.populate_segment_info(req_data)

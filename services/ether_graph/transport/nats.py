@@ -76,6 +76,7 @@ class NATSTransport(object):
     async def context_start_handler(self, msg):
         msg_data = json.loads(msg.data)
         try:
+            resp = self.eg_service.set_schema()
             resp = self.eg_service.populate_context_info(req_data=msg_data)
 
             logger.info(
