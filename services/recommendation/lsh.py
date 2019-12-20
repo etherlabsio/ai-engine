@@ -67,7 +67,6 @@ class LSH(object):
 class WordSearch(object):
     def __init__(
         self,
-        input_list: list,
         vectorizer=None,
         num_buckets: int = 8,
         hash_size: int = 4,
@@ -78,26 +77,29 @@ class WordSearch(object):
             self.dim_size, num_buckets=num_buckets, hash_size=hash_size
         )
         self.vectorizer = vectorizer
-        self.input_list = input_list
         self.num_features_in_input = dict()
-        for kw in self.input_list:
+
+    def featurize(self, reference_features, reference_input_list):
+        # kw_features = self.vectorizer.get_embeddings(
+        #     input_list=self.input_list
+        # )
+        for kw in reference_input_list:
             self.num_features_in_input[kw] = 0
 
-    def featurize(self):
-        kw_features = self.vectorizer.get_embeddings(
-            input_list=self.input_list
-        )
-
-        for i in range(len(kw_features)):
-            self.lsh.add([kw_features[i]], self.input_list[i])
-            self.num_features_in_input[self.input_list[i]] += len(
-                kw_features[i]
+        for i in range(len(reference_features)):
+            self.lsh.add([reference_features[i]], reference_input_list[i])
+            self.num_features_in_input[reference_input_list[i]] += len(
+                reference_features[i]
             )
 
-    def query(self, kw_list):
-        kw_features = self.vectorizer.get_embeddings(input_list=kw_list)
+    def featurize_input(self, input_list: list):
+        feature_object = self.vectorizer.get_embeddings(input_list=input_list)
+        return feature_object
 
-        results = self.lsh.query(kw_features)
+    def query(self, feature_object):
+        # kw_features = self.vectorizer.get_embeddings(input_list=input_list)
+
+        results = self.lsh.query(feature_object)
 
         counts = dict()
         for r in results:
@@ -135,7 +137,9 @@ class UserSearch(object):
         for user, kw in self.input_dict.items():
             self.num_features_in_input[user] = 0
 
-    def featurize(self, write=False):
+    def featurize(
+        self, write=False, file_name="reference_user_kw_vector.pickle"
+    ):
 
         user_vec_dict = {}
 
@@ -145,7 +149,7 @@ class UserSearch(object):
 
                 if write:
                     user_vec_dict[user] = kw_features
-                    with open("reference_user_kw_vector.pickle", "wb") as f_:
+                    with open(file_name, "wb") as f_:
                         pickle.dump(user_vec_dict, f_)
 
             else:
@@ -157,8 +161,8 @@ class UserSearch(object):
             self.lsh.add(kw_features, user)
             self.num_features_in_input[user] += len(kw_features)
 
-    def query(self, kw_list):
-        kw_features = self.vectorizer.get_embeddings(input_list=kw_list)
+    def query(self, input_list):
+        kw_features = self.vectorizer.get_embeddings(input_list=input_list)
 
         results = self.lsh.query(kw_features)
         print("num results", len(results))

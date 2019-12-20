@@ -77,8 +77,6 @@ class NATSTransport(object):
     async def context_start_handler(self, msg):
         request = json.loads(msg.data)
         try:
-            self.watcher_service.featurize_reference_users()
-
             logger.info(
                 "Vectorizing reference users",
                 extra={"instanceId": request["instanceId"]},
@@ -91,31 +89,7 @@ class NATSTransport(object):
             raise
 
     async def context_end_handler(self, msg):
-        request = json.loads(msg.data)
-        instance_id = request["instanceId"]
-        keyphrase_list = request["keyphrases"]
-
-        try:
-            rec_users, related_words = self.watcher_service.get_recommended_watchers(
-                kw_list=keyphrase_list
-            )
-            self.watcher_service.make_validation_data(
-                req_data=request,
-                user_list=rec_users,
-                word_list=related_words,
-                upload=True,
-            )
-            self.watcher_service.post_to_slack(
-                req_data=request, user_list=rec_users, word_list=related_words
-            )
-
-            logger.info(
-                "Uploading recommended results",
-                extra={"instanceId": instance_id},
-            )
-        except Exception as e:
-            logger.error("Error uploading", extra={"err": e})
-            raise
+        pass
 
     # Topic Handler functions
 
@@ -125,22 +99,37 @@ class NATSTransport(object):
         segment_object = request["segments"]
         segment_ids = [seg_ids["id"] for seg_ids in segment_object]
         keyphrase_list = request["keyphrases"]
+        segment_text_list = [seg["originalText"] for seg in segment_object]
+        segment_user_ids = request["segment_users"]
 
         try:
-            rec_users, related_words = self.watcher_service.get_recommended_watchers(
-                kw_list=keyphrase_list
+            hash_result = self.watcher_service.re_hash_users(
+                input_list=keyphrase_list
             )
-            watcher_response = {"users": rec_users, "words": related_words}
+            (
+                rec_users_dict,
+                related_words,
+                suggested_user_list,
+            ) = self.watcher_service.get_recommended_watchers(
+                input_query_list=keyphrase_list,
+                input_kw_query=keyphrase_list,
+                segment_obj=segment_object,
+                hash_result=hash_result,
+            )
+            rec_users = list(rec_users_dict.keys())
+            # watcher_response = {"users": rec_users, "words": related_words}
 
             # await self.nats_manager.conn.publish(
             #     msg.reply, json.dumps(watcher_response).encode()
             # )
 
-            self.watcher_service.make_validation_data(
-                req_data=request, user_list=rec_users, word_list=related_words
-            )
-            self.watcher_service.post_to_slack(
-                req_data=request, user_list=rec_users, word_list=related_words
+            self.watcher_service.prepare_slack_validation(
+                req_data=request,
+                user_dict=rec_users_dict,
+                word_list=related_words,
+                suggested_users=suggested_user_list,
+                segment_users=segment_user_ids,
+                upload=True,
             )
 
             end = timer()
@@ -156,7 +145,8 @@ class NATSTransport(object):
             )
         except Exception as e:
             logger.error(
-                "Error computing recommended watchers", extra={"err": e}
+                "Error computing recommended watchers",
+                extra={"err": e, "stack": traceback.print_exc()},
             )
             raise
 

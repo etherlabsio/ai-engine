@@ -27,3 +27,4 @@ requests
 uuid
 jsonlines
 fuzzywuzzy
+python-levenshtein

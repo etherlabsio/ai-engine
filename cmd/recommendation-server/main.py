@@ -29,6 +29,7 @@ if __name__ == "__main__":
     # Load ENV variables
     nats_url = getenv("NATS_URL", "nats://localhost:4222")
     bucket_store = getenv("STORAGE_BUCKET", "io.etherlabs.staging2.contexts")
+    active_env = None
     encoder_lambda_function = getenv(
         "FUNCTION_NAME", "sentence-encoder-lambda"
     )
@@ -56,25 +57,55 @@ if __name__ == "__main__":
     )
 
     reference_user_file = "reference_prod_user.json"
-    reference_user_kw_vector = "reference_user_kw_vector.pickle"
+    reference_user_vector_data = "reference_user_text_vector.pickle"
+    reference_user_kw_vector_data = "reference_user_kw_vector.pickle"
+
+    ether_demo_reference_user_file = "ether_demo_reference_users.json"
+    ether_demo_reference_text_vector_data = (
+        "reference_ether_demo_user_text_vector.pickle"
+    )
+    ether_demo_reference_kw_vector_data = (
+        "reference_ether_demo_user_vector.pickle"
+    )
 
     vectorizer = Vectorizer(
         lambda_client=lambda_client, lambda_function=encoder_lambda_function
     )
 
-    active_env = bucket_store.split(".")[2]
-    if active_env == "staging2":
-        web_hook_url = "https://hooks.slack.com/services/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"
-    else:
-        web_hook_url = "https://hooks.slack.com/services/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"
+    if active_env is None:
+        active_env = bucket_store.split(".")[2]
 
-    rec_object = RecWatchers(
-        reference_user_file,
-        reference_user_kw_vector,
-        vectorizer=vectorizer,
-        s3_client=s3_client,
-        web_hook_url=web_hook_url,
-    )
+    logger.debug("Active env", extra={"activeEnv": active_env})
+
+    if active_env == "test":
+        web_hook_url = "https://hooks.slack.com/services/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"
+    elif active_env == "staging2":
+        web_hook_url = "https://hooks.slack.com/services/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"
+    elif active_env == "production":
+        web_hook_url = "https://hooks.slack.com/services/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"
+    else:
+        web_hook_url = "https://hooks.slack.com/services/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"
+
+    if active_env == "test":
+        rec_object = RecWatchers(
+            ether_demo_reference_user_file,
+            ether_demo_reference_text_vector_data,
+            ether_demo_reference_kw_vector_data,
+            vectorizer=vectorizer,
+            s3_client=s3_client,
+            web_hook_url=web_hook_url,
+            active_env_ab_test=active_env,
+        )
+    else:
+        rec_object = RecWatchers(
+            reference_user_file,
+            reference_user_vector_data,
+            reference_user_kw_vector_data,
+            vectorizer=vectorizer,
+            s3_client=s3_client,
+            web_hook_url=web_hook_url,
+            active_env_ab_test=active_env,
+        )
 
     nats_transport = NATSTransport(
         nats_manager=nats_manager,
