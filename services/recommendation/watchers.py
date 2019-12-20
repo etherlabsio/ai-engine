@@ -46,7 +46,7 @@ class RecWatchers(object):
         if user_vector_data is None and reference_user_dict is None:
             self.initialize_downloads()
 
-        if self.active_env_ab_test != "production":
+        if self.active_env_ab_test == "production":
             self.ref_user_info_dict = {
                 k: self.reference_user_dict[k]["text"]
                 for k in self.reference_user_dict.keys()
@@ -66,6 +66,13 @@ class RecWatchers(object):
             reference_user_dict=self.reference_user_dict,
             vectorizer=self.vectorizer,
             utils_obj=self.utils,
+            num_buckets=self.num_buckets,
+            hash_size=self.hash_size,
+        )
+        self.us = UserSearch(
+            input_dict=self.ref_user_info_dict,
+            vectorizer=self.vectorizer,
+            user_vector_data=self.user_vector_data,
             num_buckets=self.num_buckets,
             hash_size=self.hash_size,
         )
@@ -131,17 +138,7 @@ class RecWatchers(object):
 
     def featurize_reference_users(self):
         # Featurize reference users
-        self.us = UserSearch(
-            input_dict=self.ref_user_info_dict,
-            vectorizer=self.vectorizer,
-            user_vector_data=self.user_vector_data,
-            num_buckets=self.num_buckets,
-            hash_size=self.hash_size,
-        )
         self.us.featurize()
-        # hash_result = self.us.query(input_list=input_list)
-        #
-        # return hash_result
 
     def perform_hash_query(self, input_list):
         hash_result = self.us.query(input_list=input_list)
