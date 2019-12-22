@@ -48,7 +48,7 @@ class RecWatchers(object):
 
         if self.active_env_ab_test == "production":
             self.ref_user_info_dict = {
-                k: self.reference_user_dict[k]["text"]
+                k: self.reference_user_dict[k]["keywords"]
                 for k in self.reference_user_dict.keys()
             }
         else:
@@ -108,10 +108,10 @@ class RecWatchers(object):
                 self.reference_user_dict,
                 self.user_vector_data,
             ) = self.download_reference_objects(
-                self.reference_user_file, self.reference_user_vector_data
+                self.reference_user_file, self.reference_user_kw_vector_data
             )
             self.ref_user_info_dict = {
-                k: self.reference_user_dict[k]["text"]
+                k: self.reference_user_dict[k]["keywords"]
                 for k in self.reference_user_dict.keys()
             }
 
@@ -123,9 +123,7 @@ class RecWatchers(object):
         reference_user_meta = self.s3_client.download_file(
             file_name=reference_user_file
         )
-        reference_user_meta_str = (
-            reference_user_meta["Body"].read().decode("utf8")
-        )
+        reference_user_meta_str = reference_user_meta["Body"].read().decode("utf8")
         reference_user_meta_dict = js.loads(reference_user_meta_str)
 
         reference_user_vector_object = self.s3_client.download_file(
@@ -182,23 +180,16 @@ class RecWatchers(object):
         user_scores = list(top_n_user_object.values())
 
         suggested_users = self.post_process_users(
-            segment_obj=segment_obj,
-            user_dict=top_n_user_object,
-            percentile_val=60,
+            segment_obj=segment_obj, user_dict=top_n_user_object, percentile_val=60,
         )
         top_user_words = [
-            w
-            for u in suggested_users
-            for w, score in top_related_words[u].items()
+            w for u in suggested_users for w, score in top_related_words[u].items()
         ]
         top_user_words = list(process.dedupe(top_user_words))
 
         logger.info(
             "Top recommended users found",
-            extra={
-                "users": list(top_n_user_object.keys()),
-                "scores": user_scores,
-            },
+            extra={"users": list(top_n_user_object.keys()), "scores": user_scores},
         )
 
         logger.info(
@@ -211,9 +202,7 @@ class RecWatchers(object):
 
         return top_n_user_object, top_user_words[:n_kw], suggested_users
 
-    def query_similar_users(
-        self, hash_result, input_list: List, n_retries=3
-    ) -> Dict:
+    def query_similar_users(self, hash_result, input_list: List, n_retries=3) -> Dict:
         # result = self.us.query(input_list=input_list)
         top_similar_users = self.utils.sort_dict_by_value(hash_result)
 
@@ -243,8 +232,7 @@ class RecWatchers(object):
 
         user_scores = list(similar_users_dict.values())
         user_names = [
-            self.reference_user_dict[u].get("name")
-            for u in similar_users_dict.keys()
+            self.reference_user_dict[u].get("name") for u in similar_users_dict.keys()
         ]
         filtered_user_names = [
             self.reference_user_dict[u].get("name")
@@ -312,19 +300,13 @@ class RecWatchers(object):
         self, similar_users_dict: Dict, cutoff_score: float
     ) -> Dict:
         filtered_similar_users = {
-            u: score
-            for u, score in similar_users_dict.items()
-            if score >= cutoff_score
+            u: score for u, score in similar_users_dict.items() if score >= cutoff_score
         }
 
         return filtered_similar_users
 
-    def post_process_users(
-        self, segment_obj=None, user_dict=None, percentile_val=70
-    ):
-        percentile_cutoff = np.percentile(
-            list(user_dict.values()), percentile_val
-        )
+    def post_process_users(self, segment_obj=None, user_dict=None, percentile_val=70):
+        percentile_cutoff = np.percentile(list(user_dict.values()), percentile_val)
         try:
             suggested_users = [
                 user

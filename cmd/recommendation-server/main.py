@@ -30,9 +30,7 @@ if __name__ == "__main__":
     nats_url = getenv("NATS_URL", "nats://localhost:4222")
     bucket_store = getenv("STORAGE_BUCKET", "io.etherlabs.staging2.contexts")
     active_env = None
-    encoder_lambda_function = getenv(
-        "FUNCTION_NAME", "sentence-encoder-lambda"
-    )
+    encoder_lambda_function = getenv("FUNCTION_NAME", "sentence-encoder-lambda")
     ner_lambda_function = getenv("NER_FUNCTION_NAME", "ner")
     aws_region = getenv("AWS_DEFAULT_REGION", "us-east-1")
 
@@ -51,9 +49,7 @@ if __name__ == "__main__":
     loop = asyncio.get_event_loop()
 
     nats_manager = Manager(
-        loop=loop,
-        url=nats_url,
-        queue_name="io.etherlabs.recommendation_service",
+        loop=loop, url=nats_url, queue_name="io.etherlabs.recommendation_service",
     )
 
     reference_user_file = "reference_prod_user.json"
@@ -64,9 +60,7 @@ if __name__ == "__main__":
     ether_demo_reference_text_vector_data = (
         "reference_ether_demo_user_text_vector.pickle"
     )
-    ether_demo_reference_kw_vector_data = (
-        "reference_ether_demo_user_vector.pickle"
-    )
+    ether_demo_reference_kw_vector_data = "reference_ether_demo_user_vector.pickle"
 
     vectorizer = Vectorizer(
         lambda_client=lambda_client, lambda_function=encoder_lambda_function
@@ -105,12 +99,12 @@ if __name__ == "__main__":
             s3_client=s3_client,
             web_hook_url=web_hook_url,
             active_env_ab_test=active_env,
+            num_buckets=100,
+            hash_size=16,
         )
 
     nats_transport = NATSTransport(
-        nats_manager=nats_manager,
-        watcher_service=rec_object,
-        meeting_service=None,
+        nats_manager=nats_manager, watcher_service=rec_object, meeting_service=None,
     )
 
     def shutdown():
