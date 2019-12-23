@@ -444,12 +444,17 @@ class BERT_NER:
         # remove consecutive duplicate entities from list(tuple(word, score, pos_tag, label))
         grouped_scores = {}
         grouped_labels = {}
-        words = []
+        grouped_words = []
+        prev=("",0)
         for i,(tok, sc, tag, lab) in enumerate(entities):
-            grouped_scores[(tok,tag)] = max(grouped_scores.get((tok,tag),-1),sc)
-            grouped_labels[(tok,tag)] = grouped_labels.get((tok,tag),[]) + [lab]
-            words.append((tok,tag))
-        grouped_words = [w[0] for w in groupby(words)]
+            if prev[0]==tok:
+                grouped_scores[(tok,tag,prev[1])] = max(grouped_scores.get((tok,tag,prev[1]),-1),sc)
+                grouped_labels[(tok,tag,prev[1])] = grouped_labels.get((tok,tag,prev[1]),[]) + [lab]
+                continue
+            grouped_scores[(tok,tag,i)] = max(grouped_scores.get((tok,tag),-1),sc)
+            grouped_labels[(tok,tag,i)] = grouped_labels.get((tok,tag),[]) + [lab]
+            grouped_words.append((tok,tag,i))
+            prev = (tok,i)
         for i in range(len(grouped_words)):
             if i in seen:
                 continue
