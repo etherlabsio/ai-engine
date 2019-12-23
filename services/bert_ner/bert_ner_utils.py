@@ -72,7 +72,7 @@ class BERT_NER:
                 "LOC",
             ]
         else:
-            self.labels = ["O", "E"]
+            self.labels = ["O", "MISC"]
         self.model = model
         self.tokenizer = BertTokenizer("vocab.txt")
         self.sm = nn.Softmax(dim=1)
@@ -163,6 +163,7 @@ class BERT_NER:
             "right",
             "yeah",
             "okay",
+            "of",
             "ourselves",
             "hers",
             "between",
@@ -188,7 +189,6 @@ class BERT_NER:
             "yours",
             "such",
             "into",
-            "of",
             "most",
             "itself",
             "other",
@@ -299,25 +299,35 @@ class BERT_NER:
         )
         text = re.sub("\.(\w{2,})", lambda mobj: " " + mobj.group(1), text)
         for word in text.split(" "):
-            if self.contractions.get(word.lower()):
-                text = text.replace(word, self.contractions[word.lower()])
+            if self.contractions.get(word.casefold()):
+                text = text.replace(word, self.contractions[word.casefold()])
         return text
 
     def get_entities(self, text):
         segment_entities = []
         segment_scores = []
+        segment_labels = []
 
+        text = text.strip()
+        if len(text)>1 and text[-1] not in [".", "?", "!"]:
+            text += "."
         text = self.replace_contractions(text) + " "
         for sent in sent_tokenize(text):
             if len(sent.split()) > 1:
-                sent_ent, sent_score = self.get_entities_from_sentence(sent)
+                (
+                    sent_ent,
+                    sent_score,
+                    sent_labels,
+                ) = self.get_entities_from_sentence(sent)
 
                 segment_entities.extend(sent_ent)
                 segment_scores.extend(sent_score)
+                segment_labels.extend(sent_labels)
 
         # removing duplicate entities
         seg_entities = dict(zip(segment_entities, segment_scores))
-        return seg_entities
+        seg_labels = dict(zip(segment_entities, segment_labels))
+        return seg_entities, seg_labels
 
     def get_entities_from_sentence(self, clean_text):
         # splitting text, preserving punctuation
@@ -335,36 +345,36 @@ class BERT_NER:
         input_ids, token_to_word = self.prepare_input_for_model(pos_text)
 
         entities = self.extract_entities(input_ids, token_to_word)
-        sent_entity_list, sent_scores = self.concat_entities(
+        sent_entity_list, sent_scores, sent_labels = self.concat_entities(
             clean_text, entities
         )
         if len(sent_entity_list) > 0:
             sent_entity_list = self.capitalize_entities(sent_entity_list)
+            sent_labels = self.prioritize_labels(sent_labels)
+        return sent_entity_list, sent_scores, sent_labels
 
-        return sent_entity_list, sent_scores
+    def prioritize_labels(self, sent_labels):
+        preference_labels = ["ORG", "MISC", "PER", "LOC", "O"]
+        sent_labels = [
+            sorted(label_list, key=lambda l: preference_labels.index(l))[0]
+            for label_list in sent_labels
+        ]
+        return sent_labels
 
-    def capitalize_entities(self, entity_list):
+    def capitalize_entities(self,entity_list):
         def capitalize_entity(ent):
             if "." in ent:
                 ent = ent.title()
+                return ent
+            if ent.lower() in self.stop_words:
+                ent = ent.lower()
+                return ent
             if not ent[0].isupper():
                 ent = ent.capitalize()
+
             return ent
-
-        entity_list = list(
-            map(
-                lambda entities: " ".join(
-                    list(
-                        map(
-                            lambda ent: capitalize_entity(ent),
-                            entities.split(),
-                        )
-                    )
-                ),
-                entity_list,
-            )
-        )
-
+        entity_list = list(map(lambda entities: " ".join(list(map(lambda ent: capitalize_entity(ent),entities.split()))),entity_list))
+        
         return entity_list
 
     def prepare_input_for_model(self, pos_text):
@@ -406,63 +416,76 @@ class BERT_NER:
                 self.labels[ind]
                 for ind in self.sm(outputs).argmax(-1).detach().numpy()
             ]
-
-            for j, (tok, tag) in enumerate(token_to_word[i : i + batch_size]):
+            batch_tok_word = token_to_word[i:i+batch_size]
+            for j,(tok,tag) in enumerate(batch_tok_word):
                 # Consider Entities, and Non-Entities with low confidence (false negatives)
-                if tok.casefold() not in self.stop_words:
-                    if labels[j] !="O" or (
-                        labels[j] == "O" and scores[j] < self.conf
-                    ):
-                        entities.append((tok, scores[j], tag))
+                if labels[j] not in ["O"] or (labels[j]=="O" and scores[j]<self.conf):
+                    if j!=0 and j<len(batch_tok_word)-1 and tok.lower() in self.stop_words:
+                        entities.append((token_to_word[i+j-1][0],scores[i+j-1],token_to_word[i+j-1][1],labels[i+j-1]))
+                        entities.append((tok,scores[j],tag,labels[j]))
+                        entities.append((token_to_word[i+j+1][0],scores[i+j+1],token_to_word[i+j+1][1],labels[i+j+1]))
+                    else:
+                        entities.append((tok,scores[j],tag,labels[j]))
 
         return entities
 
     def tokenize(self, text):
         return self.tokenizer.tokenize(text)
 
-    def concat_entities(self, text, entities):
-        sent_entity_list = []
-        sent_scores = []
-        seen = []
+    def concat_entities(self, 
+                        text, 
+                        entities):
+        sent_entity_list=[]
+        sent_scores=[]
+        sent_labels=[]
+        seen=[]
         # handling acronym followed by capitalized entitity
-        text = re.sub(
-            "\.(\w{2,})", lambda mobj: " " + mobj.group(1), text
-        ).casefold()
-        # remove consecutive duplicate entities
-        # (word, score, pos_tag)
-        grouped_words = [
-            grouped_entity[0]
-            for grouped_entity in groupby(entities, key=lambda x: (x[0], x[2]))
-        ]
-        grouped_scores = {(ent[0], ent[2]): ent[1] for ent in entities}
+        text = re.sub("\.(\w{2,})",lambda mobj: " "+mobj.group(1),text).lower()
+        # remove consecutive duplicate entities from list(tuple(word, score, pos_tag, label))
+        grouped_scores = {}
+        grouped_labels = {}
+        words = []
+        for i,(tok, sc, tag, lab) in enumerate(entities):
+            grouped_scores[(tok,tag)] = max(grouped_scores.get((tok,tag),-1),sc)
+            grouped_labels[(tok,tag)] = grouped_labels.get((tok,tag),[]) + [lab]
+            words.append((tok,tag))
+        grouped_words = [w[0] for w in groupby(words)]
         for i in range(len(grouped_words)):
             if i in seen:
                 continue
 
-            conc = grouped_words[i][0].strip("'\"") + " "
+            conc = [grouped_words[i][0].strip("'\"")]
 
-            check = grouped_words[i][0] + " "
+            check = grouped_words[i][0]+" "
             score = grouped_scores[grouped_words[i]]
-            seen += [i]
-            k = i + 1
+            label = grouped_labels[grouped_words[i]]
+            seen+=[i]
+            k=i+1
 
-            while k < len(grouped_words) and (
-                check.casefold() + grouped_words[k][0].casefold() in text
-            ):
-                conc_word = grouped_words[k][0].strip("'\"") + " "
-                conc += conc_word
-
-                check += grouped_words[k][0] + " "
+            while k<len(grouped_words) and (check.lower()+grouped_words[k][0].lower() in text):
+                conc_word=grouped_words[k][0].strip("'\"")
+                conc += [conc_word]
+                check+= grouped_words[k][0]+" "
                 score += grouped_scores[grouped_words[k]]
-                seen += [k]
-                k += 1
-            # remove single verb and punct entities
-            if len(conc.split()) == 1:
-                if grouped_words[i][1][0] in ["V", "."]:
+                label += grouped_labels[grouped_words[k]]
+                seen+=[k]
+                k+=1
+            # remove single verb, punct and interjection entities
+            if len(conc)==1:
+                if grouped_words[i][1][0] in ["V",".","U"]:
                     continue
-                conc = conc.split("'")[0]
-
-            sent_entity_list += [conc.strip(" ,.")]
-            sent_scores += [score / (k - i)]
-
-        return sent_entity_list, sent_scores
+                conc = [" ".join(conc).split("'")[0]]
+            
+            # stripping stop_words  
+            while conc and conc[0].lower().strip(" ,.") in self.stop_words:
+                conc.pop(0)
+            while conc and conc[-1].lower().strip(" ,.") in self.stop_words:
+                conc.pop(-1)
+            
+            if conc:
+                conc = " ".join(conc)
+                sent_entity_list += [conc.strip(" ,.")]
+                sent_scores += [score/(k-i)]
+                sent_labels += [list(set(label))]
+        
+        return sent_entity_list,sent_scores, sent_labels

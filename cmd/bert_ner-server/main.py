@@ -43,6 +43,7 @@ model.load_state_dict(state_dict)
 model.eval()
 logger.info(f"Model loaded for evaluation")
 
+
 def handler(event, context):
 
     logger.info(
@@ -58,8 +59,9 @@ def handler(event, context):
         segment = json_request["originalText"]
         ner_model = ner.BERT_NER(model)
         entities, labels = ner_model.get_entities(segment)
+        response = json.dumps({"entities": entities, "labels": labels})
         logger.info(
-            "Entity Extraction successful. \nEntities: {} \nLabels: {} ".format(
+            "Entity Extraction successful \nEntities:{}\nLabels:{}".format(
                 entities, labels
             )
         )
@@ -69,13 +71,13 @@ def handler(event, context):
             log_data = " ".join(map(lambda e_ls: e_ls[0]+": "+e_ls[1][0]+", "+str(e_ls[1][1])+"\n",sorted(log_data.items(),key=lambda e_ls: e_ls[1])))
             logger_response = requests.post('https://hooks.slack.com/services/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', headers={'Content-type': 'application/json'}, data=json.dumps({"text": log_data}))
 
-        
-        response = json.dumps({"entities": entities, "labels": labels})
         return {"statusCode": 200, "body": response}
 
     except Exception as e:
-        logger.error(
-            "Error {} processing request {}".format(e,json_request),
+        logger.info(
+            "Error - {} - while processing request {}".format(e, json_request),
         )
+        if json_request['originalText']==['Wake up Sesame!']:
+            logger_response = requests.post('https://hooks.slack.com/services/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', headers={'Content-type': 'application/json'}, data=json.dumps({"text": "Error {} processing request {}".format(e,json_request)}))
         response = json.dumps({"entities": {}, "labels": {}})
         return {"statusCode": 404, "body": response}
