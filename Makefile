@@ -63,7 +63,7 @@ clean:
 
 .PHONY: update-lambda-function-scorer
 update-lambda-function-scorer:
-	aws s3 cp --profile ${ACTIVE_ENV} dist/scorer_lambda.pex s3://io.etherlabs.artifacts/${ENV}/scorer_lambda.pex
+	aws s3 cp --profile production dist/scorer_lambda.pex s3://io.etherlabs.artifacts/${ENV}/scorer_lambda.pex
 	aws lambda update-function-code --function-name pim --s3-bucket io.etherlabs.artifacts --s3-key ${ENV}/scorer_lambda.pex
 
 .PHONY: update-lambda-function-gs

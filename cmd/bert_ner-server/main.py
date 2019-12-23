@@ -37,11 +37,11 @@ def load_model():
 # load the model when lambda execution context is created
 state_dict = load_model()
 config = BertConfig()
+config.num_labels=state_dict['classifier.weight'].shape[0]
 model = ner.BertForTokenClassification_custom(config)
 model.load_state_dict(state_dict)
 model.eval()
 logger.info(f"Model loaded for evaluation")
-
 
 def handler(event, context):
 
@@ -57,19 +57,25 @@ def handler(event, context):
     try:
         segment = json_request["originalText"]
         ner_model = ner.BERT_NER(model)
-        entities = ner_model.get_entities(segment)
-        response = json.dumps({"entities": entities})
+        entities, labels = ner_model.get_entities(segment)
         logger.info(
-            "Entity Extraction successful with {} entities detected.".format(
-                entities
+            "Entity Extraction successful. \nEntities: {} \nLabels: {} ".format(
+                entities, labels
             )
         )
+        log_data = dict(zip(entities.keys(),zip(labels.values(),map(lambda x: round(x,4),entities.values()))))
+        # Logging to Slack channel
+        if log_data:
+            log_data = " ".join(map(lambda e_ls: e_ls[0]+": "+e_ls[1][0]+", "+str(e_ls[1][1])+"\n",sorted(log_data.items(),key=lambda e_ls: e_ls[1])))
+            logger_response = requests.post('https://hooks.slack.com/services/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', headers={'Content-type': 'application/json'}, data=json.dumps({"text": log_data}))
+
+        
+        response = json.dumps({"entities": entities, "labels": labels})
         return {"statusCode": 200, "body": response}
 
     except Exception as e:
         logger.error(
-            "Error processing request",
-            extra={"err": e, "request": json_request},
+            "Error {} processing request {}".format(e,json_request),
         )
-        response = json.dumps({"entities": {}})
+        response = json.dumps({"entities": {}, "labels": {}})
         return {"statusCode": 404, "body": response}
