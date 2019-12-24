@@ -828,10 +828,10 @@ class community_detection:
         for groupid in group.keys():
             group_scores[groupid] = [segment_scores[segid] for segid in [group[groupid][s][-1] for s in group[groupid]] if segid in segment_scores.keys()]
             if group_scores[groupid] == []:
-                group_scores[groupid] = 0
+                group_scores[groupid] = 10**6
                 print ("group which had no score: ", group[groupid])
             else:
-                group_scores[groupid] = np.median(group_scores[groupid])
+                group_scores[groupid] = np.mean(group_scores[groupid])
         print ("computed Group Scores")
         print ("group_scores:", group_scores)
         for groupid, position in sorted(group_scores.items(), key=lambda kv: kv[1], reverse=False):
@@ -916,23 +916,38 @@ class community_detection:
                 result[False] = 0
             prob.append(result[True]/(result[False] + result[True]))
         print ("prob:", prob)
-        threshold = 0.75
+        threshold = 0.25
         out = []
         flag = False
-        if prob[0] <= 0.75 and prob[1] <= 0.75:
-            out = cluster[0] + cluster[1]
+        # if prob[0] <= 0.75 and prob[1] <= 0.75:
+        #     out = cluster[0] + cluster[1]
+        #     flag = True
+        # if not flag and prob[0] >= threshold:
+        #     out += clusters[0]
+        # if not flag and prob[1] >= threshold:
+        #     out += clusters[1]
+        # if out == []:
+        #     out = clusters[0] + clusters[1]
+        if prob[0]==1 and prob[1]!=1:
+            out = clusters[0]
             flag = True
-        if not flag and prob[0] >= threshold:
-            out += clusters[0]
-        if not flag and prob[1] >= threshold:
-            out += clusters[1]
-        if out == []:
-            out = clusters[0] + clusters[1]
+        if prob[1]==1 and prob[0]!=1:
+            out = clusters[1]
+            flag = True
+        if not flag:
+            if prob[0] >= threshold:
+                out += clusters[0]
+            if prob[1] >=threshold:
+                out += clusters[1]
+            if out==[]:
+                out = clusters[0]+clusters[1]
         print ("out: ", out)
         filtered_seg = [seg_list_id[x] for x in out]
+        print ("After Filteration: ", filtered_seg)
         removed_seg = []
         for groupid in group.keys():
             count = Counter([True if seg in filtered_seg else False for seg in [group[groupid][x][-1] for x in group[groupid].keys()]])
+            print ([seg for seg in [group[groupid][x][-1] for x in group[groupid].keys()]])
             if True in count.keys():
                 true_count = count[True]
             else:
@@ -942,7 +957,7 @@ class community_detection:
             else:
                 false_count = 0
 
-            if (true_count)/(true_count+false_count) > 0.75:
+            if (true_count)/(true_count+false_count) >= 0.50:
                 filtered_group[groupid] = group[groupid]
             else:
                 for seg in [group[groupid][x][-1] for x in group[groupid]]:
@@ -951,14 +966,14 @@ class community_detection:
         res = post_to_slack(self.instance_id, [self.segments_map[segid]["originalText"] for segid in removed_seg])
         return filtered_group
 
-    def order_groups_by_group_scores(self, segment_scores, pims):
+    def order_groups_by_group_scores(self, group_scores, pims):
         ordered_groups = {}
-        ss_sorted = sorted(segment_scores.items(), key = lambda kv: kv[1],reverse=False)
+        ss_sorted = sorted(group_scores.items(), key = lambda kv: kv[1],reverse=False)
         index = 0
         for groupid, _ in ss_sorted:
             ordered_groups[index] = pims[groupid]
             index+=1
-            if index==7:
+            if index==5:
                 break
         return ordered_groups
 
@@ -984,7 +999,8 @@ class community_detection:
             fv, graph_list, fv_mapped_score = self.compute_feature_vector_gpt()
         else:
             (fv, graph_list, fv_mapped_score) = self.get_computed_feature_vector_gpt()
-            if (self.mind_id).lower() in ["01daaqy88qzb19jqz5prjfr76y", "01daatanxnrqa35e6004hb7mbn"] :
+            if (self.mind_id).lower() in ["01daaqy88qzb19jqz5prjfr76y", "01daatanxnrqa35e6004hb7mbn", "01dadp74wfv607knpcb6vvxgtg", "01daaqyn9gbebc92aywnxedp0c", "01daatbc3ak1qwc5nyc5ahv2xz", "01dsyjns6ky64jd9736yt0nfjz"] :
+            # if (self.mind_id).lower() in ["01daaqy88qzb19jqz5prjfr76y"] :
                 segment_scores = self.get_segment_scores()
         print ("Number of sentences: ", len(graph_list))
         meeting_graph_pruned, yetto_prune = self.construct_graph_ns_max(fv, graph_list)
@@ -1045,21 +1061,25 @@ class community_detection:
         print ("Computed phase 2 community.")
         pims = self.combine_pims_by_time(pims, group_seg_list)
         print ("Computed phase 2 Groups")
-        if (self.mind_id).lower() not in ["01daaqy88qzb19jqz5prjfr76y", "01daatanxnrqa35e6004hb7mbn"] :
+        if (self.mind_id).lower() not in ["01daaqy88qzb19jqz5prjfr76y", "01daatanxnrqa35e6004hb7mbn", "01dadp74wfv607knpcb6vvxgtg", "01daaqyn9gbebc92aywnxedp0c", "01daatbc3ak1qwc5nyc5ahv2xz", "01dsyjns6ky64jd9736yt0nfjz"] :
+        # if (self.mind_id).lower() not in ["01daaqy88qzb19jqz5prjfr76y"] :
 
             logger.info("Final PIMs", extra={"PIMs": pims})
             return pims
         logger.info("Intermediate PIMs", extra={"PIMs": pims})
         print ("Ranking and filtering groups based on domain mind.")
-        group_score = self.get_group_scores(pims, segment_scores)
-        filtered_groups = self.filter_groups(pims, group_score, segment_scores)
-        group_score = self.get_group_scores(filtered_groups, segment_scores)
+        pims_copy = deepcopy(pims)
+        group_score = self.get_group_scores(pims_copy, segment_scores)
+        # filtered_groups = self.filter_groups(pims, group_score, segment_scores)
+        # group_score = self.get_group_scores(filtered_groups, segment_scores)
+        filtered_groups = deepcopy(pims)
         print ("Ordering based on group scores.")
         filtered_groups = self.order_groups_by_group_scores(group_score, filtered_groups)
-        print ("Summarizing groups")
-        self.summarise_groups(graph_list, fv, filtered_groups)
-        print ("Extracting Topics")
-        topics_extracted = get_topics(filtered_groups)
+
+        # print ("Summarizing groups")
+        # self.summarise_groups(graph_list, fv, filtered_groups)
+        # print ("Extracting Topics")
+        # topics_extracted = get_topics(filtered_groups)
         # post_to_slack_topic(self.instance_id, topics_extracted)
         logger.info("Final PIMs", extra={"PIMs": filtered_groups})
         return filtered_groups

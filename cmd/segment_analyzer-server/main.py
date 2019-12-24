@@ -7,7 +7,7 @@ import os
 import logging
 from log.logger import setup_server_logger
 import json
-from mind_utils import load_mind_features, load_entity_features, load_entity_graph, load_pg_scores
+from mind_utils import load_mind_features, load_entity_features, load_entity_graph
 from scorer import transport as tp_scorer
 from group_segments import transport as tp_gs
 from group_segments import grouper
@@ -27,12 +27,12 @@ def handler(event, context):
         json_request = event["body"]
     try:
         mind_dict = load_mind_features(json_request["detail"]["mindId"].lower())
-        if (json_request["detail"]["mindId"]).lower() in ["01daaqy88qzb19jqz5prjfr76y", "01daatanxnrqa35e6004hb7mbn"] :
+        if (json_request["detail"]["mindId"]).lower() in ["01daaqy88qzb19jqz5prjfr76y", "01daatanxnrqa35e6004hb7mbn", "01dadp74wfv607knpcb6vvxgtg", "01daaqyn9gbebc92aywnxedp0c", "01daatbc3ak1qwc5nyc5ahv2xz","01dsyjns6ky64jd9736yt0nfjz"] :
+        # if (json_request["detail"]["mindId"]).lower() in ["01daaqy88qzb19jqz5prjfr76y"] :
 
             entity_dict_full = load_entity_features(json_request["detail"]["mindId"].lower())
-            entity_graph = load_entity_graph(json_request["detail"]["mindId"].lower())
-            pg_scores = load_pg_scores(json_request["detail"]["mindId"].lower())
-            common_entities = entity_dict_full.keys() & entity_graph.nodes()
+            pg_scores, entity_community_map, entity_community_rank = load_entity_graph(json_request["detail"]["mindId"].lower())
+            common_entities = entity_dict_full.keys() & entity_community_map.keys()
             entity_dict = {}
             for ent in common_entities:
                 if True not in np.isnan([entity_dict_full[ent]]):
@@ -62,7 +62,8 @@ def handler(event, context):
                 )
             )
             assert(len(vector_list) == len(Request.segments))
-            if (json_request["detail"]["mindId"]).lower() in ["01daaqy88qzb19jqz5prjfr76y", "01daatanxnrqa35e6004hb7mbn"] :
+            if (json_request["detail"]["mindId"]).lower() in ["01daaqy88qzb19jqz5prjfr76y", "01daatanxnrqa35e6004hb7mbn", "01dadp74wfv607knpcb6vvxgtg", "01daaqyn9gbebc92aywnxedp0c", "01daatbc3ak1qwc5nyc5ahv2xz", "01dsyjns6ky64jd9736yt0nfjz"] :
+           # if (json_request["detail"]["mindId"]).lower() in ["01daaqy88qzb19jqz5prjfr76y"] :
                 if vector_list is not False:
                     similar_entities = list(
                         map(
@@ -79,8 +80,10 @@ def handler(event, context):
                         map(
                             lambda ent_list: get_segment_rank_pc(
                                 ent_list,
-                                entity_graph,
-                                pg_scores
+                                pg_scores,
+                                entity_community_map,
+                                entity_community_rank,
+                                (Request.mind_id).lower()
                             ),
                             similar_entities,
                         )

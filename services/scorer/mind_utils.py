@@ -26,16 +26,20 @@ def load_entity_features(mind_id):
 
 def load_entity_graph(mind_id):
     bucket = os.getenv("BUCKET_NAME", "io.etherlabs.artifacts")
-    entity_path = os.getenv("ACTIVE_ENV") + "/minds/" + mind_id + "/entity_graph.pkl"
-    entity_dl_path = os.path.join(os.sep, "tmp", "entity_graph.pkl")
+    entity_path = os.getenv("ACTIVE_ENV") + "/minds/" + mind_id + "/pg_scores.pkl"
+    entity_dl_path = os.path.join(os.sep, "tmp", "pg_scores.pkl")
     s3.Bucket(bucket).download_file(entity_path, entity_dl_path)
-    entity_graph = pickle.load(open(entity_dl_path, "rb"))
-    return entity_graph
+    entity_pg_scores = pickle.load(open(entity_dl_path, "rb"))
 
-def load_pg_scores(mind_id):
-    bucket = os.getenv("BUCKET_NAME", "io.etherlabs.artifacts")
-    pg_path = os.getenv("ACTIVE_ENV") + "/minds/" + mind_id + "/pg_scores.pkl"
-    pg_dl_path = os.path.join(os.sep, "tmp", "pg_scores.pkl")
-    s3.Bucket(bucket).download_file(pg_path, pg_dl_path)
-    pg_scores = pickle.load(open(pg_dl_path, "rb"))
-    return pg_scores
+    entity_path = os.getenv("ACTIVE_ENV") + "/minds/" + mind_id + "/community_map.pkl"
+    entity_dl_path = os.path.join(os.sep, "tmp", "entity_community_map.pkl")
+    s3.Bucket(bucket).download_file(entity_path, entity_dl_path)
+    entity_community_map = pickle.load(open(entity_dl_path, "rb"))
+
+
+    entity_path = os.getenv("ACTIVE_ENV") + "/minds/" + mind_id + "/community_rank.pkl"
+    entity_dl_path = os.path.join(os.sep, "tmp", "entity_community_rank.pkl")
+    s3.Bucket(bucket).download_file(entity_path, entity_dl_path)
+    entity_community_rank = pickle.load(open(entity_dl_path, "rb"))
+
+    return entity_pg_scores, entity_community_map, entity_community_rank

@@ -27,6 +27,7 @@ from s3client.s3 import S3Manager
 from group_segments.extra_preprocess import preprocess_text as pt
 import os
 import pickle
+from collections import Counter
 
 logger = logging.getLogger()
 
@@ -219,10 +220,19 @@ def get_segment_rank(ent_list, ent_graph):
     else:
         return (ent_list[0], 10**6)
 
-def get_segment_rank_pc(ent_list, ent_graph, pg_scores):
+def get_segment_rank_pc(ent_list, pg_scores, com_map, ranked_com, mind_id):
+    print ("\n\n Segid: ", ent_list[0])
     current_ent_list = [ent for ent, score in ent_list[1]]
-    degree_score_filtered = [pg_scores[ent] for ent in current_ent_list]
-    return (ent_list[0], np.median(degree_score_filtered))
+    print (current_ent_list)
+    degree_score_filtered = [com_map[ent] for ent in current_ent_list]
+    print (degree_score_filtered)
+    degree_score_filtered = [cls for cls in degree_score_filtered if cls in ranked_com.keys()]
+    print (degree_score_filtered)
+    degree_map_filtered = [ranked_com[ent] for ent in degree_score_filtered]
+    print (degree_map_filtered)
+    degree_map_filtered = sorted(dict(Counter(degree_map_filtered)).items(), key=lambda kv:kv[1], reverse=True)[0][0]
+    print (degree_map_filtered)
+    return (ent_list[0], degree_map_filtered)
 
 def upload_segment_rank(segment_rank, instance_id, context_id, segment):
     try:
