@@ -16,12 +16,12 @@ from bert_utils import BertConfig
 import bert_ner.bert_ner_utils as ner
 import numpy as np
 import pickle
-
+from log.logger import setup_server_logger
 s3 = boto3.resource("s3")
 
 logger = logging.getLogger()
-logger.setLevel(logging.INFO)
-
+# logger.setLevel(logging.INFO)
+setup_server_logger(debug=True)
 
 def load_model():
     bucket = os.getenv("BUCKET_NAME")

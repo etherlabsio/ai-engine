@@ -155,6 +155,9 @@ class BERT_NER:
         }
         self.stop_words = {
             "",
+            "i",
+            "hi",
+            "welcome",
             "oh",
             "uh",
             "um",
