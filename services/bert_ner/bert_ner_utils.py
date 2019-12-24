@@ -436,18 +436,18 @@ class BERT_NER:
                         entities.append(
                             (
                                 token_to_word[i + j - 1][0],
-                                scores[i + j - 1],
+                                scores[j - 1],
                                 token_to_word[i + j - 1][1],
-                                labels[i + j - 1],
+                                labels[j - 1],
                             )
                         )
                         entities.append((tok, scores[j], tag, labels[j]))
                         entities.append(
                             (
                                 token_to_word[i + j + 1][0],
-                                scores[i + j + 1],
+                                scores[j + 1],
                                 token_to_word[i + j + 1][1],
-                                labels[i + j + 1],
+                                labels[j + 1],
                             )
                         )
                     else:
