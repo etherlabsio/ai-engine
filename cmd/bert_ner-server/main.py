@@ -37,7 +37,7 @@ def load_model():
 # load the model when lambda execution context is created
 state_dict = load_model()
 config = BertConfig()
-config.num_labels=state_dict['classifier.weight'].shape[0]
+config.num_labels = state_dict["classifier.weight"].shape[0]
 model = ner.BertForTokenClassification_custom(config)
 model.load_state_dict(state_dict)
 model.eval()
@@ -65,11 +65,33 @@ def handler(event, context):
                 entities, labels
             )
         )
-        log_data = dict(zip(entities.keys(),zip(labels.values(),map(lambda x: round(x,4),entities.values()))))
-        # Logging to Slack channel
+        log_data = dict(
+            zip(
+                entities.keys(),
+                zip(
+                    labels.values(),
+                    map(lambda x: round(x, 4), entities.values()),
+                ),
+            )
+        )
+        # Logging to Slack channel [ent-logs]
         if log_data:
-            log_data = " ".join(map(lambda e_ls: e_ls[0]+": "+e_ls[1][0]+", "+str(e_ls[1][1])+"\n",sorted(log_data.items(),key=lambda e_ls: e_ls[1])))
-            logger_response = requests.post('https://hooks.slack.com/services/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', headers={'Content-type': 'application/json'}, data=json.dumps({"text": log_data}))
+            log_data = " ".join(
+                map(
+                    lambda e_ls: e_ls[0]
+                    + ": "
+                    + e_ls[1][0]
+                    + ", "
+                    + str(e_ls[1][1])
+                    + "\n",
+                    sorted(log_data.items(), key=lambda e_ls: e_ls[1]),
+                )
+            )
+            logger_response = requests.post(
+                "https://hooks.slack.com/services/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",
+                headers={"Content-type": "application/json"},
+                data=json.dumps({"text": log_data}),
+            )
 
         return {"statusCode": 200, "body": response}
 
@@ -77,7 +99,17 @@ def handler(event, context):
         logger.info(
             "Error - {} - while processing request {}".format(e, json_request),
         )
-        if json_request['originalText']==['Wake up Sesame!']:
-            logger_response = requests.post('https://hooks.slack.com/services/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', headers={'Content-type': 'application/json'}, data=json.dumps({"text": "Error {} processing request {}".format(e,json_request)}))
+        if type(json_request["originalText"]) is not list:
+            logger_response = requests.post(
+                "https://hooks.slack.com/services/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",
+                headers={"Content-type": "application/json"},
+                data=json.dumps(
+                    {
+                        "text": "Error {} processing request {}".format(
+                            e, json_request
+                        )
+                    }
+                ),
+            )
         response = json.dumps({"entities": {}, "labels": {}})
         return {"statusCode": 404, "body": response}

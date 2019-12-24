@@ -5,7 +5,6 @@ import torch
 import torch.nn as nn
 from bert_utils.modeling_bert import BertPreTrainedModel, BertModel
 from bert_utils.tokenization_bert import BertTokenizer
-from itertools import groupby
 import nltk
 from nltk.tokenize import sent_tokenize
 
@@ -309,7 +308,7 @@ class BERT_NER:
         segment_labels = []
 
         text = text.strip()
-        if len(text)>1 and text[-1] not in [".", "?", "!"]:
+        if len(text) > 1 and text[-1] not in [".", "?", "!"]:
             text += "."
         text = self.replace_contractions(text) + " "
         for sent in sent_tokenize(text):
@@ -361,7 +360,7 @@ class BERT_NER:
         ]
         return sent_labels
 
-    def capitalize_entities(self,entity_list):
+    def capitalize_entities(self, entity_list):
         def capitalize_entity(ent):
             if "." in ent:
                 ent = ent.title()
@@ -373,8 +372,21 @@ class BERT_NER:
                 ent = ent.capitalize()
 
             return ent
-        entity_list = list(map(lambda entities: " ".join(list(map(lambda ent: capitalize_entity(ent),entities.split()))),entity_list))
-        
+
+        entity_list = list(
+            map(
+                lambda entities: " ".join(
+                    list(
+                        map(
+                            lambda ent: capitalize_entity(ent),
+                            entities.split(),
+                        )
+                    )
+                ),
+                entity_list,
+            )
+        )
+
         return entity_list
 
     def prepare_input_for_model(self, pos_text):
@@ -416,81 +428,113 @@ class BERT_NER:
                 self.labels[ind]
                 for ind in self.sm(outputs).argmax(-1).detach().numpy()
             ]
-            batch_tok_word = token_to_word[i:i+batch_size]
-            for j,(tok,tag) in enumerate(batch_tok_word):
+            batch_tok_word = token_to_word[i : i + batch_size]
+            for j, (tok, tag) in enumerate(batch_tok_word):
                 # Consider Entities, and Non-Entities with low confidence (false negatives)
-                if labels[j] not in ["O"] or (labels[j]=="O" and scores[j]<self.conf):
-                    if j!=0 and j<len(batch_tok_word)-1 and tok.lower() in self.stop_words:
-                        entities.append((token_to_word[i+j-1][0],scores[i+j-1],token_to_word[i+j-1][1],labels[i+j-1]))
-                        entities.append((tok,scores[j],tag,labels[j]))
-                        entities.append((token_to_word[i+j+1][0],scores[i+j+1],token_to_word[i+j+1][1],labels[i+j+1]))
+                if labels[j] not in ["O"] or (
+                    labels[j] == "O" and scores[j] < self.conf
+                ):
+                    # Include words around stop words which are false negatives
+                    if (
+                        j != 0
+                        and j < len(batch_tok_word) - 1
+                        and tok.lower() in self.stop_words
+                    ):
+                        entities.append(
+                            (
+                                token_to_word[i + j - 1][0],
+                                scores[i + j - 1],
+                                token_to_word[i + j - 1][1],
+                                labels[i + j - 1],
+                            )
+                        )
+                        entities.append((tok, scores[j], tag, labels[j]))
+                        entities.append(
+                            (
+                                token_to_word[i + j + 1][0],
+                                scores[i + j + 1],
+                                token_to_word[i + j + 1][1],
+                                labels[i + j + 1],
+                            )
+                        )
                     else:
-                        entities.append((tok,scores[j],tag,labels[j]))
+                        entities.append((tok, scores[j], tag, labels[j]))
 
         return entities
 
     def tokenize(self, text):
         return self.tokenizer.tokenize(text)
 
-    def concat_entities(self, 
-                        text, 
-                        entities):
-        sent_entity_list=[]
-        sent_scores=[]
-        sent_labels=[]
-        seen=[]
-        # handling acronym followed by capitalized entitity
-        text = re.sub("\.(\w{2,})",lambda mobj: " "+mobj.group(1),text).lower()
+    def concat_entities(self, text, entities):
+        sent_entity_list = []
+        sent_scores = []
+        sent_labels = []
+        seen = []
+        # handling acronym followed by capitalized entity
+        text = re.sub(
+            "\.(\w{2,})", lambda mobj: " " + mobj.group(1), text
+        ).lower()
         # remove consecutive duplicate entities from list(tuple(word, score, pos_tag, label))
         grouped_scores = {}
         grouped_labels = {}
         grouped_words = []
-        prev=("",0)
-        for i,(tok, sc, tag, lab) in enumerate(entities):
-            if prev[0]==tok:
-                grouped_scores[(tok,tag,prev[1])] = max(grouped_scores.get((tok,tag,prev[1]),-1),sc)
-                grouped_labels[(tok,tag,prev[1])] = grouped_labels.get((tok,tag,prev[1]),[]) + [lab]
+        prev = ("", 0)
+        for i, (tok, sc, tag, lab) in enumerate(entities):
+            if prev[0] == tok:
+                grouped_scores[(tok, tag, prev[1])] = max(
+                    grouped_scores.get((tok, tag, prev[1]), -1), sc
+                )
+                grouped_labels[(tok, tag, prev[1])] = grouped_labels.get(
+                    (tok, tag, prev[1]), []
+                ) + [lab]
                 continue
-            grouped_scores[(tok,tag,i)] = max(grouped_scores.get((tok,tag),-1),sc)
-            grouped_labels[(tok,tag,i)] = grouped_labels.get((tok,tag),[]) + [lab]
-            grouped_words.append((tok,tag,i))
-            prev = (tok,i)
+            grouped_scores[(tok, tag, i)] = max(
+                grouped_scores.get((tok, tag), -1), sc
+            )
+            grouped_labels[(tok, tag, i)] = grouped_labels.get(
+                (tok, tag), []
+            ) + [lab]
+            grouped_words.append((tok, tag, i))
+            prev = (tok, i)
+
         for i in range(len(grouped_words)):
             if i in seen:
                 continue
 
             conc = [grouped_words[i][0].strip("'\"")]
 
-            check = grouped_words[i][0]+" "
+            check = grouped_words[i][0] + " "
             score = grouped_scores[grouped_words[i]]
             label = grouped_labels[grouped_words[i]]
-            seen+=[i]
-            k=i+1
+            seen += [i]
+            k = i + 1
 
-            while k<len(grouped_words) and (check.lower()+grouped_words[k][0].lower() in text):
-                conc_word=grouped_words[k][0].strip("'\"")
+            while k < len(grouped_words) and (
+                check.lower() + grouped_words[k][0].lower() in text
+            ):
+                conc_word = grouped_words[k][0].strip("'\"")
                 conc += [conc_word]
-                check+= grouped_words[k][0]+" "
+                check += grouped_words[k][0] + " "
                 score += grouped_scores[grouped_words[k]]
                 label += grouped_labels[grouped_words[k]]
-                seen+=[k]
-                k+=1
+                seen += [k]
+                k += 1
             # remove single verb, punct and interjection entities
-            if len(conc)==1:
-                if grouped_words[i][1][0] in ["V",".","U"]:
+            if len(conc) == 1:
+                if grouped_words[i][1][0] in ["V", ".", "U"]:
                     continue
                 conc = [" ".join(conc).split("'")[0]]
-            
-            # stripping stop_words  
+
+            # stripping stop_words
             while conc and conc[0].lower().strip(" ,.") in self.stop_words:
                 conc.pop(0)
             while conc and conc[-1].lower().strip(" ,.") in self.stop_words:
                 conc.pop(-1)
-            
+
             if conc:
                 conc = " ".join(conc)
                 sent_entity_list += [conc.strip(" ,.")]
-                sent_scores += [score/(k-i)]
+                sent_scores += [score / (k - i)]
                 sent_labels += [list(set(label))]
-        
-        return sent_entity_list,sent_scores, sent_labels
+
+        return sent_entity_list, sent_scores, sent_labels
