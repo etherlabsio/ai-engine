@@ -25,3 +25,6 @@ scipy
 torch
 requests
 uuid
+jsonlines
+fuzzywuzzy
+python-levenshtein

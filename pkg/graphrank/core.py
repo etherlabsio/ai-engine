@@ -181,7 +181,9 @@ class GraphRank(object):
 
         # Normalize node weights using graph properties
         normalized_node_weights = self.graph_solver.normalize_nodes(
-            graph_obj=graph_obj, node_weights=node_weights, normalize_fn=normalize_nodes
+            graph_obj=graph_obj,
+            node_weights=node_weights,
+            normalize_fn=normalize_nodes,
         )
         # sorting the nodes by decreasing scores
         top_words = self.graph_utils.sort_by_value(

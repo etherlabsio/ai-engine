@@ -1,58 +1,67 @@
-AWS_ACCESS_KEY_ID=$(shell aws configure get aws_access_key_id --profile ${AWS_PROFILE})
-AWS_SECRET_ACCESS_KEY=$(shell aws configure get aws_secret_access_key --profile ${AWS_PROFILE})
-AWS_REGION=$(shell aws configure get region --profile ${AWS_PROFILE})
+AWS_ACCOUNT_ID=$(shell aws --profile ${ENV} sts get-caller-identity --output text --query 'Account')
+AWS_ACCESS_KEY_ID=$(shell aws configure get aws_access_key_id --profile ${ENV})
+AWS_SECRET_ACCESS_KEY=$(shell aws configure get aws_secret_access_key --profile ${ENV})
+AWS_REGION=$(shell aws configure get region --profile ${ENV})
 LOGIN=$(shell AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID} AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY} aws ecr get-login --no-include-email --region ${AWS_REGION})
 
+IMAGE_PREFIX=${AWS_ACCOUNT_ID}.dkr.ecr.us-east-1.amazonaws.com/etherlabs
+CONTAINER_IMAGE_NEW=${IMAGE_PREFIX}/{app}
 
-CONTAINER_IMAGE=817390009919.dkr.ecr.us-east-1.amazonaws.com/etherlabs/keyphrase
-STAGING2_IMAGE=933389821341.dkr.ecr.us-east-1.amazonaws.com/etherlabs/keyphrase
-
-ACTIVE_ENV=staging2
+ENV=staging2
 SLACK_WEBHOOK_URL="https://hooks.slack.com/services/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"
 BRANCH=$(shell git rev-parse --short HEAD || echo -e '$CI_COMMIT_SHA')
-ARTIFACT=keyphrase-server
-SERVICE_NAME=keyphrase-service
 
 
 pre-deploy-notify:
-	@curl -X POST --data-urlencode 'payload={"text": "[${ENVIRONMENT}] [${BRANCH}] ${USER}: ${ARTIFACT} is being deployed"}' \
+	@curl -X POST --data-urlencode 'payload={"text": "[${ENV}] [${BRANCH}] ${USER}: ${ARTIFACT} is being deployed"}' \
 				 ${SLACK_WEBHOOK_URL}
 
 post-deploy-notify:
-	@curl -X POST --data-urlencode 'payload={"text": "[${ENVIRONMENT}] [${BRANCH}] ${USER}: ${ARTIFACT} is deployed"}' \
+	@curl -X POST --data-urlencode 'payload={"text": "[${ENV}] [${BRANCH}] ${USER}: ${ARTIFACT} is deployed"}' \
 				 ${SLACK_WEBHOOK_URL}
 
-build: clean
-	echo ${ACTIVE_ENV} ${ARTIFACT} ${CONTAINER_IMAGE} ${BRANCH}
-	eval ${LOGIN}
-	@docker build --build-arg active_env=${ACTIVE_ENV} --build-arg app=keyphrase -t ${CONTAINER_IMAGE}:${CONTAINER_TAG} .
-	@docker push ${CONTAINER_IMAGE}:${CONTAINER_TAG}
-	@docker tag ${CONTAINER_IMAGE}:${CONTAINER_TAG} ${CONTAINER_IMAGE}:${BRANCH}
+docker_login:
+	@eval ${LOGIN}
+
+
+build: docker_login
+	echo ${ENV} ${ARTIFACT} ${CONTAINER_IMAGE} ${BRANCH}
+	@docker build --build-arg app=${APP} -t ${CONTAINER_IMAGE}:${BRANCH} .
+
+docker_push:
 	@docker push ${CONTAINER_IMAGE}:${BRANCH}
 
-deploy_ecs: build
+ifeq (${ENV},production)
+	@docker tag ${CONTAINER_IMAGE}:${BRANCH} ${CONTAINER_IMAGE}:latest
+	@docker push ${CONTAINER_IMAGE}:latest
+else
+	@docker tag ${CONTAINER_IMAGE}:${BRANCH} ${CONTAINER_IMAGE}:${ENV}
+	@docker push ${CONTAINER_IMAGE}:${ENV}
+endif
+
+deploy_ecs: build docker_push
 	$(MAKE) pre-deploy-notify
-	ecs deploy ${CLUSTER_NAME} ${SERVICE_NAME} --timeout 600 --profile ${AWS_PROFILE} --task keyphrase --tag ${BRANCH}
+	ecs deploy --region ${AWS_REGION} --access-key-id ${AWS_ACCESS_KEY_ID} --secret-access-key ${AWS_SECRET_ACCESS_KEY} ${CLUSTER_NAME} ${SERVICE_NAME} --task ${FAMILY} --tag ${BRANCH} --timeout 600
 	$(MAKE) post-deploy-notify
 
-deploy-staging2:
-	$(MAKE) deploy_ecs ARTIFACT=${ARTIFACT} CONTAINER_TAG=staging2 CONTAINER_IMAGE=${STAGING2_IMAGE} \
-			ENVIRONMENT=staging2 CLUSTER_NAME=ml-inference SERVICE_NAME=${SERVICE_NAME} AWS_PROFILE=staging2
+###############
+# Deployments #
+###############
 
-deploy-production:
-	$(MAKE) deploy_ecs ARTIFACT=${ARTIFACT} CONTAINER_TAG=latest CONTAINER_IMAGE=${CONTAINER_IMAGE} \
-			ENVIRONMENT=production CLUSTER_NAME=ml-inference SERVICE_NAME=${SERVICE_NAME} AWS_PROFILE=default
+# Keyphrase
+deploy_keyphrase:
+	$(MAKE) deploy_ecs APP=keyphrase ARTIFACT=keyphrase-server CONTAINER_IMAGE=${IMAGE_PREFIX}/keyphrase \
+		 CLUSTER_NAME=ml-inference SERVICE_NAME=keyphrase-service FAMILY=keyphrase
 
+# Recommendation
+deploy_recommendation:
+	$(MAKE) deploy_ecs APP=recommendation ARTIFACT=recommendation-server CONTAINER_IMAGE=${IMAGE_PREFIX}/recommendation \
+		 CLUSTER_NAME=ml-inference SERVICE_NAME=recommendation-service FAMILY=recommendation
 
-.PHONY: new-service
-new-service:
-	@mkdir services/${app}
-	@mkdir cmd/${app}-server
-	@touch cmd/${app}-server/main.py
-	@cp .template/BUILD.cmd cmd/${app}-server/BUILD
-	@cp .template/BUILD.services services/${app}/BUILD
-	@echo -e '\n\n Added cmd/${app}-server with BUILD & main file \n Added services/${app} with BUILD file'
-	@echo -e '\nNote: Kindly go into the Build files present in the 'services/${app}/' and 'cmd/${app}-server/'. \n Change the service name from Keyphrase to your respective service name and, \n add/remove the dependencies mentioned in the cmd/${app}-server/BUILD file '
+# Recommendation Testing on other workspaces
+deploy_recommendation_test:
+	$(MAKE) deploy_ecs APP=recommendation ARTIFACT=recommendation-server CONTAINER_IMAGE=${IMAGE_PREFIX}/recommendation \
+		 CLUSTER_NAME=ml-inference SERVICE_NAME=recommendation-test-service FAMILY=recommendation-test BRANCH=test
 
 
 .PHONY: clean
@@ -68,11 +77,28 @@ update-lambda-function-scorer:
 
 .PHONY: update-lambda-function-gs
 update-lambda-function-gs:
+	./pants bundle cmd/group_segments-server:group_segments_code
 	aws s3 cp --profile ${ENV} dist/group_segments_code.pex s3://io.etherlabs.artifacts/${ENV}/group_segments_code.pex
 	aws lambda update-function-code --function-name group-segments --s3-bucket io.etherlabs.artifacts --s3-key ${ENV}/group_segments_code.pex
 
-.PHONY: build-upload-update-lambda
-build-upload-update-lambda:
-	./pants bundle cmd/${app-name}-server:${build-name}
-	aws s3 cp --profile production dist/${build-name}.pex s3://io.etherlabs.artifacts/${ENV}/${build-name}.pex
-	aws lambda --profile ${ENV} --region us-east-1 update-function-code --function-name ${function-name} --s3-bucket io.etherlabs.artifacts --s3-key ${ENV}/${build-name}.pex
+
+.PHONY: test-gs
+test-gs:
+	aws s3 cp --profile staging2 dist/group_segments_code.pex s3://io.etherlabs.staging2.contexts/topics/group_segments_code.pex
+	aws lambda update-function-code --function-name pex_test --s3-bucket io.etherlabs.staging2.contexts --s3-key topics/group_segments_code.pex --region=us-east-1
+
+.PHONY: update-lambda-function-sa
+update-lambda-function-sa:
+	./pants bundle cmd/segment_analyzer-server:segment_analyser_lambda
+	aws s3 cp --profile production dist/segment_analyser_lambda.pex s3://io.etherlabs.artifacts/${ENV}/segment_analyser_lambda.pex
+	aws lambda update-function-code --function-name segment-analyser --s3-bucket io.etherlabs.artifacts --s3-key ${ENV}/segment_analyser_lambda.pex --profile ${ENV}
+
+.PHONY: new-service
+new-service:
+	@mkdir services/${app}
+	@mkdir cmd/${app}-server
+	@touch cmd/${app}-server/main.py
+	@cp .template/BUILD.cmd cmd/${app}-server/BUILD
+	@cp .template/BUILD.services services/${app}/BUILD
+	@echo -e '\n\n Added cmd/${app}-server with BUILD & main file \n Added services/${app} with BUILD file'
+	@echo -e '\nNote: Kindly go into the Build files present in the 'services/${app}/' and 'cmd/${app}-server/'. \n Change the service name from Keyphrase to your respective service name and, \n add/remove the dependencies mentioned in the cmd/${app}-server/BUILD file '

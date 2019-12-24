@@ -268,7 +268,7 @@ def main(argv=None):
     program_version = "v0.1"
     program_build_date = "%s" % __updated__
 
-    program_version_string = "%%prog %s (%s)" % (program_version, program_build_date)
+    program_version_string = "%%prog %s (%s)" % (program_version, program_build_date,)
     program_longdesc = (
         "A utility python script to convert GraphML files into the Amazon Neptune CSV format "
         "for bulk ingestion. See "

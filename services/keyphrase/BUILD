@@ -1,4 +1,1 @@
-python_library(
-	name="keyphrase-libs",
-	sources=["*/*","*"]
-)
+python_library(name="keyphrase-libs", sources=["*/*", "*"])

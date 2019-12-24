@@ -28,7 +28,11 @@ class WordGraphBuilder(object):
     def process_text(
         self, text, filter_by_pos=True, stop_words=False, syntactic_filter=None
     ):
-        original_tokens, pos_tuple, filtered_pos_tuple = self.tp.preprocess_text(
+        (
+            original_tokens,
+            pos_tuple,
+            filtered_pos_tuple,
+        ) = self.tp.preprocess_text(
             text,
             filter_by_pos=filter_by_pos,
             pos_filter=syntactic_filter,
@@ -90,12 +94,35 @@ class WordGraphBuilder(object):
 
     def get_custom_entities(self, input_segment):
         entity_list = []
+        entity_preference_map = {
+            "MISC": 1,
+            "ORG": 2,
+            "PER": 3,
+            "LOC": 4,
+            "O": 5,
+        }
 
-        entity_dict = self.call_custom_ner(input_segment=input_segment)
+        entity_dict, entity_label_dict = self.call_custom_ner(
+            input_segment=input_segment
+        )
 
         for entity, conf_score in entity_dict.items():
+            entity_label = entity_label_dict[entity]
             entity_list.append(
-                {"text": entity, "preference": 1, "conf_score": conf_score}
+                {
+                    "text": entity,
+                    "preference": entity_preference_map[entity_label],
+                    "conf_score": conf_score,
+                }
+            )
+
+            logger.debug(
+                "Obtained entities",
+                extra={
+                    "entities": entity,
+                    "label": entity_label,
+                    "score": conf_score,
+                },
             )
 
         return entity_list
@@ -126,6 +153,7 @@ class WordGraphBuilder(object):
             end = timer()
             if status_code == 200:
                 entity_dict = json.loads(response_body)["entities"]
+                entity_label_dict = json.loads(response_body)["labels"]
                 logger.info(
                     "Received response from encoder lambda function",
                     extra={
@@ -136,18 +164,20 @@ class WordGraphBuilder(object):
 
             else:
                 entity_dict = {}
+                entity_label_dict = {}
                 logger.warning(
                     "Invalid response from encoder lambda function",
                     extra={"lambdaResponseTime": end - start},
                 )
 
-            return entity_dict
+            return entity_dict, entity_label_dict
 
         except Exception as e:
             logger.error("Invoking failed", extra={"err": e})
 
             entity_dict = {}
-            return entity_dict
+            entity_label_dict = {}
+            return entity_dict, entity_label_dict
 
     def get_segment_keyphrases(
         self, segment_object: dict, word_graph: nx.Graph
@@ -158,9 +188,11 @@ class WordGraphBuilder(object):
         segment_list = self.utils.read_segments(segment_object=segment_object)
         try:
             for text in segment_list:
-                original_tokens, pos_tuple, filtered_pos_tuple = self.process_text(
-                    text
-                )
+                (
+                    original_tokens,
+                    pos_tuple,
+                    filtered_pos_tuple,
+                ) = self.process_text(text)
 
                 keyphrase_list.extend(
                     self.get_custom_keyphrases(

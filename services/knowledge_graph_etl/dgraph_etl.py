@@ -55,9 +55,7 @@ class DgraphETL(object):
 
         try:
             with open(
-                os.path.join(os.getcwd(), filename + ".json"),
-                "w",
-                encoding="utf-8",
+                os.path.join(os.getcwd(), filename + ".json"), "w", encoding="utf-8",
             ) as f_:
                 js.dump(data, f_, ensure_ascii=False, indent=4)
         except Exception as e:
@@ -91,9 +89,7 @@ class DgraphETL(object):
                 source_attr = g.nodes[source]
 
                 try:
-                    dgraph_type = self.schema_type[
-                        source_attr.get("attribute")
-                    ]
+                    dgraph_type = self.schema_type[source_attr.get("attribute")]
                 except KeyError:
                     dgraph_type = "null"
 

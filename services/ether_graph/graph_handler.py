@@ -58,7 +58,7 @@ class GraphHandler(object):
         try:
             node_uid = response["q"][0].get("uid")
             logger.info(
-                "Received response", extra={"response": response, "uid": node_uid}
+                "Received response", extra={"response": response, "uid": node_uid},
             )
             node_obj["uid"] = node_uid
         except IndexError:
@@ -71,9 +71,11 @@ class GraphHandler(object):
         return self.dgraph.alter(pydgraph.Operation(schema=schema))
 
     def populate_context_info(self, req_data, **kwargs):
-        context_node, instance_node, mind_node = self.context_parser.parse_context_info(
-            req_data=req_data
-        )
+        (
+            context_node,
+            instance_node,
+            mind_node,
+        ) = self.context_parser.parse_context_info(req_data=req_data)
 
         context_id = context_node["xid"]
         instance_id = instance_node["xid"]
@@ -96,9 +98,10 @@ class GraphHandler(object):
         return resp
 
     def populate_instance_segment_info(self, req_data, **kwargs):
-        instance_node, segment_node = self.context_parser.parse_instance_segment_info(
-            req_data=req_data
-        )
+        (
+            instance_node,
+            segment_node,
+        ) = self.context_parser.parse_instance_segment_info(req_data=req_data)
 
         instance_id = instance_node["xid"]
         segment_id = segment_node["xid"]
@@ -119,9 +122,12 @@ class GraphHandler(object):
 
     def populate_segment_info(self, req_data, **kwargs):
         segment_object = req_data["segments"]
-        segment_node, user_node, provider_node, recorder_node = self.context_parser.parse_segment_info(
-            segment_object=segment_object
-        )
+        (
+            segment_node,
+            user_node,
+            provider_node,
+            recorder_node,
+        ) = self.context_parser.parse_segment_info(segment_object=segment_object)
 
         segment_id = segment_node["xid"]
         user_id = user_node["xid"]

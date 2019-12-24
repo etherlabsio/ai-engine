@@ -40,7 +40,7 @@ class ContextSessionParser(object):
         instance_id = req_data["instanceId"]
 
         context_node, instance_node, mind_node = self._context_instance_info(
-            context_id=context_id, mind_id=mind_id, instance_id=instance_id, **kwargs
+            context_id=context_id, mind_id=mind_id, instance_id=instance_id, **kwargs,
         )
         return context_node, instance_node, mind_node
 
@@ -48,9 +48,12 @@ class ContextSessionParser(object):
         instance_id = req_data["instanceId"]
         segment_object = req_data["segments"]
 
-        segment_node, user_node, provider_node, recorder_node = self.parse_segment_info(
-            segment_object=segment_object, **kwargs
-        )
+        (
+            segment_node,
+            user_node,
+            provider_node,
+            recorder_node,
+        ) = self.parse_segment_info(segment_object=segment_object, **kwargs)
         instance_node = self._instance_info(instance_id=instance_id)
 
         # return individual nodes for population using upsert operation

@@ -1,4 +1,1 @@
-python_library(
-	name="kg-libs",
-	sources=["*/*","*"]
-)
+python_library(name="kg-libs", sources=["*/*", "*"])

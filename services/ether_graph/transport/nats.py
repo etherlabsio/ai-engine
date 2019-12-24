@@ -18,7 +18,7 @@ class NATSTransport(object):
             extra={"topic": context_created_topic},
         )
         await self.nats_manager.subscribe(
-            context_created_topic, handler=self.context_created_handler, queued=True
+            context_created_topic, handler=self.context_created_handler, queued=True,
         )
 
     async def context_created_handler(self, msg):

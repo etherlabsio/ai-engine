@@ -28,7 +28,12 @@
 # limitations under the License.
 """PyTorch BERT model."""
 
-from __future__ import absolute_import, division, print_function, unicode_literals
+from __future__ import (
+    absolute_import,
+    division,
+    print_function,
+    unicode_literals,
+)
 
 import copy
 import json
@@ -673,7 +678,7 @@ class PoolerEndLogits(nn.Module):
         self.dense_1 = nn.Linear(config.hidden_size, 1)
 
     def forward(
-        self, hidden_states, start_states=None, start_positions=None, p_mask=None
+        self, hidden_states, start_states=None, start_positions=None, p_mask=None,
     ):
         """ Args:
             One of ``start_states``, ``start_positions`` should be not None.
@@ -721,7 +726,7 @@ class PoolerAnswerClass(nn.Module):
         self.dense_1 = nn.Linear(config.hidden_size, 1, bias=False)
 
     def forward(
-        self, hidden_states, start_states=None, start_positions=None, cls_index=None
+        self, hidden_states, start_states=None, start_positions=None, cls_index=None,
     ):
         """
         Args:
@@ -833,7 +838,12 @@ class SQuADHead(nn.Module):
 
         if start_positions is not None and end_positions is not None:
             # If we are on multi-GPU, let's remove the dimension added by batch splitting
-            for x in (start_positions, end_positions, cls_index, is_impossible):
+            for x in (
+                start_positions,
+                end_positions,
+                cls_index,
+                is_impossible,
+            ):
                 if x is not None and x.dim() > 1:
                     x.squeeze_(-1)
 
@@ -850,7 +860,7 @@ class SQuADHead(nn.Module):
             if cls_index is not None and is_impossible is not None:
                 # Predict answerability from the representation of CLS and START
                 cls_logits = self.answer_class(
-                    hidden_states, start_positions=start_positions, cls_index=cls_index
+                    hidden_states, start_positions=start_positions, cls_index=cls_index,
                 )
                 loss_fct_cls = nn.BCEWithLogitsLoss()
                 cls_loss = loss_fct_cls(cls_logits, is_impossible)
@@ -883,7 +893,7 @@ class SQuADHead(nn.Module):
             )  # shape (bsz, slen, start_n_top, hsz)
             p_mask = p_mask.unsqueeze(-1) if p_mask is not None else None
             end_logits = self.end_logits(
-                hidden_states_expanded, start_states=start_states, p_mask=p_mask
+                hidden_states_expanded, start_states=start_states, p_mask=p_mask,
             )
             end_log_probs = F.softmax(
                 end_logits, dim=1
