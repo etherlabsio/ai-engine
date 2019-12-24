@@ -142,20 +142,21 @@ class KeyphraseUtils(object):
             distinct_entities = list(entity_dict.keys())
             entity_scores = list(entity_dict.values())
 
-            processed_entities = self.post_process_entities(distinct_entities)
+            # Post-process keyphrases
+            keyphrase_dict = kp_item[dict_key]
+
+            processed_entities = self.post_process_entities(
+                distinct_entities, list(keyphrase_dict.keys())
+            )
             keyphrase_object[i]["entities"] = dict(
                 zip(processed_entities, entity_scores)
             )
 
-            # Post-process keyphrases
-            keyphrase_dict = kp_item[dict_key]
-
             # Remove the first occurrence of entity in the list of keyphrases
             unwanted_kp_list = []
-            for entities in distinct_entities:
+            for entities in processed_entities:
                 for keyphrase in keyphrase_dict.keys():
                     if keyphrase in entities:
-                        # distinct_keyword_list.remove(keyphrase)
                         unwanted_kp_list.append(keyphrase)
 
             # Remove the unwanted keyphrases from dict
@@ -181,7 +182,7 @@ class KeyphraseUtils(object):
 
         return keyphrase_object
 
-    def post_process_entities(self, entity_list):
+    def post_process_entities(self, entity_list, keyphrase_list):
         processed_entities = []
 
         # Remove duplicates from the single phrases which are occurring in multi-keyphrases
@@ -208,7 +209,16 @@ class KeyphraseUtils(object):
             if len(multi_keyphrase) > 0:
                 processed_entities.append(multi_keyphrase)
 
+        # Remove the entities which already occur in keyphrases
         processed_entities.extend(single_phrase)
+        unwanted_entity_list = []
+        for keyphrase in keyphrase_list:
+            for entities in processed_entities:
+                if entities in keyphrase or entities.lower() in keyphrase:
+                    unwanted_entity_list.append(entities)
+
+        for phrase in list(set(unwanted_entity_list)):
+            processed_entities.remove(phrase)
 
         return processed_entities
 
@@ -240,6 +250,7 @@ class KeyphraseUtils(object):
 
         if remove_phrases:
             for entity, scores in entities_dict.items():
+                preference_value = scores[sort_key_dict.get("preference")]
                 boosted_score = scores[rank_key_dict.get("boosted_score")]
                 norm_boosted_score = scores[
                     rank_key_dict.get("norm_boosted_score")
@@ -249,8 +260,13 @@ class KeyphraseUtils(object):
                 if final_sort:
                     entity_score = norm_boosted_score
 
-                if entity_score >= entity_quality_score:
-                    modified_entity_dict[entity] = scores
+                # Check for relevance scores if the entity type is other than Organization or Product
+                if preference_value > 2:
+                    if entity_score >= entity_quality_score:
+                        modified_entity_dict[entity] = scores
+                else:
+                    if entity_score > 0:
+                        modified_entity_dict[entity] = scores
 
             for phrase, scores in keyphrase_dict.items():
                 boosted_score = scores[rank_key_dict.get("boosted_score")]
@@ -280,7 +296,10 @@ class KeyphraseUtils(object):
         )
 
         if final_sort:
-            ranked_entities_dict, ranked_keyphrase_dict = self._slice_phrase_dict(
+            (
+                ranked_entities_dict,
+                ranked_keyphrase_dict,
+            ) = self._slice_phrase_dict(
                 entities_dict=ranked_entities_dict,
                 keyphrase_dict=ranked_keyphrase_dict,
                 phrase_limit=phrase_limit,
@@ -326,8 +345,8 @@ class KeyphraseUtils(object):
         # Sort Entities by preference
         ranked_entities_dict = self.sort_dict_by_value(
             dict_var=entity_dict,
-            key=rank_key_dict["boosted_score"],
-            order=rank_key_dict["order"],
+            key=sort_key_dict["preference"],
+            order=sort_key_dict["order"],
         )
         if final_sort:
             ranked_entities_dict = self.sort_dict_by_value(

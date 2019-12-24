@@ -1,4 +1,1 @@
-python_library(
-	name="minds-libs",
-	sources=["*"]
-)
+python_library(name="minds-libs", sources=["*"])

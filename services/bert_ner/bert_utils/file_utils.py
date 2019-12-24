@@ -3,7 +3,12 @@ Utilities for working with the local dataset cache.
 This file is adapted from the AllenNLP library at https://github.com/allenai/allennlp
 Copyright by the AllenNLP authors.
 """
-from __future__ import absolute_import, division, print_function, unicode_literals
+from __future__ import (
+    absolute_import,
+    division,
+    print_function,
+    unicode_literals,
+)
 
 import sys
 import json
@@ -28,7 +33,8 @@ try:
 except ImportError:
     torch_cache_home = os.path.expanduser(
         os.getenv(
-            "TORCH_HOME", os.path.join(os.getenv("XDG_CACHE_HOME", "~/.cache"), "torch")
+            "TORCH_HOME",
+            os.path.join(os.getenv("XDG_CACHE_HOME", "~/.cache"), "torch"),
         )
     )
 default_cache_path = os.path.join(torch_cache_home, "pytorch_transformers")

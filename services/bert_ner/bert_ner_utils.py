@@ -376,12 +376,7 @@ class BERT_NER:
         entity_list = list(
             map(
                 lambda entities: " ".join(
-                    list(
-                        map(
-                            lambda ent: capitalize_entity(ent),
-                            entities.split(),
-                        )
-                    )
+                    list(map(lambda ent: capitalize_entity(ent), entities.split(),))
                 ),
                 entity_list,
             )
@@ -405,9 +400,7 @@ class BERT_NER:
         # Calculating batch size based on nearest "." from mid-point of text if length exceeds 512
         if len(input_ids) > 512:
             batch_size = (
-                510
-                - 1
-                - input_ids[:510][::-1].index(self.tokenizer.encode(".")[0])
+                510 - 1 - input_ids[:510][::-1].index(self.tokenizer.encode(".")[0])
             )
         else:
             batch_size = 510
@@ -496,6 +489,7 @@ class BERT_NER:
             ) + [lab]
             grouped_words.append((tok, tag, i))
             prev = (tok, i)
+
 
         for i in range(len(grouped_words)):
             if i in seen:

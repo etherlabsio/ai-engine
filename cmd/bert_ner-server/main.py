@@ -61,9 +61,11 @@ def handler(event, context):
         entities, labels = ner_model.get_entities(segment)
         response = json.dumps({"entities": entities, "labels": labels})
         logger.info(
+
             "Entity Extraction successful \nEntities:{}\nLabels:{}".format(
                 entities, labels
             )
+
         )
         log_data = dict(
             zip(

@@ -28,7 +28,9 @@ python_library(
 		'3rdparty/python:boto3',
 		'3rdparty/python:botocore',
 		'3rdparty/python:numpy',
-		'3rdparty/python:python-dotenv'
+		'3rdparty/python:python-dotenv',
+		'3rdparty/python:pydgraph',
+		'3rdparty/python:fuzzywuzzy'
 	],
 
 )
