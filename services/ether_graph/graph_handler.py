@@ -1,7 +1,6 @@
 import logging
 import json as js
 import pydgraph
-from os import getenv
 
 from context_parser import ContextSessionParser
 from graph_schema import Schema
@@ -133,7 +132,12 @@ class GraphHandler(object):
     def populate_segment_info(self, req_data, **kwargs):
         segment_object = req_data["segments"]
 
-        segment_node, user_node, provider_node, recorder_node = self.context_parser.parse_segment_info(
+        (
+            segment_node,
+            user_node,
+            provider_node,
+            recorder_node,
+        ) = self.context_parser.parse_segment_info(
             segment_object=segment_object, **kwargs
         )
 
@@ -166,7 +170,12 @@ class GraphHandler(object):
 
     def populate_keyphrase_info(self, req_data, **kwargs):
         segment_object = req_data["segments"]
-        segment_node, user_node, provider_node, recorder_node = self.context_parser.parse_segment_info(
+        (
+            segment_node,
+            user_node,
+            provider_node,
+            recorder_node,
+        ) = self.context_parser.parse_segment_info(
             segment_object=segment_object, **kwargs
         )
 

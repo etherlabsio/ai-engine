@@ -18,9 +18,7 @@ class NATSTransport(object):
             extra={"topic": context_created_topic},
         )
         await self.nats_manager.subscribe(
-            context_created_topic,
-            handler=self.context_created_handler,
-            queued=True,
+            context_created_topic, handler=self.context_created_handler, queued=True,
         )
 
     async def context_created_handler(self, msg):
@@ -75,24 +73,18 @@ class NATSTransport(object):
         )
 
     async def unsubscribe_lifecycle_events(self):
-        await self.nats_manager.unsubscribe(
-            topic="context.instance." + "started"
-        )
+        await self.nats_manager.unsubscribe(topic="context.instance." + "started")
         await self.nats_manager.unsubscribe(
             topic="context.instance." + "context_changed"
         )
-        await self.nats_manager.unsubscribe(
-            topic="context.instance." + "ended"
-        )
+        await self.nats_manager.unsubscribe(topic="context.instance." + "ended")
         await self.nats_manager.unsubscribe(
             topic="keyphrase_service." + "extract_keyphrases"
         )
         await self.nats_manager.unsubscribe(
             topic="keyphrase_service." + "keyphrases_for_context_instance"
         )
-        await self.nats_manager.unsubscribe(
-            topic="context.instance." + "add_segments"
-        )
+        await self.nats_manager.unsubscribe(topic="context.instance." + "add_segments")
         await self.nats_manager.unsubscribe(
             topic="keyphrase_service." + "extract_keyphrases_with_offset"
         )
@@ -127,9 +119,7 @@ class NATSTransport(object):
         recommend_watcher_topic = "recommendation.service.get_watchers"
         watcher_request = json.dumps(req_data).encode()
 
-        await self.nats_manager.conn.publish(
-            recommend_watcher_topic, watcher_request
-        )
+        await self.nats_manager.conn.publish(recommend_watcher_topic, watcher_request)
 
     async def call_recommended_meetings(self, req_data):
         related_meeting_topic = "recommendation.service.get_meetings"
@@ -149,7 +139,10 @@ class NATSTransport(object):
         keyphrase_attr_dict = {"type": "descriptive", "important": False}
 
         try:
-            modified_request_obj, meeting_word_graph = self.keyphrase_service.populate_and_embed_graph(
+            (
+                modified_request_obj,
+                meeting_word_graph,
+            ) = self.keyphrase_service.populate_and_embed_graph(
                 req_data=request,
                 segment_object=segment_object,
                 keyphrase_attr=keyphrase_attr_dict,
@@ -213,13 +206,7 @@ class NATSTransport(object):
         rec_request = {**request, **output}
         await self.call_recommended_watchers(req_data=rec_request)
 
-        deadline_time = end - start
-        if deadline_time > 15:
-            timeout_msg = "-Context deadline is exceeding: {}; {}".format(
-                deadline_time, 15
-            )
-        else:
-            timeout_msg = ""
+        end = timer()
 
         if populate_graph is not True:
             logger.info(
@@ -262,9 +249,7 @@ class NATSTransport(object):
                     "segmentsReceived": segment_ids,
                 },
             )
-        await self.nats_manager.conn.publish(
-            msg.reply, json.dumps(output).encode()
-        )
+        await self.nats_manager.conn.publish(msg.reply, json.dumps(output).encode())
 
     async def extract_instance_keyphrases(self, msg):
         start = timer()
@@ -272,9 +257,7 @@ class NATSTransport(object):
         context_info = request["contextId"] + ":" + request["instanceId"]
 
         limit = request.get("limit", 10)
-        output = self.keyphrase_service.get_instance_keyphrases(
-            request, n_kw=limit
-        )
+        output = self.keyphrase_service.get_instance_keyphrases(request, n_kw=limit)
         end = timer()
 
         deadline_time = end - start
@@ -297,9 +280,7 @@ class NATSTransport(object):
                 "requestReceived": request,
             },
         )
-        await self.nats_manager.conn.publish(
-            msg.reply, json.dumps(output).encode()
-        )
+        await self.nats_manager.conn.publish(msg.reply, json.dumps(output).encode())
 
     async def chapter_offset_handler(self, msg):
         start = timer()
@@ -309,7 +290,7 @@ class NATSTransport(object):
         segment_ids = [seg_ids["id"] for seg_ids in segment_object]
 
         limit = request.get("limit", 10)
-        output = self.keyphrase_service.get_keyphrases_with_offset(
+        output = await self.keyphrase_service.get_keyphrases_with_offset(
             request, n_kw=limit
         )
         end = timer()
@@ -335,9 +316,7 @@ class NATSTransport(object):
             },
         )
 
-        await self.nats_manager.conn.publish(
-            msg.reply, json.dumps(output).encode()
-        )
+        await self.nats_manager.conn.publish(msg.reply, json.dumps(output).encode())
 
     async def reset_keyphrases(self, msg):
         request = json.loads(msg.data)
