@@ -123,7 +123,6 @@ class KeyphraseRanker(object):
 
         keyphrase_dict = kp_dict[dict_key]
         segment_relevance_score_list = []
-        entity_relevance_score = []
         for j, (phrase, values) in enumerate(keyphrase_dict.items()):
             phrase_len = len(phrase.split())
 
@@ -147,33 +146,27 @@ class KeyphraseRanker(object):
                 norm_seg_score = seg_score
 
             keyphrase_dict[phrase][1] = norm_seg_score
-            segment_relevance_score_list.append(norm_seg_score)
 
             # Compute boosted score
             keyphrase_dict = self.compute_boosted_rank(
                 ranked_keyphrase_dict=keyphrase_dict
             )
-            entity_relevance_score.append(keyphrase_dict[phrase][2])
+            segment_relevance_score_list.append(keyphrase_dict[phrase][2])
 
         if len(segment_relevance_score_list) > 0:
             segment_confidence_score = np.mean(segment_relevance_score_list)
             median_score = np.median(segment_relevance_score_list)
-
-            entity_confidence_score = np.mean(entity_relevance_score)
-            entity_median_score = np.median(entity_relevance_score)
         else:
             segment_confidence_score = 0
             median_score = 0
 
-            entity_confidence_score = 0
-            entity_median_score = 0
-
         if dict_key == "descriptive" or dict_key == "original":
             kp_dict["keyphraseQuality"] = segment_confidence_score
             kp_dict["medianKeyphraseQuality"] = median_score
+
         else:
-            kp_dict["entitiesQuality"] = entity_confidence_score
-            kp_dict["medianEntitiesQuality"] = entity_median_score
+            kp_dict["entitiesQuality"] = segment_confidence_score
+            kp_dict["medianEntitiesQuality"] = median_score
 
         logger.info("Computed segment relevance score")
 

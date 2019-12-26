@@ -57,6 +57,7 @@ if __name__ == "__main__":
         encoder_lambda_client=lambda_client,
         lambda_function=encoder_lambda_function,
         ner_lambda_function=ner_lambda_function,
+        nats_manager=nats_manager,
     )
     logger.debug("download complete")
 
