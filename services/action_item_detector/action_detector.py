@@ -95,8 +95,8 @@ yet you your yours yourself yourselves
 
 stop_words = set(list(stop_words) + stop_words_spacy)
 stop_words = set(list(stop_words) + list(stop_words_spacy))
-stop_words = stop_words - set(["get", "give", "go", "do", "make", "please"])    
-action_marker_list = ["we", "i", "you", "let's", "i'll", "we'll"]
+stop_words = stop_words - set(["get", "give", "go", "do", "make", "please","see"])
+action_marker_list = ["we", "i", "you", "let's", "i'll", "we'll","go"]
 
 
 class BertForActionItemDetection(BertPreTrainedModel):
@@ -174,7 +174,7 @@ class ActionItemDetector:
     def matcher(self, matchObj):
         return matchObj.group(0)[0] + matchObj.group(0)[1] + " " + matchObj.group(0)[2]
 
-    def get_ai_candidates(self, transcript_text, ai_confidence_threshold=0.5):
+    def get_ai_candidates(self, transcript_text, ai_confidence_threshold=0.8):
 
         action_item_subjects = []
         action_item_sentences = []
