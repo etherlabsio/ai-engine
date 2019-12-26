@@ -99,7 +99,7 @@ if __name__ == "__main__":
             s3_client=s3_client,
             web_hook_url=web_hook_url,
             active_env_ab_test=active_env,
-            num_buckets=100,
+            num_buckets=200,
             hash_size=16,
         )
 

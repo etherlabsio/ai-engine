@@ -28,7 +28,7 @@ class RecWatchers(object):
         web_hook_url=None,
         active_env_ab_test=None,
         num_buckets=200,
-        hash_size=100,
+        hash_size=16,
     ):
         self.vectorizer = vectorizer
         self.s3_client = s3_client
@@ -254,7 +254,7 @@ class RecWatchers(object):
         return filtered_similar_users_dict
 
     def re_hash_users(self, input_list):
-        self.featurize_reference_users()
+        # self.featurize_reference_users()
         hash_result = self.perform_hash_query(input_list=input_list)
 
         return hash_result
@@ -336,6 +336,7 @@ class RecWatchers(object):
             ]
         except Exception:
             segment_user_names = ["NA"]
+
         self.utils.make_validation_data(
             req_data=req_data,
             user_list=user_list,

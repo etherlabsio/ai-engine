@@ -7,9 +7,7 @@ logger = logging.getLogger(__name__)
 
 
 class NATSTransport(object):
-    def __init__(
-        self, nats_manager, watcher_service=None, meeting_service=None
-    ):
+    def __init__(self, nats_manager, watcher_service=None, meeting_service=None):
         self.nats_manager = nats_manager
         self.watcher_service = watcher_service
         self.meeting_service = meeting_service
@@ -21,9 +19,7 @@ class NATSTransport(object):
             extra={"topic": context_created_topic},
         )
         await self.nats_manager.subscribe(
-            context_created_topic,
-            handler=self.context_created_handler,
-            queued=True,
+            context_created_topic, handler=self.context_created_handler, queued=True,
         )
 
     async def context_created_handler(self, msg):
@@ -65,26 +61,22 @@ class NATSTransport(object):
     async def unsubscribe_lifecycle_events(self):
         await self.nats_manager.unsubscribe(topic="context.instance.started")
         await self.nats_manager.unsubscribe(topic="context.instance.ended")
-        await self.nats_manager.unsubscribe(
-            topic="recommendation.service.get_watchers"
-        )
-        await self.nats_manager.unsubscribe(
-            topic="recommendation.service.get_meetings"
-        )
+        await self.nats_manager.unsubscribe(topic="recommendation.service.get_watchers")
+        await self.nats_manager.unsubscribe(topic="recommendation.service.get_meetings")
 
     # NATS context handlers
 
     async def context_start_handler(self, msg):
         request = json.loads(msg.data)
         try:
+            self.watcher_service.featurize_reference_users()
             logger.info(
-                "Vectorizing reference users",
+                "Vectorized and Hashed reference users",
                 extra={"instanceId": request["instanceId"]},
             )
         except Exception as e:
             logger.error(
-                "Error computing features for reference users",
-                extra={"err": e},
+                "Error computing features for reference users", extra={"err": e},
             )
             raise
 
@@ -99,13 +91,9 @@ class NATSTransport(object):
         segment_object = request["segments"]
         segment_ids = [seg_ids["id"] for seg_ids in segment_object]
         keyphrase_list = request["keyphrases"]
-        segment_text_list = [seg["originalText"] for seg in segment_object]
-        segment_user_ids = request["segment_users"]
+        segment_user_ids = [seg_ids["spokenBy"] for seg_ids in segment_object]
 
         try:
-            hash_result = self.watcher_service.re_hash_users(
-                input_list=keyphrase_list
-            )
             (
                 rec_users_dict,
                 related_words,
@@ -114,7 +102,7 @@ class NATSTransport(object):
                 input_query_list=keyphrase_list,
                 input_kw_query=keyphrase_list,
                 segment_obj=segment_object,
-                hash_result=hash_result,
+                hash_result=None,
             )
             rec_users = list(rec_users_dict.keys())
             # watcher_response = {"users": rec_users, "words": related_words}
@@ -122,15 +110,6 @@ class NATSTransport(object):
             # await self.nats_manager.conn.publish(
             #     msg.reply, json.dumps(watcher_response).encode()
             # )
-
-            self.watcher_service.prepare_slack_validation(
-                req_data=request,
-                user_dict=rec_users_dict,
-                word_list=related_words,
-                suggested_users=suggested_user_list,
-                segment_users=segment_user_ids,
-                upload=True,
-            )
 
             end = timer()
             logger.info(
@@ -142,6 +121,15 @@ class NATSTransport(object):
                     "segmentsReceived": segment_ids,
                     "responseTime": end - start,
                 },
+            )
+
+            self.watcher_service.prepare_slack_validation(
+                req_data=request,
+                user_dict=rec_users_dict,
+                word_list=related_words,
+                suggested_users=suggested_user_list,
+                segment_users=segment_user_ids,
+                upload=True,
             )
         except Exception as e:
             logger.error(
