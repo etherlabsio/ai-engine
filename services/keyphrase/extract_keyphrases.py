@@ -334,7 +334,7 @@ class KeyphraseExtractor(object):
             **kwargs,
         )
 
-        self.utils.write_to_json(modified_request_obj, file_name="segment_attr")
+        # self.utils.write_to_json(modified_request_obj, file_name="segment_attr")
 
         return modified_request_obj, meeting_word_graph
 

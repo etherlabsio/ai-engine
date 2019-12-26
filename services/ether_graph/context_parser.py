@@ -36,7 +36,7 @@ class ContextSessionParser(object):
 
     def parse_context_info(self, req_data, **kwargs):
         context_id = req_data["contextId"]
-        mind_id = req_data.get("mindId", "NotImplemented")
+        mind_id = req_data.get("mindId", "NA")
         instance_id = req_data["instanceId"]
 
         context_node, instance_node, mind_node = self._context_instance_info(
@@ -74,7 +74,6 @@ class ContextSessionParser(object):
             "languageCode",
             "transcriptId",
             "createdAt",
-            "tenantId",
         ]
 
         segment_node = {}

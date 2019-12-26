@@ -81,7 +81,7 @@ class NATSTransport(object):
 
             logger.info(
                 "Populated context and instance info to dgraph",
-                extra={"response": resp, "success": True},
+                extra={"response": resp.uids, "latency": resp.latency, "success": True},
             )
         except Exception as e:
             logger.error("Error adding context info to dgraph", extra={"err": e})
@@ -101,7 +101,7 @@ class NATSTransport(object):
 
             logger.info(
                 "Populated initial segment info to dgraph",
-                extra={"response": resp, "success": True},
+                extra={"response": resp.uids, "latency": resp.latency, "success": True},
             )
         except Exception as e:
             logger.error("Error adding segment to dgraph", extra={"err": e})
@@ -115,10 +115,7 @@ class NATSTransport(object):
 
             logger.info(
                 "Populated segment and keyphrase info to dgraph",
-                extra={"response": resp, "success": True},
-            )
-            await self.nats_manager.conn.publish(
-                msg.reply, json.dumps({"success": True}).encode()
+                extra={"response": resp.uids, "latency": resp.latency, "success": True},
             )
         except Exception as e:
             logger.error("Error adding segment keyphrases to dgraph", extra={"err": e})

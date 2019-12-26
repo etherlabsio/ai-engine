@@ -71,7 +71,7 @@ class GraphHandler(object):
             )
             node_obj["uid"] = node_uid
         except IndexError:
-            logger.warning("No UID found", extra={"response": response})
+            logger.debug("No UID found", extra={"response": response})
 
         return node_obj
 

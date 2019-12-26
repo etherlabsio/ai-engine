@@ -63,6 +63,11 @@ deploy_recommendation_test:
 	$(MAKE) deploy_ecs APP=recommendation ARTIFACT=recommendation-server CONTAINER_IMAGE=${IMAGE_PREFIX}/recommendation \
 		 CLUSTER_NAME=ml-inference SERVICE_NAME=recommendation-test-service FAMILY=recommendation-test BRANCH=test
 
+# EtherGraph
+deploy_graph:
+	$(MAKE) deploy_ecs APP=ether_graph ARTIFACT=graph-server CONTAINER_IMAGE=${IMAGE_PREFIX}/graph \
+		 CLUSTER_NAME=ml-inference SERVICE_NAME=graph-service FAMILY=graph
+
 
 .PHONY: clean
 clean:
