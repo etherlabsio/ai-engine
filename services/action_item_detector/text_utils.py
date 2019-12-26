@@ -83,6 +83,10 @@ contractions = {"ain't": "am not",
 "I'd": "I would"}
 
 negating_words = ["cannot", "not"]
+present_signifier_words = ["just","now"]
+drop_md_vb_words = ['see','be','would']
+drop_subj_verbs = ['tell','talk','walk']
+
 def replace_contractions(text):
     c_filt_text = ''
     for word in text.split(' '):
@@ -133,8 +137,10 @@ class CandidateKPExtractor(object):
         return candidate_phrases
 
     def get_subject_candidates(self, text):
-        
         candidate_phrases = self.get_candidate_phrases(text)
+        candidate_phrases = self.filter_phrases_by_word_lookup(text, candidate_phrases, present_signifier_words)
+        candidate_phrases = [candidate for candidate in candidate_phrases if candidate.split(' ')[0] not in drop_md_vb_words]
+
         candidate_subject_list = []
         #text to search - input text starting from the start of first candidate phrase
         if len(candidate_phrases)>0:
@@ -145,9 +151,11 @@ class CandidateKPExtractor(object):
             if len(candidate_subject_list)==0:
                 pos_search_pattern_list=[r"""verbnoun:{<VB>+<.+>{0,5}<NN.*>+(<.+>{0,2}<JJ.*>*<NN.*>+)*}"""]
                 candidate_subject_list+=self.get_candidate_phrases(text,pos_search_pattern_list,call_ctr = 1)
+
+        candidate_subject_list = [candidate for candidate in candidate_subject_list if candidate.split(' ')[0] not in drop_subj_verbs]
         return candidate_subject_list
 
-    def get_ai_subjects(self,text,filter_neg_subjs=False):
+    def get_ai_subjects(self,text,filter_neg_subjs=True):
         text = replace_contractions(text.lower())
         
         if 'i' in text.split(' '): #hot fix to handle to handle NLTK regression
@@ -157,7 +165,7 @@ class CandidateKPExtractor(object):
             
         ai_candidates = self.get_subject_candidates(text)
         if filter_neg_subjs:
-            ai_candidates = self.filter_subjects_with_negation(text,ai_candidates)
+            ai_candidates = self.filter_phrases_by_word_lookup(text,ai_candidates,negating_words)
         return ai_candidates
         
     def getregexChunks(self, text, grammar):
@@ -189,12 +197,11 @@ class CandidateKPExtractor(object):
                 filtered_tok_list.append(tok)
         return(' '.join(filtered_tok_list))
 
-    def filter_subjects_with_negation(self,input_sentence, subject_list):
+    def filter_phrases_by_word_lookup(self,input_sentence, subject_list, drop_words):
     #for each find the
         input_sentence = input_sentence.replace('.','')
         input_sentence = input_sentence.replace(',','')
         input_sentence = input_sentence.replace('?','').lower()
-        #negating_words = ["don't", "can't", "not", "won't"]
         filtered_subjects_list = []
         input_string_split = input_sentence.split(' ')
         negation_search_window = 3
@@ -209,7 +216,7 @@ class CandidateKPExtractor(object):
                     if (input_string_split[start_loc:end_loc+1])==candidate_split:
                         #check any of the previous elements contain negating words
                         search_start_idx = max(0,start_loc-negation_search_window)
-                        if len(set(input_string_split[search_start_idx:start_loc]) & set(negating_words))==0:
+                        if len(set(input_string_split[search_start_idx:start_loc]) & set(drop_words))==0:
                             filtered_subjects_list.append(candidate_subject)
 
         return list(filtered_subjects_list)

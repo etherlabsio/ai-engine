@@ -174,7 +174,7 @@ class ActionItemDetector:
     def matcher(self, matchObj):
         return matchObj.group(0)[0] + matchObj.group(0)[1] + " " + matchObj.group(0)[2]
 
-    def get_ai_candidates(self, transcript_text, ai_confidence_threshold=0.5):
+    def get_ai_candidates(self, transcript_text, ai_confidence_threshold=0.8):
 
         action_item_subjects = []
         action_item_sentences = []
