@@ -114,7 +114,7 @@ async def start_context():
     nc = NATS()
     topic = "context.instance.started"
     await nc.connect(servers=[nats_url])
-    resp = {"instanceId": "*", "state": "started", "contextId": "*"}
+    resp = {"instanceId": "*", "state": "started", "contextId": "*", "mindId": "76Y"}
     topic, resp = replace_ids(topic=topic, resp=resp)
     await nc.publish(topic, json.dumps(resp).encode())
     pass
@@ -356,8 +356,8 @@ if __name__ == "__main__":
     elif args.topics == "start":
         loop.run_until_complete(start_context())
     elif args.topics == "populate":
-        t1 = loop.run_until_complete(create_context())
-        loop.run_until_complete(start_context())
+        # t1 = loop.run_until_complete(create_context())
+        # loop.run_until_complete(start_context())
         loop.run_until_complete(populate_graph())
     elif args.topics == "pub_chapter":
         loop.run_until_complete(publish_chapter_keyphrase())
