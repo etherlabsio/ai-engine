@@ -61,13 +61,9 @@ class Utils(object):
             )
 
         if upload:
-            self._upload_validation_data(
-                instance_id=instance_id, context_id=context_id
-            )
+            self._upload_validation_data(instance_id=instance_id, context_id=context_id)
 
-    def _upload_validation_data(
-        self, instance_id, context_id, prefix="watchers_"
-    ):
+    def _upload_validation_data(self, instance_id, context_id, prefix="watchers_"):
         validation_id = self.hash_sha_object()
         file_name = prefix + instance_id + "_" + validation_id + ".jsonl"
         with jsonlines.open(file_name, mode="w") as writer:
@@ -76,9 +72,7 @@ class Utils(object):
         s3_path = "validation/recommendations/" + file_name
 
         try:
-            self.s3_client.upload_to_s3(
-                file_name=file_name, object_name=s3_path
-            )
+            self.s3_client.upload_to_s3(file_name=file_name, object_name=s3_path)
         except Exception as e:
             logger.warning(e)
 
@@ -90,7 +84,13 @@ class Utils(object):
             os.remove(local_path)
 
     def post_to_slack(
-        self, req_data, user_list, user_scores, suggested_user_list, word_list
+        self,
+        req_data,
+        user_list,
+        user_scores,
+        suggested_user_list,
+        segment_user_names,
+        word_list,
     ):
         instance_id = req_data["instanceId"]
         input_keyphrase_list = req_data["keyphrases"]
@@ -100,26 +100,29 @@ class Utils(object):
             instance_id, self._reformat_list_to_text(input_keyphrase_list)
         )
 
-        msg_format = "[{}]: {} *Related Users*: ```{}```\n *User Confidence Scores*: ```{}```\n *Suggested Users*: ```{}```\n *Related Words*: ```{}```".format(
-            service_name,
-            msg_text,
-            self._reformat_list_to_text(user_list),
-            self._reformat_list_to_text(user_scores),
-            self._reformat_list_to_text(suggested_user_list),
-            self._reformat_list_to_text(word_list),
-        )
+        if len(user_list) == 0:
+            msg_format = "[{}]: {} *NA*: `No recommendations available for this segment...`".format(
+                service_name, msg_text
+            )
+
+        else:
+            msg_format = "[{}]: {} *Segment Users*: ```{}```\n *Recommended Watchers*: ```{}```\n *User Confidence Scores*: ```{}```\n *Suggested Users*: ```{}```\n *Related Words*: ```{}```".format(
+                service_name,
+                msg_text,
+                self._reformat_list_to_text(segment_user_names),
+                self._reformat_list_to_text(user_list),
+                self._reformat_list_to_text(user_scores),
+                self._reformat_list_to_text(suggested_user_list),
+                self._reformat_list_to_text(word_list),
+            )
 
         slack_payload = {"text": msg_format}
-        requests.post(
-            url=self.web_hook_url, data=js.dumps(slack_payload).encode()
-        )
+        requests.post(url=self.web_hook_url, data=js.dumps(slack_payload).encode())
 
     def _reformat_list_to_text(self, input_list):
         try:
             if type(input_list[0]) != str:
-                formatted_text = ", ".join(
-                    ["{:.2f}".format(i) for i in input_list]
-                )
+                formatted_text = ", ".join(["{:.2f}".format(i) for i in input_list])
             else:
                 formatted_text = ", ".join([str(w) for w in input_list])
         except Exception as e:
