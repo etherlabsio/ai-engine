@@ -108,12 +108,7 @@ class NATSTransport(object):
 
     async def context_end_handler(self, msg):
         # Reset graph
-        request = json.loads(msg.data)
-        instance_keyphrases = await self.reset_keyphrases(msg)
-
-        rec_request = {**request, **instance_keyphrases}
-        await self.call_recommended_watchers(req_data=rec_request)
-        # await self.call_recommended_meetings(req_data=instance_keyphrases)
+        await self.reset_keyphrases(msg)
 
     async def call_recommended_watchers(self, req_data):
         recommend_watcher_topic = "recommendation.service.get_watchers"
@@ -202,13 +197,12 @@ class NATSTransport(object):
             keyphrase_attr=keyphrase_attr_dict,
         )
 
-        # Get recommended watchers for every segment
-        rec_request = {**request, **output}
-        await self.call_recommended_watchers(req_data=rec_request)
-
         end = timer()
 
         if populate_graph is not True:
+            # Get recommended watchers for every segment
+            rec_request = {**request, **output}
+            await self.call_recommended_watchers(req_data=rec_request)
             logger.info(
                 "Publishing summary chapter keyphrases",
                 extra={
@@ -321,8 +315,7 @@ class NATSTransport(object):
     async def reset_keyphrases(self, msg):
         request = json.loads(msg.data)
         logger.info("Resetting keyphrases graph")
-        output = self.keyphrase_service.reset_keyphrase_graph(request)
-        await self.nats_manager.conn.publish(msg, json.dumps(output).encode())
+        self.keyphrase_service.reset_keyphrase_graph(request)
 
     async def populate_segment_keyphrase_info(self, modified_req_data):
         eg_segment_topic = "ether_graph_service.populate_segments"
