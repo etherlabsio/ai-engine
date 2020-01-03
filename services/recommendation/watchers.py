@@ -173,22 +173,22 @@ class RecWatchers(object):
     def query_similar_users(self, hash_result, input_list: List, n_retries=3) -> Dict:
         top_similar_users = self.utils.sort_dict_by_value(hash_result)
 
-        # Logic for handling random cases where standard deviation between users is very high
-        for i in range(n_retries):
-            high_user_dev = self._check_high_user_deviation(
-                similar_user_scores_dict=top_similar_users
-            )
-            if high_user_dev:
-                logger.debug(
-                    "Recomputing hashes - Re-try {}".format(i),
-                    extra={"currentScore": top_similar_users},
-                )
-                hash_result = self.re_hash_users(input_list=input_list)
-                top_similar_users = self.utils.sort_dict_by_value(hash_result)
-
-            else:
-                logger.debug("Appropriate search found...")
-                break
+        # # Logic for handling random cases where standard deviation between users is very high
+        # for i in range(n_retries):
+        #     high_user_dev = self._check_high_user_deviation(
+        #         similar_user_scores_dict=top_similar_users
+        #     )
+        #     if high_user_dev:
+        #         logger.debug(
+        #             "Recomputing hashes - Re-try {}".format(i),
+        #             extra={"currentScore": top_similar_users},
+        #         )
+        #         hash_result = self.re_hash_users(input_list=input_list)
+        #         top_similar_users = self.utils.sort_dict_by_value(hash_result)
+        #
+        #     else:
+        #         logger.debug("Appropriate search found...")
+        #         break
 
         similar_users_dict, cutoff_score = self._normalize_lsh_score(top_similar_users)
         filtered_similar_users_dict = self._threshold_user_info(
