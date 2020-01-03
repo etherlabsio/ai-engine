@@ -221,8 +221,9 @@ class RecWatchers(object):
     def check_recommendation_relevancy(
         self, hash_result: Dict, relevance_threshold: float = 0.40
     ) -> bool:
-        norm_hash_result, cut_off_score = self._normalize_lsh_score(hash_result)
-        sorted_hash_result = self.utils.sort_dict_by_value(norm_hash_result)
+        # Hash relevancy
+        # norm_hash_result, cut_off_score = self._normalize_lsh_score(hash_result)
+        sorted_hash_result = self.utils.sort_dict_by_value(hash_result)
         user_hash_scores = list(sorted_hash_result.values())
 
         logger.debug(
@@ -291,8 +292,8 @@ class RecWatchers(object):
 
         try:
             if (
-                int((user_scores[0] - user_scores[1]) / std_dev) >= limit
-                or (user_scores[0] - user_scores[1]) >= std_dev
+                int((user_scores[0] - abs(user_scores[1])) / std_dev) >= limit
+                or (user_scores[0] - abs(user_scores[1])) >= std_dev
             ):
                 return True
             else:
@@ -347,6 +348,7 @@ class RecWatchers(object):
             segment_user_names = [
                 self.reference_user_dict[u]["name"] for u in segment_user_ids
             ]
+            segment_user_names = list(set(segment_user_names))
         except Exception:
             segment_user_names = ["NA"]
 
