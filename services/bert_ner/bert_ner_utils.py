@@ -477,17 +477,12 @@ class BERT_NER:
                 k += 1
             # remove numbers, single verb, punct, pronoun and adjective entities
             if len(word_fragments) == 1:
-                if (
-                     label[0]=="O" and (grouped_words[i][1][0] not in {'N','F'})
-                ):
+                if label[0] == "O" and (grouped_words[i][1][0] not in {"N", "F"}):
                     continue
                 word_fragments = [" ".join(word_fragments).split("'")[0]]
 
             # r - stripping stop_words
-            while (
-                word_fragments
-                and word_fragments[-1].lower() in self.stop_words
-            ):
+            while word_fragments and word_fragments[-1].lower() in self.stop_words:
                 word_fragments.pop(-1)
 
             if word_fragments:
