@@ -1,6 +1,6 @@
 {
     "contextId":"6baa3490",
-    "instanceId":"b5d4",
+    "instanceId":"d052f2e7-3c79-45e4-aee5-9af0f7c2053e",
     "relativeTime": "2019-01-29T06:03:39.783385299Z",
     "mindId": "7666Y",
     "segments": [
@@ -23,5 +23,5 @@
             "deleted": false,
             "tenantId": "932daeaf-6ae7-44ed-8d8d-f0b6feedc3aa"
         }
-        ]
-        }
+    ]
+}
