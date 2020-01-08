@@ -5,10 +5,8 @@ import numpy as np
 import json
 from nltk.tokenize import sent_tokenize
 from typing import List
-from dataclasses import asdict
-from dataclasses_json import dataclass_json
 
-from .objects import Phrase, Keyphrase, Entity, Score, Segment, Request
+from .objects import Phrase, Keyphrase, Request, GraphQueryRequest, GraphSegmentResponse
 
 logger = logging.getLogger(__name__)
 
@@ -33,26 +31,29 @@ class KeyphraseRanker(object):
     async def compute_relevance(
         self,
         phrase_object_list: List[Phrase],
-        populate_graph: bool,
         group_id: str,
+        highlight: bool = False,
         default_form="descriptive",
     ) -> List[Phrase]:
+
         for i, phrase_object in enumerate(phrase_object_list):
             segment_id = phrase_object.segmentId
             segment_query_obj = self.form_segment_query(
-                segment_id=segment_id, populate_graph=populate_graph
+                segment_id=segment_id, highlight=highlight
             )
             response = await self.query_client.query_graph(
-                query_object=segment_query_obj
+                query_object=GraphQueryRequest.get_dict_from_object(segment_query_obj)
             )
+            print(response)
             npz_file = self.query_segment_embeddings(
-                response=response, populate_graph=populate_graph
+                response=GraphSegmentResponse.get_object_from_dict(response),
+                highlight=highlight,
             )
             phrase_object = self._compute_relevant_phrases(
                 npz_file=npz_file,
                 segment_id=segment_id,
                 phrase_object=phrase_object,
-                populate_graph=populate_graph,
+                highlight=highlight,
                 group_id=group_id,
             )
 
@@ -170,11 +171,11 @@ class KeyphraseRanker(object):
         dict_key="descriptive",
         normalize: bool = False,
         norm_limit: int = 4,
-        populate_graph=True,
+        highlight: bool = False,
         group_id="",
     ):
 
-        if populate_graph is not True:
+        if highlight:
             segment_embedding = npz_file[segment_id + "_" + group_id]
         else:
             segment_embedding = npz_file[segment_id]
@@ -209,7 +210,6 @@ class KeyphraseRanker(object):
             else:
                 norm_seg_score = seg_score
 
-            # keyphrase_dict[phrase][1] = norm_seg_score
             kp_obj.score.segsim = norm_seg_score
 
             # Compute boosted score
@@ -295,18 +295,22 @@ class KeyphraseRanker(object):
 
         return phrase_object
 
-    def query_segment_embeddings(self, response, populate_graph=True):
+    def query_segment_embeddings(
+        self, response: GraphSegmentResponse, highlight: bool = False
+    ) -> str:
 
         # Get segment embedding vector from context graph
-        if populate_graph:
-            embedding_uri = response["q"][0].get("embedding_vector_uri")
+        if not highlight:
+            embedding_uri = response.q[0].embedding_vector_uri
         else:
-            embedding_uri = response["q"][0].get("embedding_vector_group_uri")
+            embedding_uri = response.q[0].embedding_vector_group_uri
 
         npz_file = self.io_util.download_npz(npz_file_path=embedding_uri)
         return npz_file
 
-    def form_segment_query(self, segment_id, populate_graph=True):
+    def form_segment_query(
+        self, segment_id: str, highlight: bool = False
+    ) -> GraphQueryRequest:
         query = """query q($i: string) {
                                 q(func: eq(xid, $i)) {
                                     uid
@@ -316,7 +320,7 @@ class KeyphraseRanker(object):
                                 }
                             }"""
 
-        if populate_graph is not True:
+        if highlight:
             query = """query q($i: string) {
                                     q(func: eq(xid, $i)) {
                                         uid
@@ -327,6 +331,6 @@ class KeyphraseRanker(object):
                                 }"""
 
         variables = {"$i": segment_id}
-        query_object = {"query": query, "variables": variables}
+        query_object = GraphQueryRequest(query=query, variables=variables)
 
         return query_object

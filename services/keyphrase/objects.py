@@ -49,7 +49,6 @@ class Keyphrase(ObjectConversions):
     originalForm: str
     type: str = field(compare=False)
     score: Score
-    highlight: bool = field(init=False, default=False, compare=False)
     to_remove: bool = field(init=False, default=False, compare=False)
     value: str = field(init=False, compare=True)
 
@@ -66,7 +65,6 @@ class Entity(ObjectConversions):
     score: Score
     confidence_score: float
     type: str = field(init=False, default="entity")
-    highlight: bool = field(init=False, default=False, compare=False)
     to_remove: bool = field(init=False, default=False, compare=False)
     related_to_keyphrase: bool = field(init=False, default=False, compare=False)
     value: str = field(init=False)
@@ -80,6 +78,7 @@ class Entity(ObjectConversions):
 class Phrase(ObjectConversions):
     segmentId: str
     originalText: str
+    highlight: bool = field(default=False, compare=False)
     offset: float = field(default=0.0)
     keyphrases: List[Keyphrase] = field(default_factory=list)
     entities: List[Entity] = field(default_factory=list)
@@ -153,3 +152,26 @@ class Request(Context):
     validate: bool = field(init=False, default=False)
     relativeTime: str = field(init=False, default="")
     segments: List[Segment] = field(default_factory=list)
+
+
+@dataclass_json
+@dataclass
+class GraphQueryRequest(ObjectConversions):
+    query: str
+    variables: Mapping[str, Any] = field(default=None)
+
+
+@dataclass_json
+@dataclass
+class GraphResponse:
+    uid: str
+    xid: str
+    attribute: str
+    embedding_vector_uri: str
+    embedding_vector_group_uri: str
+
+
+@dataclass_json
+@dataclass
+class GraphSegmentResponse(ObjectConversions):
+    q: List[GraphResponse]

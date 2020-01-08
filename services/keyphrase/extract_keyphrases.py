@@ -408,7 +408,7 @@ class KeyphraseExtractor(object):
         rank_by: Text = "norm_boosted_sim",
         sort_by: Text = "loc",
         validate: bool = False,
-        populate_graph: bool = True,
+        highlight: bool = False,
         group_id: str = None,
         **kwargs,
     ) -> Dict:
@@ -442,7 +442,7 @@ class KeyphraseExtractor(object):
             try:
                 ranked_phrase_object_list = await self.ranker.compute_relevance(
                     phrase_object_list=phrase_object_list,
-                    populate_graph=populate_graph,
+                    highlight=highlight,
                     group_id=group_id,
                 )
 
@@ -468,6 +468,12 @@ class KeyphraseExtractor(object):
                     sort_by=sort_by,
                     remove_phrases=False,
                 )
+
+            # validation_id = "test"
+            # validation_data = self.phrase_schema.dump(phrase_object, many=True)
+            # validation_file_name = self.utils.write_to_json(
+            #     validation_data, file_name="keyphrase_validation_" + validation_id
+            # )
 
             if validate:
                 self._make_validation(
@@ -523,6 +529,7 @@ class KeyphraseExtractor(object):
         rank_by: Text = "segment_relevance",
         sort_by: Text = "loc",
         validate: bool = False,
+        highlight: bool = False,
         **kwargs,
     ):
         start = timer()
@@ -530,7 +537,6 @@ class KeyphraseExtractor(object):
         context_id = req_data.contextId
         instance_id = req_data.instanceId
 
-        populate_graph = req_data.populate_graph
         group_id = kwargs.get("group_id")
 
         relative_time = self.utils.formatTime(
@@ -550,14 +556,13 @@ class KeyphraseExtractor(object):
             phrase_object_list = self.extract_keywords(
                 segment_object=segment_object,
                 meeting_word_graph=meeting_word_graph,
-                default_form=default_form,
                 relative_time=relative_time,
             )
 
             try:
                 ranked_phrase_object_list = await self.ranker.compute_relevance(
                     phrase_object_list=phrase_object_list,
-                    populate_graph=populate_graph,
+                    highlight=highlight,
                     group_id=group_id,
                 )
 
@@ -607,8 +612,8 @@ class KeyphraseExtractor(object):
                 "Error extracting keyphrases from segment",
                 extra={
                     "responseTime": end - start,
-                    "instanceId": req_data["instanceId"],
-                    "segmentObj": req_data["segments"],
+                    "instanceId": req_data.instanceId,
+                    "segmentObj": req_data.segments,
                     "err": traceback.print_exc(),
                 },
             )
@@ -643,7 +648,8 @@ class KeyphraseExtractor(object):
         self,
         segment_object: SegmentType,
         meeting_word_graph: nx.Graph,
-        relative_time=None,
+        relative_time: str = None,
+        highlight: bool = False,
         preserve_singlewords=False,
     ):
         """
@@ -727,6 +733,7 @@ class KeyphraseExtractor(object):
             phrase_obj = Phrase(
                 segmentId=input_segment_id,
                 originalText=input_segment,
+                highlight=highlight,
                 offset=offset_time,
                 keyphrases=keyphrase_object_list,
                 entities=entity_object_list,
@@ -736,10 +743,6 @@ class KeyphraseExtractor(object):
             phrase_obj = self.utils.post_process_output(phrase_object=phrase_obj)
 
             phrase_obj_list.append(phrase_obj)
-            self.utils.write_to_json(
-                data=self.phrase_schema.dump(phrase_obj_list, many=True),
-                file_name="phrase_object",
-            )
 
         return phrase_obj_list
 

@@ -199,7 +199,9 @@ class NATSTransport(object):
         limit = request_object.limit
         group_id = None
 
+        highlight = False
         if populate_graph is not True:
+            highlight = True
             group_id = self.keyphrase_service.utils.hash_sha_object()
 
         output = await self.keyphrase_service.get_keyphrases(
@@ -209,11 +211,12 @@ class NATSTransport(object):
             validate=validation,
             populate_graph=populate_graph,
             group_id=group_id,
+            highlight=highlight,
         )
 
         end = timer()
 
-        if populate_graph is not True:
+        if highlight:
             # Get recommended watchers for every segment
             rec_request = {**request, **output}
             await self.call_recommended_watchers(req_data=rec_request)

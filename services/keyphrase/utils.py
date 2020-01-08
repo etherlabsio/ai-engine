@@ -206,14 +206,14 @@ class KeyphraseUtils(object):
         self,
         entities_object: List[Entity],
         keyphrase_object: List[Keyphrase],
-        phrase_limit=10,
-        entities_limit=5,
-        entity_quality_score=0,
-        keyphrase_quality_score=0,
-        remove_phrases=False,
-        rank_by="pagerank",
-        sort_by="loc",
-        final_sort=False,
+        phrase_limit: int = 10,
+        entities_limit: int = 5,
+        entity_quality_score: int = 0,
+        keyphrase_quality_score: int = 0,
+        remove_phrases: bool = False,
+        rank_by: str = "pagerank",
+        sort_by: str = "loc",
+        final_sort: bool = False,
     ) -> Union[Tuple[List[Entity], List[Keyphrase]], Dict[str, float]]:
 
         if remove_phrases:
