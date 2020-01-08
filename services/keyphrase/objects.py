@@ -153,3 +153,26 @@ class Request(Context):
     validate: bool = field(init=False, default=False)
     relativeTime: str = field(init=False, default="")
     segments: List[Segment] = field(default_factory=list)
+
+
+@dataclass_json
+@dataclass
+class GraphQueryRequest(ObjectConversions):
+    query: str
+    variables: Mapping[str, Any] = field(default=None)
+
+
+@dataclass_json
+@dataclass
+class GraphResponse:
+    uid: str
+    xid: str
+    attribute: str
+    embedding_vector_uri: str
+    embedding_vector_group_uri: str
+
+
+@dataclass_json
+@dataclass
+class GraphSegmentResponse(ObjectConversions):
+    q: List[GraphResponse]
