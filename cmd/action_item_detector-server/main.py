@@ -55,9 +55,9 @@ def handler(event, context):
 
     try:
         ai_detector = ad.ActionItemDetector(json_request["segments"], model)
-        (action_items, decisions,) = ai_detector.get_action_decision_subjects_list()
+        (action_items, decisions,questions,) = ai_detector.get_action_decision_subjects_list()
 
-        response = json.dumps({"actions": action_items, "decisions": decisions})
+        response = json.dumps({"actions": action_items, "decisions": decisions,"questions": questions})
         return {"statusCode": 200, "body": response}
         logger.info("Action and decision extraction success")
 
