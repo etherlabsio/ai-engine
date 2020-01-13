@@ -12,6 +12,7 @@ import uuid
 import nltk
 from nltk.tokenize import sent_tokenize
 from text_utils import CandidateKPExtractor
+from text_utils_prod import replace_contractions
 
 
 nltk.data.path.append("/tmp/nltk_data")
@@ -187,11 +188,14 @@ class ActionItemDetector:
                 if len(sent.split(" ")) > 2:
                     # if (sent[-1]!="?" and sent[-2]!="?"):
                     sent_ai_prob = self.get_ai_probability(sent)
+                    
                     if (
                         sent_ai_prob >= ai_confidence_threshold
                         and self.post_process_ai_check(sent)[0]
                     ):
+                        
                         curr_ai_subjects = self.post_process_ai_check(sent)[1]
+                        sent = replace_contractions(sent)
                         if len(curr_ai_subjects) > 1:
                             # merge action items
                             start_idx = sent.lower().find(curr_ai_subjects[0].lower())
@@ -334,7 +338,6 @@ class ActionItemDetector:
                     )
                     
         question_response_list =[]
-
         for (segment, quest_sent,) in zip(
             quest_segment_id_list,
             quest_sent_list,
@@ -346,7 +349,6 @@ class ActionItemDetector:
                 "subject": quest_sent,
                 }
             )
-            
         # placeholder decision list
         decision_response_list = [
             {
@@ -365,3 +367,5 @@ class ActionItemDetector:
 
 
         return ai_response_list, decision_response_list, question_response_list
+
+
