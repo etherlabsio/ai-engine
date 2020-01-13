@@ -63,7 +63,7 @@ def handler(event, context):
         slack_web_hook_url = "https://hooks.slack.com/services/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"
         slack_payload = {"text": slack_msg}
         slack_response = requests.post(
-            url=slack_web_hook_url, data=js.dumps(slack_payload).encode()
+            url=slack_web_hook_url, data=json.dumps(slack_payload).encode()
         )
         return {"statusCode": 200, "body": response}
         logger.info("Action and decision extraction success")
