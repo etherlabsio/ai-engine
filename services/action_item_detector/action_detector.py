@@ -12,7 +12,7 @@ import uuid
 import nltk
 from nltk.tokenize import sent_tokenize
 from text_utils import CandidateKPExtractor
-from text_utils_prod import replace_contractions
+from text_utils import replace_contractions
 
 
 nltk.data.path.append("/tmp/nltk_data")
