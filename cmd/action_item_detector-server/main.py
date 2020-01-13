@@ -58,6 +58,13 @@ def handler(event, context):
         (action_items, decisions,questions,) = ai_detector.get_action_decision_subjects_list()
 
         response = json.dumps({"actions": action_items, "decisions": decisions,"questions": questions})
+        #Posting result on question-detection channel
+        slack_msg = "*Questions*: {}".format(questions)
+        slack_web_hook_url = "https://hooks.slack.com/services/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"
+        slack_payload = {"text": slack_msg}
+        slack_response = requests.post(
+            url=slack_web_hook_url, data=js.dumps(slack_payload).encode()
+        )
         return {"statusCode": 200, "body": response}
         logger.info("Action and decision extraction success")
 
