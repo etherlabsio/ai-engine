@@ -11,6 +11,11 @@ class NATSTransport(object):
         self.nats_manager = nats_manager
         self.watcher_service = watcher_service
         self.meeting_service = meeting_service
+        self.whitelist_contexts = [
+            "01DJSFMQ5MP8AX83Y89QC6T39E",
+            "01DBB3SN99AVJ8ZWJDQ57X9TGX",
+            "01DBB3SN874B4V18DCP4ATMRXA",
+        ]
 
     async def subscribe_context(self):
         context_created_topic = "context.instance.created"
@@ -88,6 +93,7 @@ class NATSTransport(object):
     async def get_watchers(self, msg):
         start = timer()
         request = json.loads(msg.data)
+        context_id = request["contextId"]
         segment_object = request["segments"]
         segment_ids = [seg_ids["id"] for seg_ids in segment_object]
         keyphrase_list = request["keyphrases"]
@@ -105,11 +111,12 @@ class NATSTransport(object):
                 hash_result=None,
             )
             rec_users = list(rec_users_dict.keys())
-            # watcher_response = {"users": rec_users, "words": related_words}
+            watcher_response = {"recommendedWatchers": suggested_user_list}
+            output_response = {**request, **watcher_response}
 
-            # await self.nats_manager.conn.publish(
-            #     msg.reply, json.dumps(watcher_response).encode()
-            # )
+            await self.nats_manager.conn.publish(
+                msg.reply, json.dumps(output_response).encode()
+            )
 
             end = timer()
             logger.info(
@@ -123,14 +130,15 @@ class NATSTransport(object):
                 },
             )
 
-            self.watcher_service.prepare_slack_validation(
-                req_data=request,
-                user_dict=rec_users_dict,
-                word_list=related_words,
-                suggested_users=suggested_user_list,
-                segment_users=segment_user_ids,
-                upload=True,
-            )
+            if context_id in self.whitelist_contexts:
+                self.watcher_service.prepare_slack_validation(
+                    req_data=request,
+                    user_dict=rec_users_dict,
+                    word_list=related_words,
+                    suggested_users=suggested_user_list,
+                    segment_users=segment_user_ids,
+                    upload=True,
+                )
         except Exception as e:
             logger.error(
                 "Error computing recommended watchers",

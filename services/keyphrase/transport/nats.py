@@ -110,19 +110,19 @@ class NATSTransport(object):
         # Reset graph
         await self.reset_keyphrases(msg)
 
-    async def call_recommended_watchers(self, req_data):
-        recommend_watcher_topic = "recommendation.service.get_watchers"
-        watcher_request = json.dumps(req_data).encode()
-
-        await self.nats_manager.conn.publish(recommend_watcher_topic, watcher_request)
-
-    async def call_recommended_meetings(self, req_data):
-        related_meeting_topic = "recommendation.service.get_meetings"
-        related_meeting_request = json.dumps(req_data).encode()
-
-        await self.nats_manager.conn.publish(
-            related_meeting_topic, related_meeting_request
-        )
+    # async def call_recommended_watchers(self, req_data):
+    #     recommend_watcher_topic = "recommendation.service.get_watchers"
+    #     watcher_request = json.dumps(req_data).encode()
+    #
+    #     await self.nats_manager.conn.publish(recommend_watcher_topic, watcher_request)
+    #
+    # async def call_recommended_meetings(self, req_data):
+    #     related_meeting_topic = "recommendation.service.get_meetings"
+    #     related_meeting_request = json.dumps(req_data).encode()
+    #
+    #     await self.nats_manager.conn.publish(
+    #         related_meeting_topic, related_meeting_request
+    #     )
 
     # Topic Handler functions
 
@@ -200,9 +200,9 @@ class NATSTransport(object):
         end = timer()
 
         if populate_graph is not True:
-            # Get recommended watchers for every segment
-            rec_request = {**request, **output}
-            await self.call_recommended_watchers(req_data=rec_request)
+            # # Get recommended watchers for every segment
+            # rec_request = {**request, **output}
+            # await self.call_recommended_watchers(req_data=rec_request)
             logger.info(
                 "Publishing summary chapter keyphrases",
                 extra={
