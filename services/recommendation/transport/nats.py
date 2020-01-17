@@ -86,6 +86,7 @@ class NATSTransport(object):
             raise
 
     async def context_end_handler(self, msg):
+        logger.info("Meeting ended")
         pass
 
     # Topic Handler functions
@@ -109,14 +110,11 @@ class NATSTransport(object):
                 input_kw_query=keyphrase_list,
                 segment_obj=segment_object,
                 hash_result=None,
+                segment_user_ids=segment_user_ids,
             )
             rec_users = list(rec_users_dict.keys())
-            watcher_response = {"recommendedWatchers": suggested_user_list}
+            watcher_response = {"recommendedWatchers": rec_users}
             output_response = {**request, **watcher_response}
-
-            await self.nats_manager.conn.publish(
-                msg.reply, json.dumps(output_response).encode()
-            )
 
             end = timer()
             logger.info(
@@ -130,15 +128,19 @@ class NATSTransport(object):
                 },
             )
 
-            if context_id in self.whitelist_contexts:
-                self.watcher_service.prepare_slack_validation(
-                    req_data=request,
-                    user_dict=rec_users_dict,
-                    word_list=related_words,
-                    suggested_users=suggested_user_list,
-                    segment_users=segment_user_ids,
-                    upload=True,
-                )
+            await self.nats_manager.conn.publish(
+                msg.reply, json.dumps(output_response).encode()
+            )
+
+            # if context_id in self.whitelist_contexts:
+            #     self.watcher_service.prepare_slack_validation(
+            #         req_data=request,
+            #         user_dict=rec_users_dict,
+            #         word_list=related_words,
+            #         suggested_users=suggested_user_list,
+            #         segment_users=segment_user_ids,
+            #         upload=True,
+            #     )
         except Exception as e:
             logger.error(
                 "Error computing recommended watchers",

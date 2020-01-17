@@ -149,9 +149,13 @@ class RecWatchers(object):
         input_kw_query,
         hash_result=None,
         segment_obj=None,
+        segment_user_ids=None,
         n_users=6,
         n_kw=6,
     ):
+        if segment_user_ids is None:
+            segment_user_ids = []
+
         if hash_result is None:
             rehash_result = self.re_hash_users(input_list=input_kw_query)
             similar_user_scores_dict = self.query_similar_users(
@@ -179,6 +183,9 @@ class RecWatchers(object):
 
         user_scores = list(top_n_user_object.values())
 
+        top_n_user_object = {
+            u: s for u, s in top_n_user_object.items() if u not in segment_user_ids
+        }
         suggested_users = self.post_process_users(
             segment_obj=segment_obj, user_dict=top_n_user_object, percentile_val=60,
         )
