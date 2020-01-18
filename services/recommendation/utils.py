@@ -13,10 +13,9 @@ logger = logging.getLogger(__name__)
 
 
 class Utils(object):
-    def __init__(self, web_hook_url, s3_client=None, reference_user_dict=None):
+    def __init__(self, web_hook_url, s3_client=None):
         self.web_hook_url = web_hook_url
         self.s3_client = s3_client
-        self.reference_user_dict = reference_user_dict
         self.validation_dict = {}
 
     def hash_sha_object(self) -> str:
@@ -61,24 +60,20 @@ class Utils(object):
             )
 
         if upload:
-            self._upload_validation_data(
-                instance_id=instance_id, context_id=context_id
-            )
+            self._upload_validation_data(instance_id=instance_id, context_id=context_id)
 
-    def _upload_validation_data(
-        self, instance_id, context_id, prefix="watchers_"
-    ):
+    def _upload_validation_data(self, instance_id, context_id, prefix="watchers_"):
         validation_id = self.hash_sha_object()
-        file_name = prefix + instance_id + "_" + validation_id + ".jsonl"
+        file_name = (
+            prefix + context_id + "_" + instance_id + "_" + validation_id + ".jsonl"
+        )
         with jsonlines.open(file_name, mode="w") as writer:
             writer.write(self.validation_dict)
 
         s3_path = "validation/recommendations/" + file_name
 
         try:
-            self.s3_client.upload_to_s3(
-                file_name=file_name, object_name=s3_path
-            )
+            self.s3_client.upload_to_s3(file_name=file_name, object_name=s3_path)
         except Exception as e:
             logger.warning(e)
 
@@ -110,16 +105,12 @@ class Utils(object):
         )
 
         slack_payload = {"text": msg_format}
-        requests.post(
-            url=self.web_hook_url, data=js.dumps(slack_payload).encode()
-        )
+        requests.post(url=self.web_hook_url, data=js.dumps(slack_payload).encode())
 
     def _reformat_list_to_text(self, input_list):
         try:
             if type(input_list[0]) != str:
-                formatted_text = ", ".join(
-                    ["{:.2f}".format(i) for i in input_list]
-                )
+                formatted_text = ", ".join(["{:.2f}".format(i) for i in input_list])
             else:
                 formatted_text = ", ".join([str(w) for w in input_list])
         except Exception as e:

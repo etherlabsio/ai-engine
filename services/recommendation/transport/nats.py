@@ -73,11 +73,37 @@ class NATSTransport(object):
 
     async def context_start_handler(self, msg):
         request = json.loads(msg.data)
+        context_id = request["contextId"]
         try:
-            self.watcher_service.featurize_reference_users()
+            start = timer()
+            (
+                reference_user_dict,
+                reference_features,
+            ) = self.watcher_service.initialize_reference_objects(context_id=context_id)
+
+            end = timer()
             logger.info(
-                "Vectorized and Hashed reference users",
-                extra={"instanceId": request["instanceId"]},
+                "Vectorized reference users",
+                extra={
+                    "instanceId": request["instanceId"],
+                    "contextId": context_id,
+                    "responseTime": end - start,
+                },
+            )
+
+            self.watcher_service.featurize_reference_users(
+                reference_user_dict=reference_user_dict,
+                reference_features=reference_features,
+            )
+
+            end = timer()
+            logger.info(
+                "Formed LSH Buckets for reference users",
+                extra={
+                    "instanceId": request["instanceId"],
+                    "contextId": context_id,
+                    "responseTime": end - start,
+                },
             )
         except Exception as e:
             logger.error(
@@ -102,6 +128,10 @@ class NATSTransport(object):
 
         try:
             (
+                reference_user_dict,
+                reference_features,
+            ) = self.watcher_service.download_reference_objects(context_id=context_id)
+            (
                 rec_users_dict,
                 related_words,
                 suggested_user_list,
@@ -111,6 +141,7 @@ class NATSTransport(object):
                 segment_obj=segment_object,
                 hash_result=None,
                 segment_user_ids=segment_user_ids,
+                reference_user_meta_dict=reference_user_dict,
             )
             rec_users = list(rec_users_dict.keys())
             watcher_response = {"recommendedWatchers": rec_users}
@@ -132,6 +163,7 @@ class NATSTransport(object):
                 msg.reply, json.dumps(output_response).encode()
             )
 
+            # Logic for posting to slack
             # if context_id in self.whitelist_contexts:
             #     self.watcher_service.prepare_slack_validation(
             #         req_data=request,

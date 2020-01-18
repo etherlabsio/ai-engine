@@ -11,14 +11,8 @@ logger = logging.getLogger(__name__)
 
 class Explainability(object):
     def __init__(
-        self,
-        reference_user_dict,
-        vectorizer,
-        num_buckets=8,
-        hash_size=4,
-        utils_obj=None,
+        self, vectorizer=None, num_buckets=8, hash_size=4, utils_obj=None,
     ):
-        self.reference_user_dict = reference_user_dict
         self.vectorizer = vectorizer
         self.utils = utils_obj
         self.num_buckets = num_buckets
@@ -43,6 +37,7 @@ class Explainability(object):
     def get_explanation(
         self,
         similar_user_scores_dict: Dict,
+        reference_user_dict: Dict,
         input_query: List[str],
         input_kw_query: List[str],
         query_key="keywords",
@@ -51,7 +46,7 @@ class Explainability(object):
         input_query_text = self._form_query_text(query_list=input_query)
 
         similar_users_info_dict = {
-            k: self.reference_user_dict[k][query_key]
+            k: reference_user_dict[k][query_key]
             for k in similar_user_scores_dict.keys()
         }
         filtered_sim_user_dict = self._filter_user_info(
@@ -64,6 +59,7 @@ class Explainability(object):
         user_meta_dict = self.rerank_users(
             similar_users_dict=filtered_sim_user_dict,
             similar_user_scores_dict=similar_user_scores_dict,
+            reference_user_dict=reference_user_dict,
             query_feature_vector=query_feature_vector,
             input_query_text=input_query_text,
         )
@@ -185,13 +181,6 @@ class Explainability(object):
     ) -> [List, Dict]:
         filtered_sim_user_info = similar_users_info_dict.copy()
         for u, words in similar_users_info_dict.items():
-            # filtered_sim_user_info[u] = [
-            #     filtered_w
-            #     for filtered_w, dist in process.extractWithoutOrder(
-            #         str(input_query), words
-            #     )
-            #     if dist >= 50
-            # ]
             filtered_sim_user_info[u] = list(process.dedupe(filtered_sim_user_info[u]))
 
         return filtered_sim_user_info
@@ -261,8 +250,9 @@ class Explainability(object):
 
     def rerank_users(
         self,
-        similar_users_dict,
-        similar_user_scores_dict,
+        similar_users_dict: Dict,
+        similar_user_scores_dict: Dict,
+        reference_user_dict: Dict,
         query_feature_vector,
         input_query_text,
     ):
@@ -291,7 +281,8 @@ class Explainability(object):
                 user_meta_dict.update(
                     {
                         users: {
-                            "name": self.reference_user_dict[users]["name"],
+                            # "name": reference_user_dict[users]["name"],
+                            "name": users,
                             "topPhrases": top_words,
                             "phraseScore": phrase_score,
                             "hashScore": hash_score,
@@ -305,7 +296,8 @@ class Explainability(object):
                 user_meta_dict.update(
                     {
                         users: {
-                            "name": self.reference_user_dict[users]["name"],
+                            # "name": reference_user_dict[users]["name"],
+                            "name": users,
                             "topPhrases": list(),
                             "phraseScore": phrase_score,
                             "hashScore": hash_score,
