@@ -223,6 +223,7 @@ class QueryHandler(object):
                     "fileName": context_id,
                     "featuresPath": features_s3_path,
                     "metaPath": reference_user_json_path,
+                    "users": list(num_features_in_input.keys()),
                     "numUsers": len(num_features_in_input.keys()),
                     "numFeatures": np.sum(list(num_features_in_input.values())),
                 },

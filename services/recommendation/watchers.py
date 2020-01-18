@@ -55,7 +55,7 @@ class RecWatchers(object):
         self.feature_dir = "/features/recommendation/"
 
     def initialize_reference_objects(
-        self, context_id: str, top_n: int = 100, perform_query: bool = True
+        self, context_id: str, top_n: int = 2, perform_query: bool = True
     ):
 
         if perform_query:
@@ -150,63 +150,68 @@ class RecWatchers(object):
         n_users=6,
         n_kw=6,
     ):
-        if segment_user_ids is None:
-            segment_user_ids = []
+        try:
+            if segment_user_ids is None:
+                segment_user_ids = []
 
-        if hash_result is None:
-            rehash_result = self.re_hash_users(input_list=input_kw_query)
-            similar_user_scores_dict = self.query_similar_users(
-                hash_result=rehash_result, input_list=input_query_list
-            )
-
-        else:
-            if len(list(hash_result.keys())) < 1:
+            if hash_result is None:
                 rehash_result = self.re_hash_users(input_list=input_kw_query)
                 similar_user_scores_dict = self.query_similar_users(
-                    hash_result=rehash_result, input_list=input_kw_query
+                    hash_result=rehash_result, input_list=input_query_list
                 )
+
             else:
-                similar_user_scores_dict = self.query_similar_users(
-                    hash_result=hash_result, input_list=input_kw_query
-                )
+                if len(list(hash_result.keys())) < 1:
+                    rehash_result = self.re_hash_users(input_list=input_kw_query)
+                    similar_user_scores_dict = self.query_similar_users(
+                        hash_result=rehash_result, input_list=input_kw_query
+                    )
+                else:
+                    similar_user_scores_dict = self.query_similar_users(
+                        hash_result=hash_result, input_list=input_kw_query
+                    )
 
-        logger.info("Computing explainability...")
-        top_n_user_object, top_related_words = self.exp.get_explanation(
-            similar_user_scores_dict=similar_user_scores_dict,
-            reference_user_dict=reference_user_meta_dict,
-            input_query=input_query_list,
-            input_kw_query=input_kw_query,
-            query_key="keywords",
-        )
+            logger.info("Computing explainability...")
+            top_n_user_object, top_related_words = self.exp.get_explanation(
+                similar_user_scores_dict=similar_user_scores_dict,
+                reference_user_dict=reference_user_meta_dict,
+                input_query=input_query_list,
+                input_kw_query=input_kw_query,
+                query_key="keywords",
+            )
 
-        user_scores = list(top_n_user_object.values())
+            user_scores = list(top_n_user_object.values())
 
-        # Include only those users that are not part of segment request
-        top_n_user_object = {
-            u: s for u, s in top_n_user_object.items() if u not in segment_user_ids
-        }
-        suggested_users = self.post_process_users(
-            segment_obj=segment_obj, user_dict=top_n_user_object, percentile_val=60,
-        )
-        top_user_words = [
-            w for u in suggested_users for w, score in top_related_words[u].items()
-        ]
-        top_user_words = list(process.dedupe(top_user_words))
+            # Include only those users that are not part of segment request
+            top_n_user_object = {
+                u: s for u, s in top_n_user_object.items() if u not in segment_user_ids
+            }
+            suggested_users = self.post_process_users(
+                segment_obj=segment_obj, user_dict=top_n_user_object, percentile_val=60,
+            )
+            top_user_words = [
+                w for u in suggested_users for w, score in top_related_words[u].items()
+            ]
+            top_user_words = list(process.dedupe(top_user_words))
 
-        logger.info(
-            "Top recommended users found",
-            extra={"users": list(top_n_user_object.keys()), "scores": user_scores},
-        )
+            logger.info(
+                "Top recommended users found",
+                extra={"users": list(top_n_user_object.keys()), "scores": user_scores},
+            )
 
-        logger.info(
-            "Similarity explanation",
-            extra={
-                "totalRelatedWords": len(top_user_words),
-                "words": top_user_words[:n_kw],
-            },
-        )
+            logger.info(
+                "Similarity explanation",
+                extra={
+                    "totalRelatedWords": len(top_user_words),
+                    "words": top_user_words[:n_kw],
+                },
+            )
 
-        return top_n_user_object, top_user_words[:n_kw], suggested_users
+            return top_n_user_object, top_user_words[:n_kw], suggested_users
+        except Exception as e:
+            logger.warning("Unable to get recommendation", extra={"warn": e})
+
+            return {}, [], []
 
     def query_similar_users(self, hash_result, input_list: List, n_retries=3) -> Dict:
         # result = self.us.query(input_list=input_list)
