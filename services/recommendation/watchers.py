@@ -54,23 +54,32 @@ class RecWatchers(object):
         )
         self.feature_dir = "/features/recommendation/"
 
-    def initialize_reference_objects(self, context_id: str, top_n: int = 100):
-        query_text, variables = self.query_client.form_reference_users_query(
-            context_id=context_id, top_n_result=top_n
-        )
-        response = self.query_client.perform_query(
-            query=query_text, variables=variables
-        )
+    def initialize_reference_objects(
+        self, context_id: str, top_n: int = 100, perform_query: bool = True
+    ):
 
-        reference_user_dict = self.query_handler.format_reference_response(response)
-        (
-            reference_user_json_path,
-            features_path,
-        ) = self.query_handler.form_reference_features(
-            reference_user_dict=reference_user_dict,
-            context_id=context_id,
-            ref_key="keywords",
-        )
+        if perform_query:
+            query_text, variables = self.query_client.form_reference_users_query(
+                context_id=context_id, top_n_result=top_n
+            )
+            response = self.query_client.perform_query(
+                query=query_text, variables=variables
+            )
+
+            reference_user_dict = self.query_handler.format_reference_response(response)
+            (
+                reference_user_json_path,
+                features_path,
+            ) = self.query_handler.form_reference_features(
+                reference_user_dict=reference_user_dict,
+                context_id=context_id,
+                ref_key="keywords",
+            )
+        else:
+            reference_user_json_path = (
+                context_id + self.feature_dir + context_id + ".json"
+            )
+            features_path = context_id + self.feature_dir + context_id + ".pickle"
 
         reference_user_meta_dict, reference_features = self.download_reference_objects(
             context_id=context_id,
@@ -86,29 +95,36 @@ class RecWatchers(object):
         reference_user_file_path: str = None,
         reference_user_vector_data_path: str = None,
     ):
-        if reference_user_file_path is None:
-            reference_user_file_path = (
-                context_id + self.feature_dir + context_id + ".json"
+        try:
+            if reference_user_file_path is None:
+                reference_user_file_path = (
+                    context_id + self.feature_dir + context_id + ".json"
+                )
+
+            if reference_user_vector_data_path is None:
+                reference_user_vector_data_path = (
+                    context_id + self.feature_dir + context_id + ".pickle"
+                )
+
+            reference_user_meta = self.s3_client.download_file(
+                file_name=reference_user_file_path
             )
+            reference_user_meta_str = reference_user_meta["Body"].read().decode("utf8")
+            reference_user_meta_dict = js.loads(reference_user_meta_str)
 
-        if reference_user_vector_data_path is None:
-            reference_user_vector_data_path = (
-                context_id + self.feature_dir + context_id + ".pickle"
+            reference_user_vector_object = self.s3_client.download_file(
+                file_name=reference_user_vector_data_path
             )
+            reference_user_vector_str = reference_user_vector_object["Body"].read()
+            reference_user_vector = pickle.loads(reference_user_vector_str)
 
-        reference_user_meta = self.s3_client.download_file(
-            file_name=reference_user_file_path
-        )
-        reference_user_meta_str = reference_user_meta["Body"].read().decode("utf8")
-        reference_user_meta_dict = js.loads(reference_user_meta_str)
+            logger.info("Downloaded required objects")
 
-        reference_user_vector_object = self.s3_client.download_file(
-            file_name=reference_user_vector_data_path
-        )
-        reference_user_vector_str = reference_user_vector_object["Body"].read()
-        reference_user_vector = pickle.loads(reference_user_vector_str)
+            return reference_user_meta_dict, reference_user_vector
 
-        return reference_user_meta_dict, reference_user_vector
+        except Exception as e:
+            logger.error("Error downloading objects", extra={"err": e})
+            raise
 
     def featurize_reference_users(
         self, reference_user_dict: Dict, reference_features: Dict

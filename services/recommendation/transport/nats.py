@@ -79,7 +79,9 @@ class NATSTransport(object):
             (
                 reference_user_dict,
                 reference_features,
-            ) = self.watcher_service.initialize_reference_objects(context_id=context_id)
+            ) = self.watcher_service.initialize_reference_objects(
+                context_id=context_id, perform_query=True
+            )
 
             end = timer()
             logger.info(
@@ -109,6 +111,7 @@ class NATSTransport(object):
             logger.error(
                 "Error computing features for reference users", extra={"err": e},
             )
+            traceback.print_exc()
             raise
 
     async def context_end_handler(self, msg):
@@ -175,9 +178,9 @@ class NATSTransport(object):
             #     )
         except Exception as e:
             logger.error(
-                "Error computing recommended watchers",
-                extra={"err": e, "stack": traceback.print_exc()},
+                "Error computing recommended watchers", extra={"err": e},
             )
+            traceback.print_exc()
             raise
 
     async def get_meetings(self, msg):
