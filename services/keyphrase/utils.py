@@ -162,7 +162,7 @@ class KeyphraseUtils(object):
             if filter_by_graph:
                 # Filter entities by Entity graph
                 processed_entity_dict = keyphrase_object[i]["entities"]
-                processed_entities, dropped_entities = self.gfilter.filter_keyphrases(
+                processed_entities, dropped_entities = self.gfilter.filter_entities(
                     phrase_dict=processed_entity_dict, segment_text_list=[segment_text]
                 )
 

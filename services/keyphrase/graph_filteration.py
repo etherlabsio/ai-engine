@@ -120,3 +120,22 @@ class GraphFilter(object):
 
     def get_kp_nouns(self, kp, sent_nouns):
         return set(kp.lower().split(" ")) & set(sent_nouns)
+
+    def filter_entities(self, phrase_dict, segment_text_list):
+        filtered_ent_list = []
+        dropped_ent_list = []
+
+        # segment_noun_list = self.get_segment_nouns(segment_text_list=segment_text_list)
+
+        for text in segment_text_list:
+            for ents, scores in phrase_dict.items():
+                ent = self.get_ent(ents)
+                if set(ent) & set(self.kp_graph) == set(ent):
+                    filtered_ent_list.append({ents: scores})
+                else:
+                    dropped_ent_list.append({ents: scores})
+
+        return filtered_ent_list, dropped_ent_list
+
+    def get_ent(self, ent):
+        return set(ent.lower().split(" "))
