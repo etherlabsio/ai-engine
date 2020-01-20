@@ -16,6 +16,8 @@ from .knowledge_graph import KnowledgeGraph
 from .ranker import KeyphraseRanker
 from .s3io import S3IO
 from .word_graph import WordGraphBuilder
+from .graph_filteration import GraphFilter
+
 
 logger = logging.getLogger(__name__)
 
@@ -33,8 +35,11 @@ class KeyphraseExtractor(object):
         self.context_dir = "/context-instance-graphs/"
         self.feature_dir = "/sessions/"
         self.s3_client = s3_client
+        self.graph_filter_object = GraphFilter(
+            s3_client=s3_client, graph_file_path="entity_kp_graph.pkl"
+        )
         self.kg = KnowledgeGraph()
-        self.utils = KeyphraseUtils()
+        self.utils = KeyphraseUtils(graph_filter_object=self.graph_filter_object)
         self.io_util = S3IO(
             s3_client=s3_client, graph_utils_obj=GraphUtils(), utils=KeyphraseUtils(),
         )
@@ -1096,11 +1101,11 @@ class KeyphraseExtractor(object):
 
             cleaned_keyphrase_list.append(segment_dict)
 
-        cleaned_keyphrase_list = self.utils.post_process_output(
-            keyphrase_object=cleaned_keyphrase_list,
-            preserve_singlewords=preserve_singlewords,
-            dict_key="original",
-        )
+        # cleaned_keyphrase_list = self.utils.post_process_output(
+        #     keyphrase_object=cleaned_keyphrase_list,
+        #     preserve_singlewords=preserve_singlewords,
+        #     dict_key="original",
+        # )
 
         cleaned_keyphrase_list = self.utils.post_process_output(
             keyphrase_object=cleaned_keyphrase_list,
@@ -1240,7 +1245,7 @@ class KeyphraseExtractor(object):
         Returns:
 
         """
-        deduped_keyphrase_list = list(process.dedupe(keyphrase_list))
+        deduped_keyphrase_list = list(process.dedupe(keyphrase_list, threshold=90))
 
         return deduped_keyphrase_list
 
