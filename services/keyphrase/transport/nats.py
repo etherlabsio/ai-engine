@@ -98,7 +98,7 @@ class NATSTransport(object):
         instance_id = msg_data["instanceId"]
 
         # Maintain a mapping of isntance-mind to carry forward
-        self.instance_mind_map[instance_id] = mind_id
+        self.instance_mind_map.update({instance_id: mind_id})
 
         if msg_data["state"] == "started":
             logger.info("Instance started")
@@ -131,10 +131,14 @@ class NATSTransport(object):
                 meeting_word_graph,
             ) = self.keyphrase_service.populate_word_graph(request)
 
-            if self.instance_mind_map[instance_id] == "01DAAQY88QZB19JQZ5PRJFR76Y":
-                filter_by_graph = True
-            else:
+            try:
+                if self.instance_mind_map[instance_id] == "01DAAQY88QZB19JQZ5PRJFR76Y":
+                    filter_by_graph = True
+                else:
+                    filter_by_graph = False
+            except Exception as e:
                 filter_by_graph = False
+                logger.warning("error setting mind id", extra={"warn": e})
 
             # Compute embeddings for segments and keyphrases
             (
@@ -162,16 +166,17 @@ class NATSTransport(object):
                     "responseTime": end - start,
                 },
             )
-        except Exception:
+        except Exception as e:
             end = timer()
             logger.error(
                 "Error populating graph",
                 extra={
-                    "err": traceback.print_exc(),
+                    "err": e,
                     "responseTime": end - start,
                     "instanceId": request["instanceId"],
                 },
             )
+            traceback.print_exc()
 
     async def extract_segment_keyphrases(self, msg):
         start = timer()
@@ -186,10 +191,14 @@ class NATSTransport(object):
 
         limit = request.get("limit", 10)
 
-        if self.instance_mind_map[instance_id] == "01DAAQY88QZB19JQZ5PRJFR76Y":
-            filter_by_graph = True
-        else:
+        try:
+            if self.instance_mind_map[instance_id] == "01DAAQY88QZB19JQZ5PRJFR76Y":
+                filter_by_graph = True
+            else:
+                filter_by_graph = False
+        except Exception as e:
             filter_by_graph = False
+            logger.warning("error setting mind id", extra={"warn": e})
 
         if populate_graph:
             output = self.keyphrase_service.get_keyphrases(

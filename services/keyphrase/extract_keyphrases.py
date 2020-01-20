@@ -646,7 +646,7 @@ class KeyphraseExtractor(object):
 
             if rank:
                 try:
-                    (keyphrases, keyphrase_object,) = self._compute_relevant_phrases(
+                    (keyphrases, keyphrase_object) = self._compute_relevant_phrases(
                         keyphrase_object=keyphrase_object,
                         context_graph=context_graph,
                         n_kw=n_kw,

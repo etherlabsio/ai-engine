@@ -8,6 +8,7 @@ from nltk import WordNetLemmatizer, word_tokenize
 from graphrank.metrics import GraphSolvers, WeightMetrics
 from graphrank.utils import GraphUtils, TextPreprocess
 from graphrank.long_stopwords import stop_words
+from graphrank.extract_candidate_phrases import CandidateKPExtractor
 
 logger = logging.getLogger(__name__)
 
@@ -18,6 +19,7 @@ class GraphRank(object):
         self.graph_solver = GraphSolvers()
         self.metric_object = WeightMetrics()
         self.preprocess_text = TextPreprocess()
+        self.kpe = CandidateKPExtractor()
 
         self.lemma = WordNetLemmatizer()
 
@@ -844,3 +846,26 @@ class GraphRank(object):
                 marker_list = []
 
         return multi_terms
+
+    # def get_alt_descriptive_terms(self,
+    #                               graph_obj,
+    #     input_pos_text,
+    #     original_tokens=None,
+    #     window=2,
+    #     syntactic_filter=None,
+    #     top_t_percent=None,
+    #     normalize_nodes=None,
+    #     preserve_common_words=False,
+    #     **kwargs):
+    #
+    #     node_weights, top_weighted_words = self.node_weighting(
+    #         graph_obj=graph_obj,
+    #         input_pos_text=input_pos_text,
+    #         window=window,
+    #         top_t_percent=top_t_percent,
+    #         syntactic_filter=syntactic_filter,
+    #         normalize_nodes=normalize_nodes,
+    #         **kwargs,
+    #     )
+    #
+    #     candidate_keyphrase_list = self.kpe.get_candidate_phrases(text=)

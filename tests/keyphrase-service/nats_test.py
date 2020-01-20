@@ -301,7 +301,7 @@ def replace_ids(
     if context_id is None and instance_id is None:
         context_id = "6baa3490"
         instance_id = "b5d4"
-        mind_id = "01DAAQY88QZB19JQZ5PRJFR76Y"
+        mind_id = "01DAAQY88QZB19JQZ5PRJFR76Y88"
 
     resp["instanceId"] = instance_id
     resp["contextId"] = context_id
