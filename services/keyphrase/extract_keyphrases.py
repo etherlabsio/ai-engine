@@ -85,7 +85,7 @@ class KeyphraseExtractor(object):
         logger.info("Invoking lambda to reduce cold-start ...")
         test_segment = ["Wake up Sesame!"]
         self.ranker.get_embeddings(input_list=test_segment, req_data=req_data)
-        self.wg.call_custom_ner(input_segment=test_segment[0])
+        self.wg.call_custom_ner(input_segment="<IGN>")
 
     def initialize_meeting_graph(self, req_data: dict):
         graph_id = self.get_graph_id(req_data=req_data)
@@ -373,6 +373,7 @@ class KeyphraseExtractor(object):
         context_graph=None,
         meeting_word_graph=None,
         default_form="descriptive",
+        filter_by_graph: bool = False,
         **kwargs,
     ):
         """
@@ -405,6 +406,7 @@ class KeyphraseExtractor(object):
             context_graph=context_graph,
             meeting_word_graph=meeting_word_graph,
             default_form=default_form,
+            filter_by_graph=filter_by_graph,
         )
 
         # Get segment text
@@ -562,6 +564,7 @@ class KeyphraseExtractor(object):
         rank_by="segment_relevance",
         sort_by="loc",
         validate: bool = False,
+        filter_by_graph: bool = False,
     ):
         start = timer()
 
@@ -611,6 +614,7 @@ class KeyphraseExtractor(object):
                         segment_object=segment_object,
                         context_graph=context_graph,
                         meeting_word_graph=meeting_word_graph,
+                        filter_by_graph=filter_by_graph,
                     )
 
             # Check if the segments are already present in the context graph
@@ -628,6 +632,7 @@ class KeyphraseExtractor(object):
                     segment_object=segment_object,
                     context_graph=context_graph,
                     meeting_word_graph=meeting_word_graph,
+                    filter_by_graph=filter_by_graph,
                 )
 
             keyphrase_object = self.extract_keywords(
@@ -636,6 +641,7 @@ class KeyphraseExtractor(object):
                 meeting_word_graph=meeting_word_graph,
                 default_form=default_form,
                 relative_time=relative_time,
+                filter_by_graph=filter_by_graph,
             )
 
             if rank:
@@ -736,6 +742,7 @@ class KeyphraseExtractor(object):
         validate: bool = False,
         populate_graph=True,
         group_id="",
+        filter_by_graph: bool = False,
     ):
         start = timer()
 
@@ -794,6 +801,7 @@ class KeyphraseExtractor(object):
                     meeting_word_graph=meeting_word_graph,
                     populate_graph=populate_graph,
                     group_id=group_id,
+                    filter_by_graph=filter_by_graph,
                 )
 
             keyphrase_object = self.extract_keywords(
@@ -802,6 +810,7 @@ class KeyphraseExtractor(object):
                 meeting_word_graph=meeting_word_graph,
                 default_form=default_form,
                 relative_time=relative_time,
+                filter_by_graph=filter_by_graph,
             )
 
             if rank:
@@ -875,6 +884,7 @@ class KeyphraseExtractor(object):
         rank_by="segment_relevance",
         sort_by="loc",
         validate: bool = False,
+        filter_by_graph: bool = False,
     ):
         start = timer()
         keyphrase_offsets = []
@@ -910,6 +920,7 @@ class KeyphraseExtractor(object):
                 context_graph=context_graph,
                 meeting_word_graph=meeting_word_graph,
                 relative_time=relative_time,
+                filter_by_graph=filter_by_graph,
             )
 
             if rank:
@@ -981,6 +992,7 @@ class KeyphraseExtractor(object):
         relative_time=None,
         preserve_singlewords=False,
         default_form="descriptive",
+        filter_by_graph: bool = False,
     ):
         """
         Search for keyphrases in an array of N segments and return them as one list of keyphrases
@@ -1111,6 +1123,7 @@ class KeyphraseExtractor(object):
             keyphrase_object=cleaned_keyphrase_list,
             preserve_singlewords=preserve_singlewords,
             dict_key="descriptive",
+            filter_by_graph=filter_by_graph,
         )
 
         return cleaned_keyphrase_list
@@ -1292,8 +1305,6 @@ class KeyphraseExtractor(object):
 
         word_graph.clear()
 
-        result = {"keyphrases": self.meeting_keywords}
-
         end = timer()
         logger.info(
             "Post-reset: Graph info",
@@ -1307,5 +1318,3 @@ class KeyphraseExtractor(object):
                 "instanceId": req_data["instanceId"],
             },
         )
-
-        return result

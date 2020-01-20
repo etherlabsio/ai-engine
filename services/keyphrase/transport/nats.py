@@ -10,6 +10,7 @@ class NATSTransport(object):
     def __init__(self, nats_manager, keyphrase_service):
         self.nats_manager = nats_manager
         self.keyphrase_service = keyphrase_service
+        self.instance_mind_map = {}
 
     async def subscribe_context(self):
         context_created_topic = "context.instance.created"
@@ -18,9 +19,7 @@ class NATSTransport(object):
             extra={"topic": context_created_topic},
         )
         await self.nats_manager.subscribe(
-            context_created_topic,
-            handler=self.context_created_handler,
-            queued=True,
+            context_created_topic, handler=self.context_created_handler, queued=True,
         )
 
     async def context_created_handler(self, msg):
@@ -75,24 +74,18 @@ class NATSTransport(object):
         )
 
     async def unsubscribe_lifecycle_events(self):
-        await self.nats_manager.unsubscribe(
-            topic="context.instance." + "started"
-        )
+        await self.nats_manager.unsubscribe(topic="context.instance." + "started")
         await self.nats_manager.unsubscribe(
             topic="context.instance." + "context_changed"
         )
-        await self.nats_manager.unsubscribe(
-            topic="context.instance." + "ended"
-        )
+        await self.nats_manager.unsubscribe(topic="context.instance." + "ended")
         await self.nats_manager.unsubscribe(
             topic="keyphrase_service." + "extract_keyphrases"
         )
         await self.nats_manager.unsubscribe(
             topic="keyphrase_service." + "keyphrases_for_context_instance"
         )
-        await self.nats_manager.unsubscribe(
-            topic="context.instance." + "add_segments"
-        )
+        await self.nats_manager.unsubscribe(topic="context.instance." + "add_segments")
         await self.nats_manager.unsubscribe(
             topic="keyphrase_service." + "extract_keyphrases_with_offset"
         )
@@ -101,6 +94,12 @@ class NATSTransport(object):
 
     async def context_start_handler(self, msg):
         msg_data = json.loads(msg.data)
+        mind_id = msg_data["mindId"]
+        instance_id = msg_data["instanceId"]
+
+        # Maintain a mapping of isntance-mind to carry forward
+        self.instance_mind_map[instance_id] = mind_id
+
         if msg_data["state"] == "started":
             logger.info("Instance started")
             self.keyphrase_service.initialize_meeting_graph(req_data=msg_data)
@@ -117,27 +116,7 @@ class NATSTransport(object):
     async def context_end_handler(self, msg):
         # Reset graph
         request = json.loads(msg.data)
-        instance_keyphrases = await self.reset_keyphrases(msg)
-
-        rec_request = {**request, **instance_keyphrases}
-        await self.call_recommended_watchers(req_data=rec_request)
-        # await self.call_recommended_meetings(req_data=instance_keyphrases)
-
-    async def call_recommended_watchers(self, req_data):
-        recommend_watcher_topic = "recommendation.service.get_watchers"
-        watcher_request = json.dumps(req_data).encode()
-
-        await self.nats_manager.conn.publish(
-            recommend_watcher_topic, watcher_request
-        )
-
-    async def call_recommended_meetings(self, req_data):
-        related_meeting_topic = "recommendation.service.get_meetings"
-        related_meeting_request = json.dumps(req_data).encode()
-
-        await self.nats_manager.conn.publish(
-            related_meeting_topic, related_meeting_request
-        )
+        await self.reset_keyphrases(request)
 
     # Topic Handler functions
 
@@ -145,12 +124,17 @@ class NATSTransport(object):
         start = timer()
         request = json.loads(msg.data)
         segment_object = request["segments"]
-
+        instance_id = request["instanceId"]
         try:
             (
                 context_graph,
                 meeting_word_graph,
             ) = self.keyphrase_service.populate_word_graph(request)
+
+            if self.instance_mind_map[instance_id] == "01DAAQY88QZB19JQZ5PRJFR76Y":
+                filter_by_graph = True
+            else:
+                filter_by_graph = False
 
             # Compute embeddings for segments and keyphrases
             (
@@ -161,6 +145,7 @@ class NATSTransport(object):
                 segment_object=segment_object,
                 context_graph=context_graph,
                 meeting_word_graph=meeting_word_graph,
+                filter_by_graph=filter_by_graph,
             )
 
             end = timer()
@@ -173,6 +158,7 @@ class NATSTransport(object):
                     "kgNodes": context_graph.number_of_nodes(),
                     "kgEdges": context_graph.number_of_edges(),
                     "instanceId": request["instanceId"],
+                    "mindId": self.instance_mind_map[instance_id],
                     "responseTime": end - start,
                 },
             )
@@ -191,6 +177,7 @@ class NATSTransport(object):
         start = timer()
         request = json.loads(msg.data)
         segment_object = request["segments"]
+        instance_id = request["instanceId"]
         validation = request.get("validate", True)
         populate_graph = request.get("populateGraph", True)
 
@@ -199,12 +186,18 @@ class NATSTransport(object):
 
         limit = request.get("limit", 10)
 
+        if self.instance_mind_map[instance_id] == "01DAAQY88QZB19JQZ5PRJFR76Y":
+            filter_by_graph = True
+        else:
+            filter_by_graph = False
+
         if populate_graph:
             output = self.keyphrase_service.get_keyphrases(
                 request,
                 segment_object=segment_object,
                 n_kw=limit,
                 validate=validation,
+                filter_by_graph=filter_by_graph,
             )
         else:
             group_id = self.keyphrase_service.utils.hash_sha_object()
@@ -215,13 +208,10 @@ class NATSTransport(object):
                 validate=validation,
                 populate_graph=populate_graph,
                 group_id=group_id,
+                filter_by_graph=filter_by_graph,
             )
 
         end = timer()
-
-        # Get recommended watchers for every segment
-        rec_request = {**request, **output}
-        await self.call_recommended_watchers(req_data=rec_request)
 
         deadline_time = end - start
         if deadline_time > 15:
@@ -238,6 +228,7 @@ class NATSTransport(object):
                     "graphId": context_info,
                     "topicKeyphraseList": output,
                     "instanceId": request["instanceId"],
+                    "mindId": self.instance_mind_map[instance_id],
                     "numOfSegments": len(request["segments"]),
                     "limit": limit,
                     "responseTime": end - start,
@@ -252,6 +243,7 @@ class NATSTransport(object):
                     "graphId": context_info,
                     "chapterKeyphraseList": output,
                     "instanceId": request["instanceId"],
+                    "mindId": self.instance_mind_map[instance_id],
                     "numOfSegments": len(request["segments"]),
                     "limit": limit,
                     "responseTime": end - start,
@@ -266,15 +258,14 @@ class NATSTransport(object):
                     "graphId": context_info,
                     "pimKeyphraseList": output,
                     "instanceId": request["instanceId"],
+                    "mindId": self.instance_mind_map[instance_id],
                     "numOfSegments": len(request["segments"]),
                     "limit": limit,
                     "responseTime": end - start,
                     "segmentsReceived": segment_ids,
                 },
             )
-        await self.nats_manager.conn.publish(
-            msg.reply, json.dumps(output).encode()
-        )
+        await self.nats_manager.conn.publish(msg.reply, json.dumps(output).encode())
 
     async def extract_instance_keyphrases(self, msg):
         start = timer()
@@ -282,9 +273,7 @@ class NATSTransport(object):
         context_info = request["contextId"] + ":" + request["instanceId"]
 
         limit = request.get("limit", 10)
-        output = self.keyphrase_service.get_instance_keyphrases(
-            request, n_kw=limit
-        )
+        output = self.keyphrase_service.get_instance_keyphrases(request, n_kw=limit)
         end = timer()
 
         deadline_time = end - start
@@ -307,9 +296,7 @@ class NATSTransport(object):
                 "requestReceived": request,
             },
         )
-        await self.nats_manager.conn.publish(
-            msg.reply, json.dumps(output).encode()
-        )
+        await self.nats_manager.conn.publish(msg.reply, json.dumps(output).encode())
 
     async def chapter_offset_handler(self, msg):
         start = timer()
@@ -319,9 +306,7 @@ class NATSTransport(object):
         segment_ids = [seg_ids["id"] for seg_ids in segment_object]
 
         limit = request.get("limit", 10)
-        output = self.keyphrase_service.get_keyphrases_with_offset(
-            request, n_kw=limit
-        )
+        output = self.keyphrase_service.get_keyphrases_with_offset(request, n_kw=limit)
         end = timer()
 
         deadline_time = end - start
@@ -345,9 +330,7 @@ class NATSTransport(object):
             },
         )
 
-        await self.nats_manager.conn.publish(
-            msg.reply, json.dumps(output).encode()
-        )
+        await self.nats_manager.conn.publish(msg.reply, json.dumps(output).encode())
 
     async def reset_keyphrases(self, msg):
         request = json.loads(msg.data)

@@ -129,7 +129,11 @@ class KeyphraseUtils(object):
         return segment_list
 
     def post_process_output(
-        self, keyphrase_object, dict_key="descriptive", preserve_singlewords=False,
+        self,
+        keyphrase_object,
+        dict_key="descriptive",
+        preserve_singlewords=False,
+        filter_by_graph: bool = False,
     ):
         filtered_entities = []
         final_dropped_entities = []
@@ -155,40 +159,37 @@ class KeyphraseUtils(object):
                 ent: entity_dict[ent] for ent in processed_entities
             }
 
-            # Filter entities by Entity graph
-            processed_entity_dict = keyphrase_object[i]["entities"]
-            processed_entities, dropped_entities = self.gfilter.filter_keyphrases(
-                phrase_dict=processed_entity_dict, segment_text_list=[segment_text]
-            )
+            if filter_by_graph:
+                # Filter entities by Entity graph
+                processed_entity_dict = keyphrase_object[i]["entities"]
+                processed_entities, dropped_entities = self.gfilter.filter_keyphrases(
+                    phrase_dict=processed_entity_dict, segment_text_list=[segment_text]
+                )
 
-            filtered_entities.extend(
-                [
-                    ent
-                    for ent_dict in processed_entities
-                    for ent, score in ent_dict.items()
-                ]
-            )
-            final_dropped_entities.extend(
-                [
-                    ent
-                    for ent_dict in dropped_entities
-                    for ent, score in ent_dict.items()
-                ]
-            )
+                filtered_entities.extend(
+                    [
+                        ent
+                        for ent_dict in processed_entities
+                        for ent, score in ent_dict.items()
+                    ]
+                )
+                final_dropped_entities.extend(
+                    [
+                        ent
+                        for ent_dict in dropped_entities
+                        for ent, score in ent_dict.items()
+                    ]
+                )
 
-            try:
-                keyphrase_object[i]["entities"] = {
-                    ent: score
-                    for ent_dict in processed_entities
-                    for ent, score in ent_dict.items()
-                }
+                try:
+                    keyphrase_object[i]["entities"] = {
+                        ent: score
+                        for ent_dict in processed_entities
+                        for ent, score in ent_dict.items()
+                    }
 
-                # logger.debug("Processed entities by ENT-KP Graph", extra={
-                #     "filteredEntities": processed_entities,
-                #     "droppedEntities": dropped_entities
-                # })
-            except Exception as e:
-                logger.warning("Unable to post-process entities", extra={"warn": e})
+                except Exception as e:
+                    logger.warning("Unable to post-process entities", extra={"warn": e})
 
             # Remove the first occurrence of entity in the list of keyphrases
             unwanted_kp_list = []
@@ -216,46 +217,54 @@ class KeyphraseUtils(object):
             if preserve_singlewords:
                 multiphrase_dict.update(singleword_dict)
 
-            # Filter keyphrases by Graph
-            processed_keyphrases, dropped_keyphrases = self.gfilter.filter_keyphrases(
-                phrase_dict=multiphrase_dict, segment_text_list=[segment_text]
+            if filter_by_graph:
+                # Filter keyphrases by Graph
+                (
+                    processed_keyphrases,
+                    dropped_keyphrases,
+                ) = self.gfilter.filter_keyphrases(
+                    phrase_dict=multiphrase_dict, segment_text_list=[segment_text]
+                )
+                filtered_keyphrases.extend(
+                    [
+                        kp
+                        for kp_dict in processed_keyphrases
+                        for kp, score in kp_dict.items()
+                    ]
+                )
+                final_dropped_keyphrases.extend(
+                    [
+                        kp
+                        for kp_dict in dropped_keyphrases
+                        for kp, score in kp_dict.items()
+                    ]
+                )
+
+                try:
+                    keyphrase_object[i][dict_key] = {
+                        kp: score
+                        for kp_dict in processed_keyphrases
+                        for kp, score in kp_dict.items()
+                    }
+
+                except Exception as e:
+                    logger.warning(
+                        "Unable to post-process keyphrases", extra={"warn": e}
+                    )
+
+            else:
+                keyphrase_object[i][dict_key] = multiphrase_dict
+
+        if filter_by_graph:
+            logger.debug(
+                "Processed keyphrases & entities by ENT-KP Graph",
+                extra={
+                    "filteredKeyphrases": filtered_keyphrases,
+                    "droppedKeyphrases": final_dropped_keyphrases,
+                    "filteredEntities": filtered_entities,
+                    "droppedEntities": final_dropped_entities,
+                },
             )
-            filtered_keyphrases.extend(
-                [
-                    kp
-                    for kp_dict in processed_keyphrases
-                    for kp, score in kp_dict.items()
-                ]
-            )
-            final_dropped_keyphrases.extend(
-                [kp for kp_dict in dropped_keyphrases for kp, score in kp_dict.items()]
-            )
-
-            try:
-                keyphrase_object[i][dict_key] = {
-                    kp: score
-                    for kp_dict in processed_keyphrases
-                    for kp, score in kp_dict.items()
-                }
-
-                # logger.debug("Processed keyphrases by ENT-KP Graph", extra={
-                #     "filteredKeyphrases": processed_keyphrases,
-                #     "droppedKeyphrases": dropped_keyphrases
-                # })
-            except Exception as e:
-                logger.warning("Unable to post-process keyphrases", extra={"warn": e})
-
-            # keyphrase_object[i][dict_key] = multiphrase_dict
-
-        logger.debug(
-            "Processed keyphrases & entities by ENT-KP Graph",
-            extra={
-                "filteredKeyphrases": filtered_keyphrases,
-                "droppedKeyphrases": final_dropped_keyphrases,
-                "filteredEntities": filtered_entities,
-                "droppedEntities": final_dropped_entities,
-            },
-        )
 
         return keyphrase_object
 
