@@ -23,7 +23,7 @@ s3 = boto3.resource("s3")
 logger = logging.getLogger(__name__)
 setup_server_logger(debug=False)  # default False for disabling debug mode
 
-whitelisted_channel = ['01DJSFMQ5MP8AX83Y89QC6T39E','01DBB3SN99AVJ8ZWJDQ57X9TGX','01DBB3SN874B4V18DCP4ATMRXA']
+whitelisted_channels = ['01DJSFMQ5MP8AX83Y89QC6T39E','01DBB3SN99AVJ8ZWJDQ57X9TGX','01DBB3SN874B4V18DCP4ATMRXA','01DBCSGJACKS03CP9XY69XBNXK']
 
 def load_model():
     bucket = os.getenv("BUCKET_NAME")
@@ -61,7 +61,7 @@ def handler(event, context):
         response = json.dumps({"actions": action_items, "decisions": decisions,"questions": questions})
         #Posting result on question-detection channel
         try:
-            if len(questions)>0 and (json_request["contextId"].upper() in whitelisted_channel):
+            if len(questions)>0 and (json_request["contextId"].upper() in whitelisted_channels):
                 for quest in questions:
                     slack_msg = "*Question*: {}".format(quest['subject'])
                     slack_web_hook_url = "https://hooks.slack.com/services/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"
