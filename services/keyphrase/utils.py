@@ -155,9 +155,15 @@ class KeyphraseUtils(object):
                 distinct_entities, list(keyphrase_dict.keys())
             )
 
-            keyphrase_object[i]["entities"] = {
-                ent: entity_dict[ent] for ent in processed_entities
-            }
+            try:
+                keyphrase_object[i]["entities"] = {
+                    ent: entity_dict[ent] for ent in processed_entities
+                }
+            except Exception as e:
+                logger.warning(
+                    "couldn't get score object for phrases", extra={"warn": e}
+                )
+                continue
 
             if filter_by_graph:
                 # Filter entities by Entity graph
@@ -190,6 +196,7 @@ class KeyphraseUtils(object):
 
                 except Exception as e:
                     logger.warning("Unable to post-process entities", extra={"warn": e})
+                    continue
 
             # Remove the first occurrence of entity in the list of keyphrases
             unwanted_kp_list = []
@@ -251,6 +258,7 @@ class KeyphraseUtils(object):
                     logger.warning(
                         "Unable to post-process keyphrases", extra={"warn": e}
                     )
+                    continue
 
             else:
                 keyphrase_object[i][dict_key] = multiphrase_dict

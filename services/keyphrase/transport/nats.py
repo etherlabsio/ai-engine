@@ -10,7 +10,8 @@ class NATSTransport(object):
     def __init__(self, nats_manager, keyphrase_service):
         self.nats_manager = nats_manager
         self.keyphrase_service = keyphrase_service
-        self.instance_mind_map = {}
+        self.context_mind_map = {}
+        self.se_mind = "01DAAQY88QZB19JQZ5PRJFR76Y"
 
     async def subscribe_context(self):
         context_created_topic = "context.instance.created"
@@ -26,6 +27,7 @@ class NATSTransport(object):
         msg_data = json.loads(msg.data)
         context_id = msg_data["contextId"]
         context_instance_id = msg_data["instanceId"]
+        self.context_mind_map[context_id] = ""
         logger.info(
             "instance created",
             extra={"contextId": context_id, "instanceId": context_instance_id},
@@ -95,14 +97,16 @@ class NATSTransport(object):
     async def context_start_handler(self, msg):
         msg_data = json.loads(msg.data)
         mind_id = msg_data["mindId"]
-        instance_id = msg_data["instanceId"]
+        context_id = msg_data["contextId"]
 
-        # Maintain a mapping of isntance-mind to carry forward
-        self.instance_mind_map.update({instance_id: mind_id})
+        # Maintain a mapping of context-mind to carry forward
+        self.context_mind_map.update({context_id: mind_id})
+
+        logger.info("Instance started", extra={"contextMind": self.context_mind_map})
 
         if msg_data["state"] == "started":
-            logger.info("Instance started")
             self.keyphrase_service.initialize_meeting_graph(req_data=msg_data)
+
         pass
 
     async def context_change_handler(self, msg):
@@ -124,7 +128,8 @@ class NATSTransport(object):
         start = timer()
         request = json.loads(msg.data)
         segment_object = request["segments"]
-        instance_id = request["instanceId"]
+        context_id = request["contextId"]
+        filter_by_graph = False
         try:
             (
                 context_graph,
@@ -132,12 +137,11 @@ class NATSTransport(object):
             ) = self.keyphrase_service.populate_word_graph(request)
 
             try:
-                if self.instance_mind_map[instance_id] == "01DAAQY88QZB19JQZ5PRJFR76Y":
+                mind_id = self.context_mind_map[context_id]
+                if mind_id == self.se_mind:
                     filter_by_graph = True
-                else:
-                    filter_by_graph = False
             except Exception as e:
-                filter_by_graph = False
+                mind_id = ""
                 logger.warning("error setting mind id", extra={"warn": e})
 
             # Compute embeddings for segments and keyphrases
@@ -162,7 +166,7 @@ class NATSTransport(object):
                     "kgNodes": context_graph.number_of_nodes(),
                     "kgEdges": context_graph.number_of_edges(),
                     "instanceId": request["instanceId"],
-                    "mindId": self.instance_mind_map[instance_id],
+                    "mindId": mind_id,
                     "responseTime": end - start,
                 },
             )
@@ -182,7 +186,7 @@ class NATSTransport(object):
         start = timer()
         request = json.loads(msg.data)
         segment_object = request["segments"]
-        instance_id = request["instanceId"]
+        context_id = request["contextId"]
         validation = request.get("validate", True)
         populate_graph = request.get("populateGraph", True)
 
@@ -190,14 +194,15 @@ class NATSTransport(object):
         context_info = request["contextId"] + ":" + request["instanceId"]
 
         limit = request.get("limit", 10)
+        filter_by_graph = False
 
         try:
-            if self.instance_mind_map[instance_id] == "01DAAQY88QZB19JQZ5PRJFR76Y":
+            mind_id = self.context_mind_map[context_id]
+            if mind_id == self.se_mind:
                 filter_by_graph = True
-            else:
-                filter_by_graph = False
+
         except Exception as e:
-            filter_by_graph = False
+            mind_id = ""
             logger.warning("error setting mind id", extra={"warn": e})
 
         if populate_graph:
@@ -237,7 +242,7 @@ class NATSTransport(object):
                     "graphId": context_info,
                     "topicKeyphraseList": output,
                     "instanceId": request["instanceId"],
-                    "mindId": self.instance_mind_map[instance_id],
+                    "mindId": mind_id,
                     "numOfSegments": len(request["segments"]),
                     "limit": limit,
                     "responseTime": end - start,
@@ -252,7 +257,7 @@ class NATSTransport(object):
                     "graphId": context_info,
                     "chapterKeyphraseList": output,
                     "instanceId": request["instanceId"],
-                    "mindId": self.instance_mind_map[instance_id],
+                    "mindId": mind_id,
                     "numOfSegments": len(request["segments"]),
                     "limit": limit,
                     "responseTime": end - start,
@@ -267,7 +272,7 @@ class NATSTransport(object):
                     "graphId": context_info,
                     "pimKeyphraseList": output,
                     "instanceId": request["instanceId"],
-                    "mindId": self.instance_mind_map[instance_id],
+                    "mindId": mind_id,
                     "numOfSegments": len(request["segments"]),
                     "limit": limit,
                     "responseTime": end - start,
