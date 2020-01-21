@@ -52,17 +52,20 @@ def format_time(tz_time, datetime_object=False):
     return ts
 
 
-def format_pims_output(pim, req, segmentsmap, mindId):
+def format_pims_output(pim, req, segmentsmap, mindId, topics_extracted):
     pims = {}
     pims["group"] = {}
     for no in pim.keys():
+        pims["group"][no] = {}
+        pims["group"][no]["topics"] = topics_extracted[no]
+        pims["group"][no]["analyzedSegments"] = []
         tmp_seg = []
         for seg in pim[no].keys():
             tmp_seg.append(segmentsmap[pim[no][seg][-1]])
             # uncomment the below to print the computed sentences instead of the original.
             # tmp_seg[-1]["analyzedText"] = pim[no][seg][0]
             tmp_seg[-1]["analyzedText"] = tmp_seg[-1]["originalText"]
-        pims["group"][no] = tmp_seg
+        pims["group"][no]["analyzedSegments"] = tmp_seg
     pims["contextId"] = (req)["contextId"]
     pims["instanceId"] = (req)["instanceId"]
     pims["mindId"] = mindId

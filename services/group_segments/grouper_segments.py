@@ -23,6 +23,7 @@ from sklearn.cluster import KMeans
 from group_segments.publish_info import post_to_slack, post_to_slack_topic
 from group_segments.summarise import ClusterFeatures
 from group_segments.extract_topic import get_topics
+from group_segments.filter_groups import get_freq_score
 logger = logging.getLogger()
 
 
@@ -51,6 +52,19 @@ class community_detection:
         self.mind_id = Request.mind_id
         self.context_id = Request.context_id
         self.instance_id = Request.instance_id
+
+    def get_noun_graph(self):
+        bucket = "io.etherlabs.artifacts"
+        s3_obj = S3Manager(bucket_name=bucket)
+        s3_path = (
+            os.getenv("ACTIVE_ENV", "staging2")
+            + "/minds/"
+            + (self.mind_id).lower()
+            + "/noun_graph.pkl"
+        )
+        bytestream = (s3_obj.download_file(file_name=s3_path))["Body"].read()
+        se_graph = pickle.loads(bytestream)
+        return se_graph
 
     def compute_feature_vector_gpt(self):
         graph_list = {}
@@ -1065,8 +1079,18 @@ class community_detection:
         # if (self.mind_id).lower() not in ["01daaqy88qzb19jqz5prjfr76y"] :
 
             logger.info("Final PIMs", extra={"PIMs": pims})
-            return pims
+            topics_extracted = get_topics(pims)
+
+            return pims, topics_extracted
+
         logger.info("Intermediate PIMs", extra={"PIMs": pims})
+        if (self.mind_id).lower() == "01daaqy88qzb19jqz5prjfr76y":
+            se_graph = self.get_noun_graph()
+            pims = self.filter_by_noun_graph(pims, se_graph)
+            logger.info("Final PIMs based on roun_graph ranking and filteration", extra={"PIMs": pims})
+            topics_extracted = get_topics(pims)
+
+            return pims, topics_extracted
         print ("Ranking and filtering groups based on domain mind.")
         pims_copy = deepcopy(pims)
         group_score = self.get_group_scores(pims_copy, segment_scores)
@@ -1078,12 +1102,25 @@ class community_detection:
 
         # print ("Summarizing groups")
         # self.summarise_groups(graph_list, fv, filtered_groups)
-        # print ("Extracting Topics")
-        # topics_extracted = get_topics(filtered_groups)
+        print ("Extracting Topics")
+        topics_extracted = get_topics(filtered_groups)
         # post_to_slack_topic(self.instance_id, topics_extracted)
         logger.info("Final PIMs", extra={"PIMs": filtered_groups})
-        return filtered_groups
+        return filtered_groups, topics_extracted
 
+
+    def filter_by_noun_graph(self, pims, se_graph):
+        group_freq = {}
+        for groupid, groupobj in pims.items():
+            seg_list = " ".join([" ".join(seg[0]) for seg in groupobj.values()])
+            group_freq[groupid] = get_freq_score([seg_list], se_graph)
+
+        new_pims = {}
+        index = 0
+        for groupid, rank in sorted(group_freq.items(), key=lambda kv:kv[1], reverse=True)[:5]:
+            new_pims[index] = pims[groupid]
+            index +=1
+        return new_pims
 
     def get_communities_without_outlier(self):
         fv, graph_list = self.compute_feature_vector()

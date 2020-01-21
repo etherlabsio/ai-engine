@@ -9,13 +9,13 @@ def get_groups(segments, model1, mind_dict, for_pims=False):
     )
     try:
         # pims = community_extraction.h_communities(h_flag=False)  # get hierarchy community
-        pims = community_extraction.itr_communities()
+        pims, topics_extracted = community_extraction.itr_communities()
         if not pims:
             raise Exception
     except Exception as e:
         print ("Error while forming groups: ", e )
         pims = community_extraction.fallback_pims()
 
-    topics = get_topics(pims)
+    #topics = get_topics(pims)
 
-    return topics, pims
+    return topics_extracted, pims

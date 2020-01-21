@@ -99,7 +99,7 @@ def get_topics(groups):
         kg.add_nodes_from(candidate_topics)
         kp_fv = {}
         #kp_fv_raw = [gpt_model.get_text_feats(k+".") for k in candidate_topics]
-        ct_fv = get_feature_vector([i+'.' for i in candidate_topics], "keyphrase_ranker")
+        ct_fv = get_feature_vector([i+'.' for i in candidate_topics], "sentence-encoder-lambda")
         kp_fv_raw = [ct_fv[index] for index, k in enumerate(candidate_topics)]
         for index, kp in enumerate(candidate_topics):
             kp_fv[kp] = kp_fv_raw[index]
@@ -110,11 +110,12 @@ def get_topics(groups):
         kg = deepcopy(prune_edge(kg))
         pg = pagerank(kg, weight="weight")
         pg_sorted = (sorted(pg.items(), key=lambda kv:kv[1], reverse=True))[:10]
+        #print (pg_sorted)
         #text_fv = gpt_model.get_text_feats(text)
-        text_fv = get_feature_vector([text], "keyphrase_ranker")[0]
+        text_fv = get_feature_vector([text], "sentence-encoder-lambda")[0]
         ranked = [(kp, 1-cosine(text_fv, kp_fv[kp])) for kp in [i[0] for i in pg_sorted]]
         pg_sorted = (sorted(ranked, key=lambda kv:kv[1], reverse=True))[:5]
-        result[text] = pg_sorted[:5]
+        result[pos] = [i for i, j in pg_sorted[:2]]
         print (pg_sorted[:5])
         #groups[groupid]["segment0"]["topics"] = [topic for topic, score in pg_sorted[:2]]
     return result

@@ -105,7 +105,7 @@ def handler(event, context):
                 return json({"msg": "No segments to process"})
             topics = {}
             pim = {}
-            topics, pim = grouper.get_groups(
+            topics_extracted, pim = grouper.get_groups(
                 Request_obj, lambda_function, mind_dict, for_pims=True
             )
             topics["contextId"] = Request_obj.context_id
@@ -116,6 +116,7 @@ def handler(event, context):
                 json_request["detail"],
                 Request_obj.segments_map,
                 Request_obj.mind_id,
+                topics_extracted
             )
     except Exception as e:
         logger.warning("Unable to compute PIMs", extra={"exception": e})
