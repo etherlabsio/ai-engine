@@ -42,32 +42,31 @@ class Explainability(object):
         input_kw_query: List[str],
         query_key="keywords",
     ) -> Tuple[Dict, Dict]:
-
-        input_query_text = self._form_query_text(query_list=input_query)
-
-        similar_users_info_dict = {
-            k: reference_user_dict[k][query_key]
-            for k in similar_user_scores_dict.keys()
-        }
-        filtered_sim_user_dict = self._filter_user_info(
-            similar_users_info_dict=similar_users_info_dict,
-            input_query=input_query_text,
-        )
-
-        query_feature_vector = self.ws.featurize_input(input_list=input_query)
-
-        user_meta_dict = self.rerank_users(
-            similar_users_dict=filtered_sim_user_dict,
-            similar_user_scores_dict=similar_user_scores_dict,
-            reference_user_dict=reference_user_dict,
-            query_feature_vector=query_feature_vector,
-            input_query_text=input_query_text,
-        )
-        sorted_user_meta = self.utils.sort_dict_by_value(
-            user_meta_dict, key="confidence"
-        )
-
         try:
+            input_query_text = self._form_query_text(query_list=input_query)
+
+            similar_users_info_dict = {
+                k: reference_user_dict[k][query_key]
+                for k in similar_user_scores_dict.keys()
+            }
+            filtered_sim_user_dict = self._filter_user_info(
+                similar_users_info_dict=similar_users_info_dict,
+                input_query=input_query_text,
+            )
+
+            query_feature_vector = self.ws.featurize_input(input_list=input_query)
+
+            user_meta_dict = self.rerank_users(
+                similar_users_dict=filtered_sim_user_dict,
+                similar_user_scores_dict=similar_user_scores_dict,
+                reference_user_dict=reference_user_dict,
+                query_feature_vector=query_feature_vector,
+                input_query_text=input_query_text,
+            )
+            sorted_user_meta = self.utils.sort_dict_by_value(
+                user_meta_dict, key="confidence"
+            )
+
             top_user_object = {
                 u: sorted_user_meta[u]["confidence"]
                 for u in filtered_sim_user_dict.keys()
@@ -94,8 +93,8 @@ class Explainability(object):
             )
 
             return top_user_object, top_words_dict
-        except KeyError as e:
-            logger.warning(e)
+        except Exception as e:
+            logger.warning("Couldn't get explanations", extra={"warn": e})
 
     def _filter_pos(self, word_list):
         filtered_word = []

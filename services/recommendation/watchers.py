@@ -6,6 +6,7 @@ import numpy as np
 import uuid
 import itertools
 from fuzzywuzzy import process
+import traceback
 
 from lsh import UserSearch
 from explain import Explainability
@@ -55,7 +56,7 @@ class RecWatchers(object):
         self.feature_dir = "/features/recommendation/"
 
     def initialize_reference_objects(
-        self, context_id: str, top_n: int = 2, perform_query: bool = True
+        self, context_id: str, top_n: int = 50, perform_query: bool = True
     ):
 
         if perform_query:
@@ -150,6 +151,9 @@ class RecWatchers(object):
         n_users=6,
         n_kw=6,
     ):
+        top_n_user_object = {}
+        top_user_words = []
+        suggested_users = []
         try:
             if segment_user_ids is None:
                 segment_user_ids = []
@@ -170,6 +174,12 @@ class RecWatchers(object):
                     similar_user_scores_dict = self.query_similar_users(
                         hash_result=hash_result, input_list=input_kw_query
                     )
+
+            if len(similar_user_scores_dict.keys()) == 0:
+                logger.info(
+                    "No recommendations available... couldn't find or less user data available"
+                )
+                return top_n_user_object, top_user_words, suggested_users
 
             logger.info("Computing explainability...")
             top_n_user_object, top_related_words = self.exp.get_explanation(
@@ -210,8 +220,9 @@ class RecWatchers(object):
             return top_n_user_object, top_user_words[:n_kw], suggested_users
         except Exception as e:
             logger.warning("Unable to get recommendation", extra={"warn": e})
+            print(traceback.print_exc())
 
-            return {}, [], []
+            return top_n_user_object, top_user_words, suggested_users
 
     def query_similar_users(self, hash_result, input_list: List, n_retries=3) -> Dict:
         # result = self.us.query(input_list=input_list)

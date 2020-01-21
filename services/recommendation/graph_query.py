@@ -194,7 +194,7 @@ class QueryHandler(object):
 
         for user, info in ref_user_info_dict.items():
             kw_features = self.vectorizer.get_embeddings(input_list=info)
-            user_vector_data[user] = kw_features
+            user_vector_data.update({user: kw_features})
             num_features_in_input[user] = len(kw_features)
 
         if write:

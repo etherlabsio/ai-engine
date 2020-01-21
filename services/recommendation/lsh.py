@@ -1,5 +1,8 @@
 import numpy as np
 import pickle
+import logging
+
+logger = logging.getLogger(__name__)
 
 
 class MinHash(object):
@@ -124,11 +127,14 @@ class UserSearch(object):
         for user, kw in input_dict.items():
             try:
                 kw_features = user_vector_data[user]
-            except KeyError:
+            except KeyError as e:
+                logger.warning(
+                    "could'nt find feature vector", extra={"warn": e, "userId": user}
+                )
                 continue
 
             self.lsh.add(kw_features, user)
-            self.num_features_in_input[user] += len(kw_features)
+            self.num_features_in_input[user] = len(kw_features)
 
     def query(self, input_list):
         kw_features = self.vectorizer.get_embeddings(input_list=input_list)
