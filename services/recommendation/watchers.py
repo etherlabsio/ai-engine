@@ -6,10 +6,11 @@ import numpy as np
 import uuid
 import itertools
 from fuzzywuzzy import process
+import traceback
 
 from lsh import UserSearch
 from explain import Explainability
-from transform import FileTransform
+from graph_query import QueryHandler, GraphQuery
 from utils import Utils
 
 logger = logging.getLogger(__name__)
@@ -18,11 +19,7 @@ logger = logging.getLogger(__name__)
 class RecWatchers(object):
     def __init__(
         self,
-        reference_user_file=None,
-        reference_user_vector_data=None,
-        reference_user_kw_vector_data=None,
-        reference_user_dict=None,
-        user_vector_data=None,
+        dgraph_url: str,
         vectorizer=None,
         s3_client=None,
         web_hook_url=None,
@@ -33,110 +30,110 @@ class RecWatchers(object):
         self.vectorizer = vectorizer
         self.s3_client = s3_client
 
-        self.reference_user_file = reference_user_file
-        self.reference_user_vector_data = reference_user_vector_data
-        self.reference_user_kw_vector_data = reference_user_kw_vector_data
+        self.query_client = GraphQuery(dgraph_url=dgraph_url)
+
+        self.query_handler = QueryHandler(vectorizer=vectorizer, s3_client=s3_client)
+
         self.active_env_ab_test = active_env_ab_test
         self.web_hook_url = web_hook_url
         self.num_buckets = num_buckets
         self.hash_size = hash_size
-        self.user_vector_data = user_vector_data
-        self.reference_user_dict = reference_user_dict
 
-        if user_vector_data is None and reference_user_dict is None:
-            self.initialize_downloads()
+        self.utils = Utils(web_hook_url=self.web_hook_url, s3_client=self.s3_client,)
 
-        if self.active_env_ab_test == "production":
-            self.ref_user_info_dict = {
-                k: self.reference_user_dict[k]["keywords"]
-                for k in self.reference_user_dict.keys()
-            }
-        else:
-            self.ref_user_info_dict = {
-                k: self.reference_user_dict[k]["keywords"]
-                for k in self.reference_user_dict.keys()
-            }
-
-        self.utils = Utils(
-            web_hook_url=self.web_hook_url,
-            s3_client=self.s3_client,
-            reference_user_dict=self.reference_user_dict,
-        )
         self.exp = Explainability(
-            reference_user_dict=self.reference_user_dict,
             vectorizer=self.vectorizer,
             utils_obj=self.utils,
             num_buckets=self.num_buckets,
             hash_size=self.hash_size,
         )
+
         self.us = UserSearch(
-            input_dict=self.ref_user_info_dict,
             vectorizer=self.vectorizer,
-            user_vector_data=self.user_vector_data,
             num_buckets=self.num_buckets,
             hash_size=self.hash_size,
         )
+        self.feature_dir = "/features/recommendation/"
 
-    def initialize_downloads(self):
-        # Download and transform recommendation objects
-        logger.info("Downloading reference objects from s3")
-        if self.active_env_ab_test == "staging2":
-            (
-                self.reference_user_dict,
-                self.user_vector_data,
-            ) = self.download_reference_objects(
-                self.reference_user_file, self.reference_user_kw_vector_data
-            )
-            self.ref_user_info_dict = {
-                k: self.reference_user_dict[k]["keywords"]
-                for k in self.reference_user_dict.keys()
-            }
+    def initialize_reference_objects(
+        self, context_id: str, top_n: int = 50, perform_query: bool = True
+    ):
 
-        elif self.active_env_ab_test == "test":
-            (
-                self.reference_user_dict,
-                self.user_vector_data,
-            ) = self.download_reference_objects(
-                self.reference_user_file, self.reference_user_kw_vector_data
+        if perform_query:
+            query_text, variables = self.query_client.form_reference_users_query(
+                context_id=context_id, top_n_result=top_n
             )
-            self.ref_user_info_dict = {
-                k: self.reference_user_dict[k]["keywords"]
-                for k in self.reference_user_dict.keys()
-            }
+            response = self.query_client.perform_query(
+                query=query_text, variables=variables
+            )
+
+            reference_user_dict = self.query_handler.format_reference_response(response)
+            (
+                reference_user_json_path,
+                features_path,
+            ) = self.query_handler.form_reference_features(
+                reference_user_dict=reference_user_dict,
+                context_id=context_id,
+                ref_key="keywords",
+            )
         else:
-            (
-                self.reference_user_dict,
-                self.user_vector_data,
-            ) = self.download_reference_objects(
-                self.reference_user_file, self.reference_user_kw_vector_data
+            reference_user_json_path = (
+                context_id + self.feature_dir + context_id + ".json"
             )
-            self.ref_user_info_dict = {
-                k: self.reference_user_dict[k]["keywords"]
-                for k in self.reference_user_dict.keys()
-            }
+            features_path = context_id + self.feature_dir + context_id + ".pickle"
 
-        logger.info("loaded reference features")
+        reference_user_meta_dict, reference_features = self.download_reference_objects(
+            context_id=context_id,
+            reference_user_file_path=reference_user_json_path,
+            reference_user_vector_data_path=features_path,
+        )
+
+        return reference_user_meta_dict, reference_features
 
     def download_reference_objects(
-        self, reference_user_file, reference_user_vector_data
+        self,
+        context_id: str,
+        reference_user_file_path: str = None,
+        reference_user_vector_data_path: str = None,
     ):
-        reference_user_meta = self.s3_client.download_file(
-            file_name=reference_user_file
-        )
-        reference_user_meta_str = reference_user_meta["Body"].read().decode("utf8")
-        reference_user_meta_dict = js.loads(reference_user_meta_str)
+        try:
+            if reference_user_file_path is None:
+                reference_user_file_path = (
+                    context_id + self.feature_dir + context_id + ".json"
+                )
 
-        reference_user_vector_object = self.s3_client.download_file(
-            file_name=reference_user_vector_data
-        )
-        reference_user_vector_str = reference_user_vector_object["Body"].read()
-        reference_user_vector = pickle.loads(reference_user_vector_str)
+            if reference_user_vector_data_path is None:
+                reference_user_vector_data_path = (
+                    context_id + self.feature_dir + context_id + ".pickle"
+                )
 
-        return reference_user_meta_dict, reference_user_vector
+            reference_user_meta = self.s3_client.download_file(
+                file_name=reference_user_file_path
+            )
+            reference_user_meta_str = reference_user_meta["Body"].read().decode("utf8")
+            reference_user_meta_dict = js.loads(reference_user_meta_str)
 
-    def featurize_reference_users(self):
+            reference_user_vector_object = self.s3_client.download_file(
+                file_name=reference_user_vector_data_path
+            )
+            reference_user_vector_str = reference_user_vector_object["Body"].read()
+            reference_user_vector = pickle.loads(reference_user_vector_str)
+
+            logger.info("Downloaded required objects")
+
+            return reference_user_meta_dict, reference_user_vector
+
+        except Exception as e:
+            logger.error("Error downloading objects", extra={"err": e})
+            raise
+
+    def featurize_reference_users(
+        self, reference_user_dict: Dict, reference_features: Dict
+    ):
         # Featurize reference users
-        self.us.featurize()
+        self.us.featurize(
+            input_dict=reference_user_dict, user_vector_data=reference_features
+        )
 
     def perform_hash_query(self, input_list):
         hash_result = self.us.query(input_list=input_list)
@@ -147,60 +144,85 @@ class RecWatchers(object):
         self,
         input_query_list,
         input_kw_query,
+        reference_user_meta_dict: Dict = None,
         hash_result=None,
         segment_obj=None,
+        segment_user_ids=None,
         n_users=6,
         n_kw=6,
     ):
-        if hash_result is None:
-            rehash_result = self.re_hash_users(input_list=input_kw_query)
-            similar_user_scores_dict = self.query_similar_users(
-                hash_result=rehash_result, input_list=input_query_list
-            )
+        top_n_user_object = {}
+        top_user_words = []
+        suggested_users = []
+        try:
+            if segment_user_ids is None:
+                segment_user_ids = []
 
-        else:
-            if len(list(hash_result.keys())) < 1:
+            if hash_result is None:
                 rehash_result = self.re_hash_users(input_list=input_kw_query)
                 similar_user_scores_dict = self.query_similar_users(
-                    hash_result=rehash_result, input_list=input_kw_query
+                    hash_result=rehash_result, input_list=input_query_list
                 )
+
             else:
-                similar_user_scores_dict = self.query_similar_users(
-                    hash_result=hash_result, input_list=input_kw_query
+                if len(list(hash_result.keys())) < 1:
+                    rehash_result = self.re_hash_users(input_list=input_kw_query)
+                    similar_user_scores_dict = self.query_similar_users(
+                        hash_result=rehash_result, input_list=input_kw_query
+                    )
+                else:
+                    similar_user_scores_dict = self.query_similar_users(
+                        hash_result=hash_result, input_list=input_kw_query
+                    )
+
+            if len(similar_user_scores_dict.keys()) == 0:
+                logger.info(
+                    "No recommendations available... couldn't find or less user data available"
                 )
+                return top_n_user_object, top_user_words, suggested_users
 
-        logger.info("Computing explainability...")
-        top_n_user_object, top_related_words = self.exp.get_explanation(
-            similar_user_scores_dict=similar_user_scores_dict,
-            input_query=input_query_list,
-            input_kw_query=input_kw_query,
-            query_key="keywords",
-        )
+            logger.info("Computing explainability...")
+            top_n_user_object, top_related_words = self.exp.get_explanation(
+                similar_user_scores_dict=similar_user_scores_dict,
+                reference_user_dict=reference_user_meta_dict,
+                input_query=input_query_list,
+                input_kw_query=input_kw_query,
+                query_key="keywords",
+            )
 
-        user_scores = list(top_n_user_object.values())
+            user_scores = list(top_n_user_object.values())
 
-        suggested_users = self.post_process_users(
-            segment_obj=segment_obj, user_dict=top_n_user_object, percentile_val=60,
-        )
-        top_user_words = [
-            w for u in suggested_users for w, score in top_related_words[u].items()
-        ]
-        top_user_words = list(process.dedupe(top_user_words))
+            # Include only those users that are not part of segment request
+            top_n_user_object = {
+                u: s for u, s in top_n_user_object.items() if u not in segment_user_ids
+            }
+            suggested_users = self.post_process_users(
+                segment_obj=segment_obj, user_dict=top_n_user_object, percentile_val=60,
+            )
+            top_user_words = [
+                w for u in suggested_users for w, score in top_related_words[u].items()
+            ]
+            top_user_words = list(process.dedupe(top_user_words))
 
-        logger.info(
-            "Top recommended users found",
-            extra={"users": list(top_n_user_object.keys()), "scores": user_scores},
-        )
+            logger.info(
+                "Top recommended users found",
+                extra={"users": list(top_n_user_object.keys()), "scores": user_scores},
+            )
 
-        logger.info(
-            "Similarity explanation",
-            extra={
-                "totalRelatedWords": len(top_user_words),
-                "words": top_user_words[:n_kw],
-            },
-        )
+            logger.info(
+                "Similarity explanation",
+                extra={
+                    "totalRelatedWords": len(top_user_words),
+                    "words": top_user_words[:n_kw],
+                },
+            )
 
-        return top_n_user_object, top_user_words[:n_kw], suggested_users
+            return top_n_user_object, top_user_words[:n_kw], suggested_users
+        except Exception as e:
+            logger.warning("Unable to get recommendation", extra={"warn": e})
+            print(traceback.print_exc())
+
+            return top_n_user_object, top_user_words, suggested_users
 
     def query_similar_users(self, hash_result, input_list: List, n_retries=3) -> Dict:
         # result = self.us.query(input_list=input_list)
@@ -231,22 +253,22 @@ class RecWatchers(object):
         )
 
         user_scores = list(similar_users_dict.values())
-        user_names = [
-            self.reference_user_dict[u].get("name") for u in similar_users_dict.keys()
-        ]
-        filtered_user_names = [
-            self.reference_user_dict[u].get("name")
-            for u in filtered_similar_users_dict.keys()
-        ]
+        # user_names = [
+        #     self.reference_user_dict[u].get("name") for u in similar_users_dict.keys()
+        # ]
+        # filtered_user_names = [
+        #     self.reference_user_dict[u].get("name")
+        #     for u in filtered_similar_users_dict.keys()
+        # ]
 
         logger.debug(
             "Top recommended users",
             extra={
-                "totalSimilarUsers": len(user_names),
-                "users": user_names,
+                "totalSimilarUsers": len(similar_users_dict),
+                # "users": user_names,
                 "scores": user_scores,
-                "numFilteredUsers": len(filtered_user_names),
-                "filteredUsers": filtered_user_names,
+                "numFilteredUsers": len(filtered_similar_users_dict),
+                # "filteredUsers": filtered_user_names,
                 "cutOffScore": cutoff_score,
             },
         )

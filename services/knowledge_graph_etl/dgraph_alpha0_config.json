@@ -2,5 +2,5 @@
     "my": "localhost:7080",
     "zero": "localhost:5080",
     "lru_mb": 4096,
-    "postings": "./alpha/0/p",
+    "postings": "./alpha/0/p"
 }
