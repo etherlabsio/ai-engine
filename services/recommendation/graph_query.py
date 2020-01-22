@@ -7,6 +7,7 @@ import pickle
 import os
 from pathlib import Path
 import numpy as np
+import traceback
 
 logger = logging.getLogger(__name__)
 
@@ -114,7 +115,6 @@ class QueryHandler(object):
         self, query_response: Dict, function_name: str = "contextUserInfo"
     ) -> Dict:
         user_dict = {}
-        user_kw = []
 
         for info in query_response[function_name]:
             meeting_obj = info["hasMeeting"]
@@ -173,7 +173,8 @@ class QueryHandler(object):
                                 }
                             )
                     except Exception as e:
-                        print(e)
+                        logger.error("error formatting response", extra={"err": e})
+                        print(traceback.print_exc())
                         continue
 
         return user_dict
