@@ -28,11 +28,7 @@ class WordGraphBuilder(object):
     def process_text(
         self, text, filter_by_pos=True, stop_words=False, syntactic_filter=None
     ):
-        (
-            original_tokens,
-            pos_tuple,
-            filtered_pos_tuple,
-        ) = self.tp.preprocess_text(
+        (original_tokens, pos_tuple, filtered_pos_tuple,) = self.tp.preprocess_text(
             text,
             filter_by_pos=filter_by_pos,
             pos_filter=syntactic_filter,
@@ -52,9 +48,7 @@ class WordGraphBuilder(object):
     ):
         meeting_word_graph = graph
         for text in text_list:
-            original_tokens, pos_tuple, filtered_pos_tuple = self.process_text(
-                text
-            )
+            original_tokens, pos_tuple, filtered_pos_tuple = self.process_text(text)
             meeting_word_graph = self.gr.build_word_graph(
                 graph_obj=graph,
                 input_pos_text=pos_tuple,
@@ -68,6 +62,7 @@ class WordGraphBuilder(object):
     def get_custom_keyphrases(
         self,
         graph,
+        text=None,
         pos_tuple=None,
         original_pos_list=None,
         window=4,
@@ -80,6 +75,7 @@ class WordGraphBuilder(object):
 
         keyphrases = self.gr.get_keyphrases(
             graph_obj=graph,
+            text=text,
             input_pos_text=pos_tuple,
             original_tokens=original_pos_list,
             window=window,
@@ -118,11 +114,7 @@ class WordGraphBuilder(object):
 
             logger.debug(
                 "Obtained entities",
-                extra={
-                    "entities": entity,
-                    "label": entity_label,
-                    "score": conf_score,
-                },
+                extra={"entities": entity, "label": entity_label, "score": conf_score,},
             )
 
         return entity_list
@@ -141,10 +133,7 @@ class WordGraphBuilder(object):
             )
 
             lambda_output = (
-                invoke_response["Payload"]
-                .read()
-                .decode("utf8")
-                .replace("'", '"')
+                invoke_response["Payload"].read().decode("utf8").replace("'", '"')
             )
             response = json.loads(lambda_output)
             status_code = response["statusCode"]
@@ -188,29 +177,27 @@ class WordGraphBuilder(object):
         segment_list = self.utils.read_segments(segment_object=segment_object)
         try:
             for text in segment_list:
-                (
-                    original_tokens,
-                    pos_tuple,
-                    filtered_pos_tuple,
-                ) = self.process_text(text)
+                (original_tokens, pos_tuple, filtered_pos_tuple,) = self.process_text(
+                    text
+                )
 
                 keyphrase_list.extend(
                     self.get_custom_keyphrases(
-                        graph=word_graph, pos_tuple=pos_tuple
+                        graph=word_graph, text=text, pos_tuple=pos_tuple
                     )
                 )
                 descriptive_keyphrase_list.extend(
                     self.get_custom_keyphrases(
                         graph=word_graph,
+                        text=text,
                         pos_tuple=pos_tuple,
                         descriptive=True,
-                        post_process_descriptive=True,
+                        post_process_descriptive=False,
                     )
                 )
-        except Exception:
+        except Exception as e:
             logger.error(
-                "error retrieving descriptive phrases",
-                extra={"err": traceback.print_exc()},
+                "error retrieving descriptive phrases", extra={"err": e},
             )
 
         return keyphrase_list, descriptive_keyphrase_list
