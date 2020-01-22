@@ -4,6 +4,6 @@ workflow "lint" {
 }
 
 action "run flake8" {
-    uses = "tayfun/flake8-your-pr@master"
+    uses = "jonasrk/flake8-action@master"
     secrets = ["GITHUB_TOKEN"]
 }
