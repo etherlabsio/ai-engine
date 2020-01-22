@@ -47,15 +47,16 @@ class Vectorizer(object):
                 vec = json.loads(response_body)["embeddings"]
                 embedding_vector = np.vstack((embedding_vector, vec))
 
+            mod_embebdding_vector = np.delete(embedding_vector, [0], axis=0)
+
             end = timer()
             logger.info(
                 "Received response from encoder lambda function",
                 extra={
-                    "featureShape": embedding_vector.shape,
+                    "featureShape": mod_embebdding_vector.shape,
                     "lambdaResponseTime": end - start,
                 },
             )
-            mod_embebdding_vector = np.delete(embedding_vector, [0], axis=0)
             return mod_embebdding_vector
 
         except Exception as e:

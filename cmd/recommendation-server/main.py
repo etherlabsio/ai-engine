@@ -29,9 +29,11 @@ if __name__ == "__main__":
     # Load ENV variables
     nats_url = getenv("NATS_URL", "nats://localhost:4222")
     bucket_store = getenv("STORAGE_BUCKET", "io.etherlabs.staging2.contexts")
-    encoder_lambda_function = getenv(
-        "FUNCTION_NAME", "sentence-encoder-lambda"
+    dgraph_url = getenv(
+        "DGRAPH_ENDPOINT", "dgraph-0.staging2.internal.etherlabs.io:9080"
     )
+    active_env = None
+    encoder_lambda_function = getenv("FUNCTION_NAME", "sentence-encoder-lambda")
     ner_lambda_function = getenv("NER_FUNCTION_NAME", "ner")
     aws_region = getenv("AWS_DEFAULT_REGION", "us-east-1")
 
@@ -50,36 +52,39 @@ if __name__ == "__main__":
     loop = asyncio.get_event_loop()
 
     nats_manager = Manager(
-        loop=loop,
-        url=nats_url,
-        queue_name="io.etherlabs.recommendation_service",
+        loop=loop, url=nats_url, queue_name="io.etherlabs.recommendation_service",
     )
-
-    reference_user_file = "reference_prod_user.json"
-    reference_user_kw_vector = "reference_user_kw_vector.pickle"
 
     vectorizer = Vectorizer(
         lambda_client=lambda_client, lambda_function=encoder_lambda_function
     )
 
-    active_env = bucket_store.split(".")[2]
-    if active_env == "staging2":
+    if active_env is None:
+        active_env = bucket_store.split(".")[2]
+
+    logger.debug("Active env", extra={"activeEnv": active_env})
+
+    if active_env == "test":
+        web_hook_url = "https://hooks.slack.com/services/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"
+    elif active_env == "staging2":
         web_hook_url = "https://hooks.slack.com/services/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"
-    else:
+    elif active_env == "production":
         web_hook_url = "https://hooks.slack.com/services/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"
+    else:
+        web_hook_url = "https://hooks.slack.com/services/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"
 
     rec_object = RecWatchers(
-        reference_user_file,
-        reference_user_kw_vector,
+        dgraph_url=dgraph_url,
         vectorizer=vectorizer,
         s3_client=s3_client,
         web_hook_url=web_hook_url,
+        active_env_ab_test=active_env,
+        num_buckets=200,
+        hash_size=16,
     )
 
     nats_transport = NATSTransport(
-        nats_manager=nats_manager,
-        watcher_service=rec_object,
-        meeting_service=None,
+        nats_manager=nats_manager, watcher_service=rec_object, meeting_service=None,
     )
 
     def shutdown():

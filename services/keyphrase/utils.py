@@ -29,9 +29,7 @@ class KeyphraseUtils(object):
     def map_embeddings_to_phrase(
         self, phrase_list: List, embedding_list: List
     ) -> Tuple[Dict, Dict]:
-        phrase_hash_dict = dict(
-            zip(map(self.hash_phrase, phrase_list), phrase_list)
-        )
+        phrase_hash_dict = dict(zip(map(self.hash_phrase, phrase_list), phrase_list))
         phrase_embedding_dict = dict(
             zip(map(self.hash_phrase, phrase_list), embedding_list)
         )
@@ -75,9 +73,7 @@ class KeyphraseUtils(object):
         if order == "desc":
             sorted_list = sorted(item_list, key=lambda x: x[key], reverse=True)
         else:
-            sorted_list = sorted(
-                item_list, key=lambda x: x[key], reverse=False
-            )
+            sorted_list = sorted(item_list, key=lambda x: x[key], reverse=False)
 
         return sorted_list
 
@@ -129,10 +125,7 @@ class KeyphraseUtils(object):
         return segment_list
 
     def post_process_output(
-        self,
-        keyphrase_object,
-        dict_key="descriptive",
-        preserve_singlewords=False,
+        self, keyphrase_object, dict_key="descriptive", preserve_singlewords=False,
     ):
 
         for i, kp_item in enumerate(keyphrase_object):
@@ -140,7 +133,6 @@ class KeyphraseUtils(object):
             # Post-process entities
             entity_dict = kp_item["entities"]
             distinct_entities = list(entity_dict.keys())
-            entity_scores = list(entity_dict.values())
 
             # Post-process keyphrases
             keyphrase_dict = kp_item[dict_key]
@@ -148,9 +140,9 @@ class KeyphraseUtils(object):
             processed_entities = self.post_process_entities(
                 distinct_entities, list(keyphrase_dict.keys())
             )
-            keyphrase_object[i]["entities"] = dict(
-                zip(processed_entities, entity_scores)
-            )
+            keyphrase_object[i]["entities"] = {
+                ent: entity_dict[ent] for ent in processed_entities
+            }
 
             # Remove the first occurrence of entity in the list of keyphrases
             unwanted_kp_list = []
@@ -186,9 +178,7 @@ class KeyphraseUtils(object):
         processed_entities = []
 
         # Remove duplicates from the single phrases which are occurring in multi-keyphrases
-        multi_phrases = [
-            phrases for phrases in entity_list if len(phrases.split()) > 1
-        ]
+        multi_phrases = [phrases for phrases in entity_list if len(phrases.split()) > 1]
         single_phrase = [
             phrases for phrases in entity_list if len(phrases.split()) == 1
         ]
@@ -247,32 +237,35 @@ class KeyphraseUtils(object):
         }
 
         sort_key_dict = {"loc": -1, "preference": 4, "order": "asc"}
-
         if remove_phrases:
             for entity, scores in entities_dict.items():
+                preference_value = scores[sort_key_dict.get("preference")]
                 boosted_score = scores[rank_key_dict.get("boosted_score")]
-                norm_boosted_score = scores[
-                    rank_key_dict.get("norm_boosted_score")
-                ]
+                norm_boosted_score = scores[rank_key_dict.get("norm_boosted_score")]
 
                 entity_score = boosted_score
                 if final_sort:
                     entity_score = norm_boosted_score
 
-                if entity_score >= entity_quality_score:
-                    modified_entity_dict[entity] = scores
+                # Check for relevance scores if the entity type is other than Organization or Product
+                if preference_value > 2:
+                    if entity_score >= entity_quality_score:
+                        modified_entity_dict[entity] = scores
+                else:
+                    if entity_score > 0:
+                        modified_entity_dict[entity] = scores
+
+                print(modified_entity_dict[entity])
 
             for phrase, scores in keyphrase_dict.items():
                 boosted_score = scores[rank_key_dict.get("boosted_score")]
-                norm_boosted_score = scores[
-                    rank_key_dict.get("norm_boosted_score")
-                ]
+                norm_boosted_score = scores[rank_key_dict.get("norm_boosted_score")]
 
                 keyphrase_score = boosted_score
                 if final_sort:
                     keyphrase_score = norm_boosted_score
 
-                if keyphrase_score > keyphrase_quality_score:
+                if keyphrase_score >= keyphrase_quality_score:
                     modified_keyphrase_dict[phrase] = scores
 
         else:
@@ -290,10 +283,7 @@ class KeyphraseUtils(object):
         )
 
         if final_sort:
-            (
-                ranked_entities_dict,
-                ranked_keyphrase_dict,
-            ) = self._slice_phrase_dict(
+            (ranked_entities_dict, ranked_keyphrase_dict,) = self._slice_phrase_dict(
                 entities_dict=ranked_entities_dict,
                 keyphrase_dict=ranked_keyphrase_dict,
                 phrase_limit=phrase_limit,
@@ -339,8 +329,8 @@ class KeyphraseUtils(object):
         # Sort Entities by preference
         ranked_entities_dict = self.sort_dict_by_value(
             dict_var=entity_dict,
-            key=rank_key_dict["boosted_score"],
-            order=rank_key_dict["order"],
+            key=sort_key_dict["preference"],
+            order=sort_key_dict["order"],
         )
         if final_sort:
             ranked_entities_dict = self.sort_dict_by_value(

@@ -9,4 +9,4 @@ jobs:
     - name: Flake8 Code Linter
       uses: jonasrk/flake8-action@master
       with:
-        args: "--max-line-length=79 --exclude .ipynb --ignore E203, E266, E501, W503, F403, F401"
+        args: "--max-line-length=88 --exclude .ipynb --ignore E203, E266, E501, W503, F403, F401"

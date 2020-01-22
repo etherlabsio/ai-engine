@@ -6,8 +6,9 @@ from dotenv import load_dotenv, find_dotenv
 from os import getenv
 
 from log.logger import setup_server_logger
-from dgraph.client import DgraphClient
-from dgraph.connector import Connector
+
+# from dgraph.client import DgraphClient
+# from dgraph.connector import Connector
 from nats.manager import Manager
 
 from ether_graph.transport.nats import NATSTransport
@@ -25,14 +26,13 @@ if __name__ == "__main__":
 
     # Load ENV variables
     nats_url = getenv("NATS_URL", "nats://localhost:4222")
-    dgraph_client_url = getenv("DGRAPH_URL", "localhost:9080")
+    dgraph_client_url = getenv(
+        "DGRAPH_ENDPOINT", "dgraph-0.staging2.internal.etherlabs.io:9080"
+    )
 
-    # Initialize dgraph client
-    connector = Connector(url=dgraph_client_url)
-    dgraph_client = DgraphClient(connector=connector)
-
-    # Initialize graph handler
-    graph_handler = GraphHandler(dgraph_client=dgraph_client)
+    # # Initialize dgraph client
+    # connector = Connector(url=dgraph_client_url)
+    # dgraph_client = DgraphClient(connector=connector)
 
     # Initialize event loop and transport layers
     asyncio.set_event_loop_policy(uvloop.EventLoopPolicy())
@@ -41,11 +41,14 @@ if __name__ == "__main__":
     nats_manager = Manager(
         loop=loop, url=nats_url, queue_name="io.etherlabs.ether_graph_service"
     )
+
+    # Initialize graph handler
+    graph_handler = GraphHandler(dgraph_url=dgraph_client_url)
     nats_transport = NATSTransport(nats_manager=nats_manager, eg_service=graph_handler)
 
     def shutdown():
         logger.info("received interrupt; shutting down")
-        loop.create_task(connector.close_client())
+        loop.create_task(graph_handler.close_client())
         loop.create_task(nats_manager.close())
 
     loop.run_until_complete(nats_manager.connect())

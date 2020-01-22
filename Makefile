@@ -58,16 +58,15 @@ deploy_recommendation:
 	$(MAKE) deploy_ecs APP=recommendation ARTIFACT=recommendation-server CONTAINER_IMAGE=${IMAGE_PREFIX}/recommendation \
 		 CLUSTER_NAME=ml-inference SERVICE_NAME=recommendation-service FAMILY=recommendation
 
+# Recommendation Testing on other workspaces
+deploy_recommendation_test:
+	$(MAKE) deploy_ecs APP=recommendation ARTIFACT=recommendation-server CONTAINER_IMAGE=${IMAGE_PREFIX}/recommendation \
+		 CLUSTER_NAME=ml-inference SERVICE_NAME=recommendation-test-service FAMILY=recommendation-test BRANCH=test
 
-.PHONY: new-service
-new-service:
-	@mkdir services/${app}
-	@mkdir cmd/${app}-server
-	@touch cmd/${app}-server/main.py
-	@cp .template/BUILD.cmd cmd/${app}-server/BUILD
-	@cp .template/BUILD.services services/${app}/BUILD
-	@echo -e '\n\n Added cmd/${app}-server with BUILD & main file \n Added services/${app} with BUILD file'
-	@echo -e '\nNote: Kindly go into the Build files present in the 'services/${app}/' and 'cmd/${app}-server/'. \n Change the service name from Keyphrase to your respective service name and, \n add/remove the dependencies mentioned in the cmd/${app}-server/BUILD file '
+# EtherGraph
+deploy_graph:
+	$(MAKE) deploy_ecs APP=ether_graph ARTIFACT=graph-server CONTAINER_IMAGE=${IMAGE_PREFIX}/graph \
+		 CLUSTER_NAME=ml-inference SERVICE_NAME=graph-service FAMILY=graph
 
 
 .PHONY: clean
@@ -107,3 +106,9 @@ new-service:
 	@cp .template/BUILD.services services/${app}/BUILD
 	@echo -e '\n\n Added cmd/${app}-server with BUILD & main file \n Added services/${app} with BUILD file'
 	@echo -e '\nNote: Kindly go into the Build files present in the 'services/${app}/' and 'cmd/${app}-server/'. \n Change the service name from Keyphrase to your respective service name and, \n add/remove the dependencies mentioned in the cmd/${app}-server/BUILD file '
+
+.PHONY: build-upload-update-lambda
+build-upload-update-lambda:
+	./pants bundle cmd/${app-name}-server:${build-name}
+	aws s3 cp --profile production dist/${build-name}.pex s3://io.etherlabs.artifacts/${ENV}/${build-name}.pex
+	aws lambda --profile ${ENV} --region us-east-1 update-function-code --function-name ${function-name} --s3-bucket io.etherlabs.artifacts --s3-key ${ENV}/${build-name}.pex
