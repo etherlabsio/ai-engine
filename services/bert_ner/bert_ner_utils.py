@@ -357,7 +357,6 @@ class BERT_NER:
         input_ids, token_to_word = self.prepare_input_for_model(pos_text)
 
         entities = self.extract_entities(input_ids, token_to_word)
-        print(split_text, entities)
         sent_entity_list, sent_scores, sent_labels = self.concat_entities(
             entities
         )
