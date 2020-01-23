@@ -292,10 +292,10 @@ class BERT_NER:
         }
         self.url_regex = r"""(?i)\b((?:https?:(?:(/| (forward )?slash ){1,3}|[a-z0-9%])|([a-z0-9\-]+|([.]| dot ))([.]| dot )(?:com|org|edu|gov|mil|aero|asia|biz|cat|coop|info|int|jobs|mobi|museum|name|post|pro|tel|travel|xxx|ac|ad|ae|af|ag|ai|al|am|an|ao|aq|ar|as|at|au|aw|ax|az|ba|bb|bd|be|bf|bg|bh|bi|bj|bm|bn|bo|br|bs|bt|bv|bw|by|bz|ca|cc|cd|cf|cg|ch|ci|ck|cl|cm|cn|co|cr|cs|cu|cv|cx|cy|cz|dd|de|dj|dk|dm|do|dz|ec|ee|eg|eh|er|es|et|eu|fi|fj|fk|fm|fo|fr|ga|gb|gd|ge|gf|gg|gh|gi|gl|gm|gn|gp|gq|gr|gs|gt|gu|gw|gy|hk|hm|hn|hr|ht|hu|id|ie|il|im|in|io|iq|ir|is|it|je|jm|jo|jp|ke|kg|kh|ki|km|kn|kp|kr|kw|ky|kz|la|lb|lc|li|lk|lr|ls|lt|lu|lv|ly|ma|mc|md|me|mg|mh|mk|ml|mm|mn|mo|mp|mq|mr|ms|mt|mu|mv|mw|mx|my|mz|na|nc|ne|nf|ng|ni|nl|no|np|nr|nu|nz|om|pa|pe|pf|pg|ph|pk|pl|pm|pn|pr|ps|pt|pw|py|qa|re|ro|rs|ru|rw|sa|sb|sc|sd|se|sg|sh|si|sj|Ja|sk|sl|sm|sn|so|sr|ss|st|su|sv|sx|sy|sz|tc|td|tf|tg|th|tj|tk|tl|tm|tn|to|tp|tr|tt|tv|tw|tz|ua|ug|uk|us|uy|uz|va|vc|ve|vg|vi|vn|vu|wf|ws|ye|yt|yu|za|zm|zw)/)(?:[^\s()<>{}\[\]]+|\([^\s()]*?\([^\s()]+\)[^\s()]*?\)|\([^\s]+?\))+(?:\([^\s()]*?\([^\s()]+\)[^\s()]*?\)|\([^\s]+?\)|[^\s`!()\[\]{};:'".,<>?«»“”‘’])|(?:(?<!@)[a-z0-9]+(?:([\-]|([.]| dot ))[a-z0-9]+)*([.]| dot )(?:com|org|edu|gov|mil|aero|asia|biz|cat|coop|info|int|jobs|mobi|museum|name|post|pro|tel|travel|xxx|ac|ad|ae|af|ag|ai|al|am|an|ao|aq|ar|as|at|au|aw|ax|az|ba|bb|bd|be|bf|bg|bh|bi|bj|bm|bn|bo|br|bs|bt|bv|bw|by|bz|ca|cc|cd|cf|cg|ch|ci|ck|cl|cm|cn|co|cr|cs|cu|cv|cx|cy|cz|dd|de|dj|dk|dm|do|dz|ec|ee|eg|eh|er|es|et|eu|fi|fj|fk|fm|fo|fr|ga|gb|gd|ge|gf|gg|gh|gi|gl|gm|gn|gp|gq|gr|gs|gt|gu|gw|gy|hk|hm|hn|hr|ht|hu|id|ie|il|im|in|io|iq|ir|is|it|je|jm|jo|jp|ke|kg|kh|ki|km|kn|kp|kr|kw|ky|kz|la|lb|lc|li|lk|lr|ls|lt|lu|lv|ly|ma|mc|md|me|mg|mh|mk|ml|mm|mn|mo|mp|mq|mr|ms|mt|mu|mv|mw|mx|my|mz|na|nc|ne|nf|ng|ni|nl|no|np|nr|nu|nz|om|pa|pe|pf|pg|ph|pk|pl|pm|pn|pr|ps|pt|pw|py|qa|re|ro|rs|ru|rw|sa|sb|sc|sd|se|sg|sh|si|sj|Ja|sk|sl|sm|sn|so|sr|ss|st|su|sv|sx|sy|sz|tc|td|tf|tg|th|tj|tk|tl|tm|tn|to|tp|tr|tt|tv|tw|tz|ua|ug|uk|us|uy|uz|va|vc|ve|vg|vi|vn|vu|wf|ws|ye|yt|yu|za|zm|zw)\b(/| (forward )?slash )?(?!@)))"""
 
-    def get_domain(self,url):
-        url = url.replace(" dot ",".")
-        url = url.replace(" forward slash ","/")
-        url = url.replace(" slash ","/")
+    def get_domain(self, url):
+        url = url.replace(" dot ", ".")
+        url = url.replace(" forward slash ", "/")
+        url = url.replace(" slash ", "/")
         return url
 
     def replace_contractions(self, text):
@@ -308,13 +308,15 @@ class BERT_NER:
         text = re.sub(
             "[A-Z]\. ", lambda mobj: mobj.group(0)[0] + mobj.group(0)[1], text
         )
-        text = re.sub("([A-Z])\.(\w{2,})",lambda mobj: mobj.group(1) +". "+ mobj.group(2),text)
+        text = re.sub(
+            "([A-Z]\.)(\w{2,})", lambda mobj: mobj.group(1) + " " + mobj.group(2), text
+        )
         # Handle contractions
         for word in text.split(" "):
             if self.contractions.get(word.casefold()):
                 text = text.replace(word, self.contractions[word.casefold()])
         # Handle URLs with words
-        text = re.sub(self.url_regex,lambda m: self.get_domain(m.group(0)),text)
+        text = re.sub(self.url_regex, lambda m: self.get_domain(m.group(0)), text)
         return text
 
     def get_entities(self, text):
@@ -357,9 +359,7 @@ class BERT_NER:
         input_ids, token_to_word = self.prepare_input_for_model(pos_text)
 
         entities = self.extract_entities(input_ids, token_to_word)
-        sent_entity_list, sent_scores, sent_labels = self.concat_entities(
-            entities
-        )
+        sent_entity_list, sent_scores, sent_labels = self.concat_entities(entities)
         if len(sent_entity_list) > 0:
             sent_entity_list = self.capitalize_entities(sent_entity_list)
             sent_labels = self.prioritize_labels(sent_labels)
@@ -376,7 +376,7 @@ class BERT_NER:
     def capitalize_entities(self, entity_list):
         def capitalize_entity(ent):
             if "." in ent:
-                if all([len(ini)>1 for ini in ent.split(".")]):
+                if all([len(ini) > 1 for ini in ent.split(".")]):
                     ent = ent.lower()
                 else:
                     ent = ent.title()
@@ -408,7 +408,7 @@ class BERT_NER:
             toks = self.tokenizer.encode(word)
             # removing characters that usually do not appear within text
             clean_word = re.sub(r"[^a-zA-Z0-9_\'*-.]+", "", word).strip(" .,'\"")
-            if clean_word!='':
+            if clean_word != "":
                 token_to_word.extend([(w_index, clean_word, tag)] * len(toks))
                 input_ids.extend(toks)
         return input_ids, token_to_word
@@ -500,7 +500,9 @@ class BERT_NER:
                 word_fragments.pop(-1)
 
             if word_fragments:
-                clean_entities = [" ".join(word_fragments).strip(".").replace(" . ",".")]
+                clean_entities = [
+                    " ".join(word_fragments).strip(".").replace(" . ", ".")
+                ]
                 sent_entity_list += clean_entities
 
                 sent_scores += [score / (k - i)]
