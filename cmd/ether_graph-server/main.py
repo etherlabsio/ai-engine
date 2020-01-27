@@ -12,7 +12,7 @@ from log.logger import setup_server_logger
 from nats.manager import Manager
 
 from ether_graph.transport.nats import NATSTransport
-from ether_graph.graph_handler import GraphHandler
+from ether_graph.context_parser import GraphPopulator
 
 
 logger = logging.getLogger()
@@ -43,12 +43,14 @@ if __name__ == "__main__":
     )
 
     # Initialize graph handler
-    graph_handler = GraphHandler(dgraph_url=dgraph_client_url)
-    nats_transport = NATSTransport(nats_manager=nats_manager, eg_service=graph_handler)
+    graph_populator = GraphPopulator(dgraph_url=dgraph_client_url)
+    nats_transport = NATSTransport(
+        nats_manager=nats_manager, eg_service=graph_populator
+    )
 
     def shutdown():
         logger.info("received interrupt; shutting down")
-        loop.create_task(graph_handler.close_client())
+        loop.create_task(graph_populator.close_client())
         loop.create_task(nats_manager.close())
 
     loop.run_until_complete(nats_manager.connect())

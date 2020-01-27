@@ -13,25 +13,15 @@ TIMEOUT = os.getenv("TIMEOUT", 20)
 logger = logging.getLogger(__name__)
 
 
-async def populate_context():
-    nc = NATS()
-    topic = "context.instance.started"
-    await nc.connect(servers=[nats_url])
-    resp = {"instanceId": "*", "state": "started", "contextId": "*"}
-    topic, resp = replace_ids(topic=topic, resp=resp)
-    await nc.publish(topic, json.dumps(resp).encode())
-    pass
-
-
 async def populate_segments():
     nc = NATS()
     topic = "context.instance.add_segments"
     await nc.connect(servers=[nats_url])
     # test_json = read_json(multi_json_file)
     test_json = read_json(meeting_json_file)
-    topic, resp = replace_ids(
-        test_json["contextId"], test_json["instanceId"], topic, resp={}
-    )
+    # topic, resp = replace_ids(
+    #     test_json["contextId"], test_json["instanceId"], topic, resp={}
+    # )
 
     json_dict = deepcopy(test_json)
     segment_object = test_json["segments"]
@@ -49,9 +39,18 @@ async def create_context():
     nc = NATS()
     topic = "context.instance.created"
     await nc.connect(servers=[nats_url])
-    resp = {"contextId": "*", "instanceId": "*", "state": "created"}
+    test_json = read_json(meeting_json_file)
+    context_id = test_json["contextId"]
+    instance_id = test_json["instanceId"]
+    mind_id = test_json["mindId"]
 
-    topic, resp = replace_ids(topic=topic, resp=resp)
+    resp = {
+        "contextId": context_id,
+        "instanceId": instance_id,
+        "mindId": mind_id,
+        "state": "created",
+    }
+
     await nc.publish(topic, json.dumps(resp).encode())
     pass
 
@@ -60,13 +59,17 @@ async def start_context():
     nc = NATS()
     topic = "context.instance.started"
     await nc.connect(servers=[nats_url])
+    test_json = read_json(meeting_json_file)
+    context_id = test_json["contextId"]
+    instance_id = test_json["instanceId"]
+    mind_id = test_json["mindId"]
+
     resp = {
-        "instanceId": "*",
+        "contextId": context_id,
+        "instanceId": instance_id,
+        "mindId": mind_id,
         "state": "started",
-        "contextId": "*",
-        "mindId": "776",
     }
-    topic, resp = replace_ids(topic=topic, resp=resp)
     await nc.publish(topic, json.dumps(resp).encode())
     pass
 
@@ -75,8 +78,17 @@ async def end_context():
     nc = NATS()
     topic = "context.instance.ended"
     await nc.connect(servers=[nats_url])
-    resp = {"instanceId": "*", "state": "ended"}
-    topic, resp = replace_ids(topic=topic, resp=resp)
+    test_json = read_json(meeting_json_file)
+    context_id = test_json["contextId"]
+    instance_id = test_json["instanceId"]
+    mind_id = test_json["mindId"]
+
+    resp = {
+        "contextId": context_id,
+        "instanceId": instance_id,
+        "mindId": mind_id,
+        "state": "ended",
+    }
     await nc.publish(topic, json.dumps(resp).encode())
     await nc.flush()
     await nc.close()
@@ -128,15 +140,15 @@ if __name__ == "__main__":
         help="specify NATS reply timeout in sec",
     )
     parser.add_argument(
-        "-mf",
-        "--meeting_file",
+        "-f",
+        "--file",
         type=str,
         default="data/meeting_test.json",
         help="specify filename for meeting transcript file for population",
     )
     args = parser.parse_args()
 
-    meeting_json_file = os.path.join(os.getcwd(), args.meeting_file)
+    meeting_json_file = os.path.join(os.getcwd(), args.file)
 
     nats_url = args.nats_url
     asyncio.set_event_loop_policy(uvloop.EventLoopPolicy())

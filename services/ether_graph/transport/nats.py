@@ -3,6 +3,12 @@ import logging
 from timeit import default_timer as timer
 import traceback
 
+from ether_graph.service_definitions import (
+    SessionRequest,
+    ContextRequest,
+    SummaryRequest,
+)
+
 logger = logging.getLogger(__name__)
 
 
@@ -48,12 +54,12 @@ class NATSTransport(object):
         )
         await self.nats_manager.subscribe(
             topic="context.instance.add_segments",
-            handler=self.populate_segments,
+            handler=self.populate_segment_data,
             queued=True,
         )
         await self.nats_manager.subscribe(
             topic="ether_graph_service.populate_segments",
-            handler=self.populate_segment_keyphrase,
+            handler=self.populate_summary_data,
             queued=True,
         )
         await self.nats_manager.subscribe(
@@ -74,10 +80,11 @@ class NATSTransport(object):
     # NATS context handlers
 
     async def context_start_handler(self, msg):
-        msg_data = json.loads(msg.data)
+        request = json.loads(msg.data)
         try:
-            resp = self.eg_service.set_schema()
-            resp = self.eg_service.populate_context_info(req_data=msg_data)
+            req_data = ContextRequest.get_object_from_dict(request)
+            # resp = self.eg_service.set_schema()
+            resp = await self.eg_service.populate_context_info(req_data=req_data)
 
             logger.info(
                 "Populated context and instance info to dgraph",
@@ -92,33 +99,38 @@ class NATSTransport(object):
 
     # Topic Handler functions
 
-    async def populate_segments(self, msg):
+    async def populate_segment_data(self, msg):
         request = json.loads(msg.data)
 
         try:
-            self.eg_service.populate_instance_segment_info(req_data=request)
-            resp = self.eg_service.populate_segment_info(req_data=request)
+            req_data = SessionRequest.get_object_from_dict(request)
+            resp = await self.eg_service.populate_context_instance_segment_info(
+                req_data=req_data
+            )
 
             logger.info(
-                "Populated initial segment info to dgraph",
+                "Populated segment info to dgraph",
                 extra={"response": resp.uids, "latency": resp.latency, "success": True},
             )
         except Exception as e:
             logger.error("Error adding segment to dgraph", extra={"err": e})
+            print(traceback.print_exc())
             raise
 
-    async def populate_segment_keyphrase(self, msg):
+    async def populate_summary_data(self, msg):
         request = json.loads(msg.data)
 
         try:
-            resp = self.eg_service.populate_keyphrase_info(req_data=request)
+            req_data = SummaryRequest.get_object_from_dict(request)
+            resp = await self.eg_service.populate_summary_info(req_data=req_data)
 
             logger.info(
-                "Populated segment and keyphrase info to dgraph",
+                "Populated summary info to dgraph",
                 extra={"response": resp.uids, "latency": resp.latency, "success": True},
             )
         except Exception as e:
-            logger.error("Error adding segment keyphrases to dgraph", extra={"err": e})
+            logger.error("Error adding summary info to dgraph", extra={"err": e})
+            print(traceback.print_exc())
             raise
 
     async def perform_query(self, msg):
@@ -127,7 +139,7 @@ class NATSTransport(object):
         variables = request["variables"]
 
         try:
-            resp = self.eg_service.perform_queries(query_text, variables)
+            resp = await self.eg_service.perform_query(query_text, variables)
 
             logger.info("Successfully queried dgraph", extra={"success": True})
             await self.nats_manager.conn.publish(msg.reply, json.dumps(resp).encode())
