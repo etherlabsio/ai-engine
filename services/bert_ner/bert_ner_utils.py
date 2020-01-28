@@ -318,6 +318,12 @@ class BERT_NER:
         for word in text.split(" "):
             if self.contractions.get(word.casefold()):
                 text = text.replace(word, self.contractions[word.casefold()])
+            # Handling cases where sentence begins with lower case and no space
+            if "." in word:
+                if not re.match(self.url_regex, word) and any(
+                    [len(ini) > 1 for ini in word.split(".")]
+                ):
+                    text = text.replace(word, word.replace(".", " "))
         # Handle URLs with words
         text = re.sub(self.url_regex, lambda m: self.clean_url(m.group(0)), text)
         return text
@@ -379,7 +385,7 @@ class BERT_NER:
     def capitalize_entities(self, entity_list):
         def capitalize_entity(ent):
             if "." in ent:
-                if all([len(ini) > 1 for ini in ent.split(".")]):
+                if re.match(m.url_regex, ent):
                     ent = self.get_domain_name_from_url(ent).capitalize()
                 else:
                     ent = ent.title()
