@@ -385,7 +385,7 @@ class BERT_NER:
     def capitalize_entities(self, entity_list):
         def capitalize_entity(ent):
             if "." in ent:
-                if re.match(m.url_regex, ent):
+                if re.match(self.url_regex, ent):
                     ent = self.get_domain_name_from_url(ent).capitalize()
                 else:
                     ent = ent.title()
