@@ -33,8 +33,8 @@ TranscriptionSegmentObject = List[TranscriptionSegment]
 
 class GraphPopulator(object):
     def __init__(self, dgraph_url=None):
-        self.parser = ContextSessionParser()
         self.gh = GraphHandler(dgraph_url=dgraph_url)
+        self.parser = ContextSessionParser(graph_handler_object=self.gh)
 
     async def populate_context_info(self, req_data: ContextRequest):
         context_node = self.parser.parse_context_info(req_data=req_data)
@@ -63,6 +63,9 @@ class GraphPopulator(object):
 
         return response
 
+    async def set_schema(self):
+        self.gh.set_schema()
+
     async def close_client(self):
         logger.info("Closing dgraph client connection...")
         await self.gh.close_client()
@@ -73,8 +76,8 @@ class ContextSessionParser(object):
     Parse meeting events and send nodes only as JSON objects. Relations are attached before populating to graph
     """
 
-    def __init__(self, dgraph_url=None):
-        self.gh = GraphHandler(dgraph_url=dgraph_url)
+    def __init__(self, graph_handler_object):
+        self.gh = graph_handler_object
 
     # For testing purposes
     def to_json(self, data, filename):
@@ -101,12 +104,7 @@ class ContextSessionParser(object):
 
         context_node.hasMeeting = instance_node
         context_node.associatedMind = mind_node
-        # context_node.hasMember = []
 
-        self.to_json(
-            Context.get_dict_from_object(context_node),
-            "/Users/shashank/Workspace/Orgs/Ether/ai-engine/tests/ether_graph_service/results/context_node",
-        )
         return context_node
 
     def parse_context_instance_segment_info(self, req_data: SessionRequest) -> Context:
@@ -124,10 +122,6 @@ class ContextSessionParser(object):
         instance_node = self.gh.query_transform_node(instance_node)
         context_node.hasMeeting = instance_node
 
-        self.to_json(
-            ContextSession.get_dict_from_object(context_node),
-            "/Users/shashank/Workspace/Orgs/Ether/ai-engine/tests/ether_graph_service/results/instance_node_test",
-        )
         return context_node
 
     def _parse_segment_info(
@@ -154,6 +148,7 @@ class ContextSessionParser(object):
                 hasSource=recoder_node,
                 hasKeywords=keyphrase_node_object,
                 hasEntities=entity_node_object,
+                belongsTo=None,
             )
             segment_node = self.gh.query_transform_node(segment_node)
             segment_node_list.append(segment_node)
@@ -177,10 +172,6 @@ class ContextSessionParser(object):
         instance_node = ContextSession(instanceId=instance_id, hasSegment=segment_node)
         instance_node = self.gh.query_transform_node(instance_node)
 
-        self.to_json(
-            ContextSession.get_dict_from_object(instance_node),
-            "/Users/shashank/Workspace/Orgs/Ether/ai-engine/tests/ether_graph_service/results/summary_instance_node_test",
-        )
         return instance_node
 
     def _parse_summary_segment_info(
@@ -193,7 +184,6 @@ class ContextSessionParser(object):
         segment_node_list = []
         group_id = segment_object[0].get("groupId")
         group_user_nodes = [self._get_user_node(segment) for segment in segment_object]
-        group_user_nodes = [user.uid for user in group_user_nodes]
 
         # Set keyphrase attribute to Summary type
         for kw_node in summary_keyphrases:
@@ -293,7 +283,9 @@ class ContextSessionParser(object):
         self, user_node: User, group_user_nodes: List[User]
     ) -> User:
         grouped_user_node_object = [
-            user_uid for user_uid in group_user_nodes if user_uid != user_node.uid
+            grp_user_node
+            for grp_user_node in group_user_nodes
+            if grp_user_node.uid != user_node.uid
         ]
 
         # Make connection to Grouped user's uid to avoid redundancy
@@ -325,22 +317,23 @@ class ContextSessionParser(object):
         return hash_str
 
 
-# For testing locally
-if __name__ == "__main__":
-    gp = ContextSessionParser(dgraph_url="localhost:9080")
-
-    req_data = gp.read_json(
-        "/Users/shashank/Workspace/Orgs/Ether/ai-engine/tests/ether_graph_service/data/meeting_test.json"
-    )
-    summary_session_req = gp.read_json(
-        "/Users/shashank/Workspace/Orgs/Ether/ai-engine/tests/ether_graph_service/data/summary_test.json"
-    )
-    context_req = ContextRequest.get_object_from_dict(req_data)
-    session_req = SessionRequest.get_object_from_dict(req_data)
-    summary_session_req = SummaryRequest.get_object_from_dict(summary_session_req)
-    # Execute one-by-one in sequence
-
-    gp.gh.set_schema()
-    gp.parse_context_info(context_req)
-    gp.parse_context_instance_segment_info(session_req)
-    gp.parse_summary_info(summary_session_req)
+# # For testing locally
+# if __name__ == "__main__":
+#     gh = GraphHandler("localhost:9080")
+#     gp = ContextSessionParser(graph_handler_object=gh)
+#
+#     # req_data = gp.read_json(
+#     #     "/Users/shashank/Workspace/Orgs/Ether/ai-engine/tests/ether_graph_service/data/meeting_test.json"
+#     # )
+#     # summary_session_req = gp.read_json(
+#     #     "/Users/shashank/Workspace/Orgs/Ether/ai-engine/tests/ether_graph_service/data/summary_test.json"
+#     # )
+#     # context_req = ContextRequest.get_object_from_dict(req_data)
+#     # session_req = SessionRequest.get_object_from_dict(req_data)
+#     # summary_session_req = SummaryRequest.get_object_from_dict(summary_session_req)
+#     # Execute one-by-one in sequence
+#
+#     gp.gh.set_schema()
+#     # gp.parse_context_info(context_req)
+#     # gp.parse_context_instance_segment_info(session_req)
+#     # gp.parse_summary_info(summary_session_req)

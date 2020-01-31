@@ -14,7 +14,7 @@ from .ranker import KeyphraseRanker
 from .s3io import S3IO
 from .word_graph import WordGraphBuilder
 from .queries import Queries
-from .objects import Score, Keyphrase, Entity, Phrase, Segment, Request
+from .objects import Score, Keyphrase, Entity, Phrase, Segment, Request, SummaryRequest
 
 logger = logging.getLogger(__name__)
 
@@ -128,7 +128,7 @@ class KeyphraseExtractor(object):
         return meeting_word_graph
 
     def _update_word_graph(
-        self, req_data: Request, meeting_word_graph: nx.Graph, **kwargs
+        self, req_data: Request, meeting_word_graph: nx.Graph
     ) -> nx.Graph:
         """
         Populate instance information, add meeting word graph to context graph and upload the context graph
@@ -155,7 +155,11 @@ class KeyphraseExtractor(object):
         return meeting_word_graph
 
     def populate_and_embed_graph(
-        self, req_data: Request, segment_object: SegmentType, **kwargs
+        self,
+        req_data: Request,
+        segment_object: SegmentType,
+        highlight: bool = False,
+        group_id: str = None,
     ) -> Tuple[Request, nx.Graph]:
         meeting_word_graph = self.populate_word_graph(
             req_data=req_data, segment_object=segment_object
@@ -166,7 +170,8 @@ class KeyphraseExtractor(object):
             req_data=req_data,
             segment_object=segment_object,
             meeting_word_graph=meeting_word_graph,
-            **kwargs,
+            highlight=highlight,
+            group_id=group_id,
         )
 
         return modified_request_obj, meeting_word_graph
@@ -204,7 +209,7 @@ class KeyphraseExtractor(object):
                 extra={
                     "err": e,
                     "responseTime": end - start,
-                    "instanceId": req_data["instanceId"],
+                    "instanceId": req_data.instanceId,
                 },
             )
 
@@ -221,7 +226,8 @@ class KeyphraseExtractor(object):
         segment_object: SegmentType,
         meeting_word_graph: nx.Graph = None,
         default_form: Text = "descriptive",
-        **kwargs,
+        highlight: bool = False,
+        group_id: str = None,
     ) -> Request:
         """
         Compute embedding vectors for segments and segment-keyphrases and store them as node attributes in the knowledge
@@ -237,9 +243,6 @@ class KeyphraseExtractor(object):
         """
         context_id = req_data.contextId
         instance_id = req_data.instanceId
-
-        populate_graph = req_data.populateGraph
-        group_id = kwargs.get("group_id", None)
 
         if meeting_word_graph is None:
             # Get graph objects
@@ -279,7 +282,7 @@ class KeyphraseExtractor(object):
 
             # Combine segment and keyphrase embeddings and serialize them
             f_name = segment_id
-            if populate_graph is not True:
+            if highlight is True:
                 f_name = segment_id + "_" + group_id
 
             npz_s3_path = self._form_update_embeddings(
@@ -294,7 +297,7 @@ class KeyphraseExtractor(object):
             # # Update context graph with embedding vectors
             attributed_segment_obj = self._form_segment_attr_object(
                 segment=segment_object[i],
-                populate_graph=populate_graph,
+                highlight=highlight,
                 npz_file_path=npz_s3_path,
                 group_id=group_id,
             )
@@ -354,30 +357,20 @@ class KeyphraseExtractor(object):
         return npz_s3_path
 
     def _form_segment_attr_object(
-        self,
-        segment: Segment,
-        populate_graph: bool,
-        npz_file_path: Text,
-        group_id: Text,
+        self, segment: Segment, highlight: bool, npz_file_path: Text, group_id: Text,
     ) -> Segment:
 
         # Update context graph with embedding vectors
-        segment_attr_dict = {
-            "text": segment.originalText,
-            "embedding_vector_uri": npz_file_path,
-            "embedding_model": "USE_v1",
-            "highlight": False,
-        }
-        if not populate_graph:
-            segment_attr_dict = {
-                "text": segment.originalText,
-                "embedding_vector_group_uri": npz_file_path,
-                "groupId": group_id,
-                "embedding_model": "USE_v1",
-                "highlight": True,
-            }
+        segment.text = segment.originalText
+        segment.embedding_vector_uri = npz_file_path
+        segment.highlight = False
+        segment.embedding_model = "USE_v1"
 
-        segment.attributes = {**segment_attr_dict}
+        if highlight:
+            segment.embedding_vector_group_uri = npz_file_path
+            segment.groupId = group_id
+            segment.embedding_model = "USE_v1"
+            segment.highlight = True
 
         return segment
 
@@ -402,6 +395,7 @@ class KeyphraseExtractor(object):
         self,
         req_data: Request,
         segment_object: SegmentType,
+        summary_object: SummaryRequest = None,
         meeting_word_graph: nx.Graph = None,
         n_kw: int = 10,
         default_form: Text = "descriptive",
@@ -410,8 +404,7 @@ class KeyphraseExtractor(object):
         validate: bool = False,
         highlight: bool = False,
         group_id: str = None,
-        **kwargs,
-    ) -> Dict:
+    ) -> Tuple[Dict, SummaryRequest]:
         start = timer()
 
         context_id = req_data.contextId
@@ -430,13 +423,17 @@ class KeyphraseExtractor(object):
             logger.info("Adding segments before extracting keyphrases")
             # Repopulate the graphs
             modified_request_obj, meeting_word_graph = self.populate_and_embed_graph(
-                req_data=req_data, segment_object=segment_object, **kwargs
+                req_data=req_data,
+                segment_object=segment_object,
+                highlight=highlight,
+                group_id=group_id,
             )
 
             phrase_object_list = self.extract_keywords(
                 segment_object=segment_object,
                 meeting_word_graph=meeting_word_graph,
                 relative_time=relative_time,
+                highlight=highlight,
             )
 
             try:
@@ -446,7 +443,12 @@ class KeyphraseExtractor(object):
                     group_id=group_id,
                 )
 
-                keyphrases, phrase_object = self.prepare_keyphrase_output(
+                (
+                    keyphrases,
+                    phrase_object,
+                    entity_obj,
+                    keyphrase_obj,
+                ) = self.prepare_keyphrase_output(
                     phrase_object=ranked_phrase_object_list,
                     top_n=n_kw,
                     default_form=default_form,
@@ -460,7 +462,12 @@ class KeyphraseExtractor(object):
                     extra={"warnMsg": e, "trace": traceback.print_exc()},
                 )
 
-                keyphrases, phrase_object = self.prepare_keyphrase_output(
+                (
+                    keyphrases,
+                    phrase_object,
+                    entity_obj,
+                    keyphrase_obj,
+                ) = self.prepare_keyphrase_output(
                     phrase_object=phrase_object_list,
                     top_n=n_kw,
                     default_form=default_form,
@@ -469,11 +476,10 @@ class KeyphraseExtractor(object):
                     remove_phrases=False,
                 )
 
-            # validation_id = "test"
-            # validation_data = self.phrase_schema.dump(phrase_object, many=True)
-            # validation_file_name = self.utils.write_to_json(
-            #     validation_data, file_name="keyphrase_validation_" + validation_id
-            # )
+            if highlight:
+                summary_object.segments = modified_request_obj.segments
+                summary_object.keyphrases = keyphrase_obj
+                summary_object.entities = entity_obj
 
             if validate:
                 self._make_validation(
@@ -484,11 +490,11 @@ class KeyphraseExtractor(object):
 
             logger.debug(
                 "keyphrases extracted successfully",
-                extra={"result": keyphrases, "output": phrase_object},
+                extra={"result": keyphrases, "summaryObject": summary_object},
             )
 
             result = {"keyphrases": keyphrases}
-            return result
+            return result, summary_object
 
         except Exception as e:
             end = timer()
@@ -496,10 +502,10 @@ class KeyphraseExtractor(object):
                 "Error extracting keyphrases from segment",
                 extra={
                     "responseTime": end - start,
-                    "instanceId": req_data["instanceId"],
-                    "segmentsReceived": [seg_id["id"] for seg_id in segment_object],
-                    "err": traceback.print_exc(),
-                    "errMsg": e,
+                    "instanceId": instance_id,
+                    "segmentsReceived": [seg_id.id for seg_id in segment_object],
+                    "err": e,
+                    "errMsg": traceback.print_exc(),
                 },
             )
             raise
@@ -566,7 +572,12 @@ class KeyphraseExtractor(object):
                     group_id=group_id,
                 )
 
-                keyphrases, phrase_object = self.prepare_keyphrase_output(
+                (
+                    keyphrases,
+                    phrase_object,
+                    entity_obj,
+                    keyphrase_obj,
+                ) = self.prepare_keyphrase_output(
                     phrase_object=ranked_phrase_object_list,
                     top_n=n_kw,
                     default_form=default_form,
@@ -580,7 +591,12 @@ class KeyphraseExtractor(object):
                     extra={"warnMsg": e, "trace": traceback.print_exc()},
                 )
 
-                keyphrases, phrase_object = self.prepare_keyphrase_output(
+                (
+                    keyphrases,
+                    phrase_object,
+                    entity_obj,
+                    keyphrase_obj,
+                ) = self.prepare_keyphrase_output(
                     phrase_object=phrase_object_list,
                     top_n=n_kw,
                     default_form=default_form,
@@ -755,7 +771,7 @@ class KeyphraseExtractor(object):
         sort_by: str = "loc",
         remove_phrases: bool = True,
         phrase_threshold: int = 3,
-    ) -> Tuple[List[Text], PhraseType]:
+    ) -> Tuple[List[Text], PhraseType, List[Entity], List[Keyphrase]]:
 
         for i, phrase_obj in enumerate(phrase_object):
             keyphrase_obj = [
@@ -843,7 +859,11 @@ class KeyphraseExtractor(object):
         if top_n == 10:
             remove_phrases = False
 
-        sorted_keyphrase_dict = self.utils.limit_phrase_list(
+        (
+            sorted_keyphrase_dict,
+            ranked_entities_object,
+            ranked_keyphrase_object,
+        ) = self.utils.limit_phrase_list(
             entities_object=entities_object,
             keyphrase_object=keyphrase_object,
             phrase_limit=dynamic_top_n,
@@ -869,7 +889,12 @@ class KeyphraseExtractor(object):
         keyphrase = [phrases for phrases, loc in sorted_keyphrase_dict.items()]
         keyphrase = self._dedupe_phrases(keyphrase)
 
-        return keyphrase, phrase_object
+        return (
+            keyphrase,
+            phrase_object,
+            ranked_entities_object,
+            ranked_keyphrase_object,
+        )
 
     def _dedupe_phrases(self, keyphrase_list):
         """
@@ -880,7 +905,7 @@ class KeyphraseExtractor(object):
         Returns:
 
         """
-        deduped_keyphrase_list = list(process.dedupe(keyphrase_list))
+        deduped_keyphrase_list = list(process.dedupe(keyphrase_list, threshold=80))
 
         return deduped_keyphrase_list
 
@@ -925,6 +950,6 @@ class KeyphraseExtractor(object):
                 "nodes": word_graph.number_of_nodes(),
                 "edges": word_graph.number_of_edges(),
                 "responseTime": end - start,
-                "instanceId": req_data["instanceId"],
+                "instanceId": req_data.instanceId,
             },
         )

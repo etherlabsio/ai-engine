@@ -26,9 +26,7 @@ if __name__ == "__main__":
 
     # Load ENV variables
     nats_url = getenv("NATS_URL", "nats://localhost:4222")
-    dgraph_client_url = getenv(
-        "DGRAPH_ENDPOINT", "dgraph-0.staging2.internal.etherlabs.io:9080"
-    )
+    dgraph_client_url = getenv("DGRAPH_ENDPOINT", "localhost:9080")
 
     # # Initialize dgraph client
     # connector = Connector(url=dgraph_client_url)

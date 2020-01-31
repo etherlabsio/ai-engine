@@ -38,16 +38,14 @@ class KeyphraseRanker(object):
 
         for i, phrase_object in enumerate(phrase_object_list):
             segment_id = phrase_object.segmentId
-            segment_query_obj = self.form_segment_query(
-                segment_id=segment_id, highlight=highlight
-            )
+            segment_query_obj = self.form_segment_query(segment_id=segment_id)
             response = await self.query_client.query_graph(
-                query_object=GraphQueryRequest.get_dict_from_object(segment_query_obj)
+                query_object=GraphQueryRequest.get_dict(segment_query_obj)
             )
-            print(response)
             npz_file = self.query_segment_embeddings(
-                response=GraphSegmentResponse.get_object_from_dict(response),
+                response=GraphSegmentResponse.get_object(response),
                 highlight=highlight,
+                group_id=group_id,
             )
             phrase_object = self._compute_relevant_phrases(
                 npz_file=npz_file,
@@ -172,7 +170,7 @@ class KeyphraseRanker(object):
         normalize: bool = False,
         norm_limit: int = 4,
         highlight: bool = False,
-        group_id="",
+        group_id: str = None,
     ):
 
         if highlight:
@@ -267,7 +265,7 @@ class KeyphraseRanker(object):
                 kp_obj for kp_obj in phrase_obj.keyphrases if kp_obj.type == dict_key
             ]
             entity_object = phrase_obj.entities
-            segment = phrase_obj.text
+            segment = phrase_obj.originalText
             segment_sentence_len = len(sent_tokenize(segment))
 
             ent_quality_score = phrase_obj.entitiesQuality
@@ -296,39 +294,36 @@ class KeyphraseRanker(object):
         return phrase_object
 
     def query_segment_embeddings(
-        self, response: GraphSegmentResponse, highlight: bool = False
+        self,
+        response: GraphSegmentResponse,
+        highlight: bool = False,
+        group_id: str = None,
     ) -> str:
 
         # Get segment embedding vector from context graph
+        vector_location = response.q[0].embedding_vector_uri
         if not highlight:
-            embedding_uri = response.q[0].embedding_vector_uri
+            embedding_uri = vector_location
         else:
-            embedding_uri = response.q[0].embedding_vector_group_uri
+            f_name = vector_location.split(".")[0]
+            f_format = vector_location.split(".")[1]
+            embedding_uri = f_name + "_" + group_id + "." + f_format
 
         npz_file = self.io_util.download_npz(npz_file_path=embedding_uri)
         return npz_file
 
-    def form_segment_query(
-        self, segment_id: str, highlight: bool = False
-    ) -> GraphQueryRequest:
-        query = """query q($i: string) {
-                                q(func: eq(xid, $i)) {
-                                    uid
-                                    attribute
-                                    xid
-                                    embedding_vector_uri
-                                }
-                            }"""
-
-        if highlight:
-            query = """query q($i: string) {
-                                    q(func: eq(xid, $i)) {
-                                        uid
-                                        attribute
-                                        xid
-                                        embedding_vector_group_uri
-                                    }
-                                }"""
+    def form_segment_query(self, segment_id: str) -> GraphQueryRequest:
+        query = """
+        query q($i: string) {
+            q(func: eq(xid, $i)) {
+                uid
+                attribute
+                xid
+                embedding_vector_uri
+                embedding_vector_group_uri
+            }
+        }
+        """
 
         variables = {"$i": segment_id}
         query_object = GraphQueryRequest(query=query, variables=variables)

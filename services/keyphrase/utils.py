@@ -214,7 +214,10 @@ class KeyphraseUtils(object):
         rank_by: str = "pagerank",
         sort_by: str = "loc",
         final_sort: bool = False,
-    ) -> Union[Tuple[List[Entity], List[Keyphrase]], Dict[str, float]]:
+    ) -> Union[
+        Tuple[Dict[str, float], List[Entity], List[Keyphrase]],
+        Tuple[List[Entity], List[Keyphrase]],
+    ]:
 
         if remove_phrases:
             for entity_obj in entities_object:
@@ -278,7 +281,7 @@ class KeyphraseUtils(object):
                 dict_var=final_result_dict, order="asc"
             )
 
-            return sorted_phrase_dict
+            return sorted_phrase_dict, ranked_entities_object, ranked_keyphrase_object
 
         else:
             return ranked_entities_object, ranked_keyphrase_object

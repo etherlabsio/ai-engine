@@ -3,7 +3,7 @@ import logging
 from timeit import default_timer as timer
 import traceback
 
-from keyphrase.objects import Context, Segment, Request
+from keyphrase.objects import Context, Segment, Request, SummaryRequest
 
 logger = logging.getLogger(__name__)
 
@@ -100,12 +100,12 @@ class NATSTransport(object):
         logger.info("Instance started")
 
         request = json.loads(msg.data)
-        request_object = Request.from_dict(request)
+        request_object = Request.get_object(request)
         self.keyphrase_service.initialize_meeting_graph(req_data=request_object)
 
     async def context_change_handler(self, msg):
         request = json.loads(msg.data)
-        request_object = Request.from_dict(request)
+        request_object = Request.get_object(request)
 
         # Update contextId when change is notified
         context_id = request_object.contextId
@@ -115,52 +115,37 @@ class NATSTransport(object):
         # Reset graph
         await self.reset_keyphrases(msg)
 
-    # NATS events for recommendation service
-
-    async def call_recommended_watchers(self, req_data):
-        recommend_watcher_topic = "recommendation.service.get_watchers"
-        watcher_request = json.dumps(req_data).encode()
-
-        await self.nats_manager.conn.publish(recommend_watcher_topic, watcher_request)
-
-    async def call_recommended_meetings(self, req_data):
-        related_meeting_topic = "recommendation.service.get_meetings"
-        related_meeting_request = json.dumps(req_data).encode()
-
-        await self.nats_manager.conn.publish(
-            related_meeting_topic, related_meeting_request
-        )
-
     # Topic Handler functions
 
     async def populate_graph(self, msg):
         start = timer()
         request = json.loads(msg.data)
         try:
-            # request_object = Request.from_dict(request)
-            request_object = Request.get_object_from_dict(request)
-            self.keyphrase_service.utils.write_to_json(
-                Request.to_dict(request_object), "request_obj"
-            )
+            request_object = Request.get_object(request)
+            populate_graph = request_object.populateGraph
+
+            if populate_graph is True:
+                highlight = False
+            else:
+                highlight = True
+
             segment_object = request_object.segments
 
             (
                 modified_request_obj,
                 meeting_word_graph,
             ) = self.keyphrase_service.populate_and_embed_graph(
-                req_data=request_object, segment_object=segment_object,
+                req_data=request_object,
+                segment_object=segment_object,
+                highlight=highlight,
             )
 
             # Forward the modified Request-Segment object to graph-service
-            modified_request_obj_dict = Request.get_dict_from_object(
-                modified_request_obj
-            )
+            modified_request_obj_dict = Request.get_dict(modified_request_obj)
             await self.populate_segment_keyphrase_info(
                 modified_req_data=modified_request_obj_dict
             )
-            self.keyphrase_service.utils.write_to_json(
-                modified_request_obj_dict, "mod_request_obj"
-            )
+
             end = timer()
             logger.info(
                 "Populated to dgraph and written to s3",
@@ -172,12 +157,12 @@ class NATSTransport(object):
                     "responseTime": end - start,
                 },
             )
-        except Exception:
+        except Exception as e:
             end = timer()
             logger.error(
                 "Error populating to dgraph",
                 extra={
-                    "err": traceback.print_exc(),
+                    "err": e,
                     "responseTime": end - start,
                     # "instanceId": request_object.instanceId,
                 },
@@ -187,8 +172,10 @@ class NATSTransport(object):
         start = timer()
         request = json.loads(msg.data)
 
-        request_object = Request.get_object_from_dict(request)
+        request_object = Request.get_object(request)
         segment_object = request_object.segments
+
+        summary_object = SummaryRequest.get_object(request)
 
         validation = request_object.validate
         populate_graph = request_object.populateGraph
@@ -204,12 +191,12 @@ class NATSTransport(object):
             highlight = True
             group_id = self.keyphrase_service.utils.hash_sha_object()
 
-        output = await self.keyphrase_service.get_keyphrases(
-            request_object,
+        output, summary_request_object = await self.keyphrase_service.get_keyphrases(
+            req_data=request_object,
             segment_object=segment_object,
+            summary_object=summary_object,
             n_kw=limit,
             validate=validation,
-            populate_graph=populate_graph,
             group_id=group_id,
             highlight=highlight,
         )
@@ -217,11 +204,12 @@ class NATSTransport(object):
         end = timer()
 
         if highlight:
-            # Get recommended watchers for every segment
-            rec_request = {**request, **output}
-            await self.call_recommended_watchers(req_data=rec_request)
+            # Forward the modified Request-Segment-Keyphrase object to graph-service
+            summary_request_dict = SummaryRequest.get_dict(summary_request_object)
+
+            await self.populate_summary_info(summary_req_data=summary_request_dict)
             logger.info(
-                "Publishing summary chapter keyphrases",
+                "Publishing summary keyphrases",
                 extra={
                     "graphId": context_info,
                     "topicKeyphraseList": output,
@@ -233,7 +221,7 @@ class NATSTransport(object):
                 },
             )
 
-        elif limit == 6:
+        else:
             logger.info(
                 "Publishing chapter keyphrases",
                 extra={
@@ -247,25 +235,12 @@ class NATSTransport(object):
                     "dynamicThreshold": len(output["keyphrases"]),
                 },
             )
-        elif limit == 10:
-            logger.info(
-                "Publishing PIM keyphrases",
-                extra={
-                    "graphId": context_info,
-                    "pimKeyphraseList": output,
-                    "instanceId": request_object.instanceId,
-                    "numOfSegments": len(segment_object),
-                    "limit": limit,
-                    "responseTime": end - start,
-                    "segmentsReceived": segment_ids,
-                },
-            )
         await self.nats_manager.conn.publish(msg.reply, json.dumps(output).encode())
 
     async def extract_instance_keyphrases(self, msg):
         start = timer()
         request = json.loads(msg.data)
-        request_object = Request.get_object_from_dict(request)
+        request_object = Request.get_object(request)
         context_info = request_object.contextId + ":" + request_object.instanceId
 
         limit = request_object.limit
@@ -299,7 +274,7 @@ class NATSTransport(object):
     async def chapter_offset_handler(self, msg):
         start = timer()
         request = json.loads(msg.data)
-        request_object = Request.get_object_from_dict(request)
+        request_object = Request.get_object(request)
         context_info = request_object.contextId + ":" + request_object.instanceId
         segment_object = request_object.segments
         segment_ids = [seg_obj.id for seg_obj in segment_object]
@@ -335,12 +310,18 @@ class NATSTransport(object):
 
     async def reset_keyphrases(self, msg):
         request = json.loads(msg.data)
-        request_object = Request.get_object_from_dict(request)
+        request_object = Request.get_object(request)
         logger.info("Resetting keyphrases graph")
         self.keyphrase_service.reset_keyphrase_graph(request_object)
 
     async def populate_segment_keyphrase_info(self, modified_req_data: dict):
-        eg_segment_topic = "ether_graph_service.populate_segments"
+        eg_segment_topic = "ether_graph_service.add_segments"
         ether_graph_request = json.dumps(modified_req_data).encode()
+
+        await self.nats_manager.conn.publish(eg_segment_topic, ether_graph_request)
+
+    async def populate_summary_info(self, summary_req_data: dict):
+        eg_segment_topic = "ether_graph_service.populate_summary"
+        ether_graph_request = json.dumps(summary_req_data).encode()
 
         await self.nats_manager.conn.publish(eg_segment_topic, ether_graph_request)

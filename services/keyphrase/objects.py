@@ -1,6 +1,6 @@
 from dataclasses import dataclass, asdict, field
 from dataclasses_json import dataclass_json, Undefined, CatchAll, DataClassJsonMixin
-from typing import List, Dict, Tuple, Text, Any, Mapping, Union
+from typing import List, Dict, Tuple, Text, Any, Mapping, Union, Optional
 import uuid
 from datetime import datetime
 
@@ -11,15 +11,15 @@ class ObjectConversions(DataClassJsonMixin):
     """
 
     @classmethod
-    def get_object_from_dict(cls, object_dict: Union[Dict, List[Dict]]):
-        if type(object_dict) == List:
-            return cls.schema().load(object_dict)
+    def get_object(cls, object_dict: Union[Dict, List[Dict]]):
+        if type(object_dict) == list:
+            return cls.schema().load(object_dict, many=True)
         else:
             return cls.from_dict(object_dict)
 
     @classmethod
-    def get_dict_from_object(cls, class_object) -> Dict:
-        if type(class_object) == List:
+    def get_dict(cls, class_object) -> Dict:
+        if type(class_object) == list:
             return cls.schema().dump(class_object, many=True)
         else:
             return class_object.to_dict()
@@ -103,15 +103,15 @@ class Context(ObjectConversions):
         self.instanceId = str(uuid.UUID(self.instanceId))
 
 
-@dataclass_json
-@dataclass(init=False)
-class SegmentAttributes:
-    embedding_vector_uri: str = field(default="")
-    embedding_vector_group_uri: str = field(default="")
-    embedding_model: str = field(default="")
-    text: str = field(default="")
-    groupId: str = field(default=None)
-    highlight: bool = field(default=False)
+# @dataclass_json
+# @dataclass(init=False)
+# class SegmentAttributes:
+#     embedding_vector_uri: str = field(default="")
+#     embedding_vector_group_uri: str = field(default="")
+#     embedding_model: str = field(default="")
+#     text: str = field(default="")
+#     groupId: str = field(default=None)
+#     highlight: bool = field(default=False)
 
 
 @dataclass_json(undefined=Undefined.INCLUDE)
@@ -132,7 +132,13 @@ class Segment(ObjectConversions):
 
     unknown_fields: CatchAll
 
-    attributes: SegmentAttributes = field(init=False, default=None)
+    embedding_vector_uri: str = ""
+    embedding_vector_group_uri: str = ""
+    embedding_model: str = ""
+    text: str = ""
+    groupId: str = None
+    highlight: bool = False
+
     keyphrases: List[Keyphrase] = field(default_factory=list)
     entities: List[Entity] = field(default_factory=list)
 
@@ -148,10 +154,19 @@ class Segment(ObjectConversions):
 class Request(Context):
     unknown_fields: CatchAll
     limit: int = field(init=False, default=10)
-    populateGraph: bool = field(init=False, default=True)
+    populateGraph: bool = field(default=True)
     validate: bool = field(init=False, default=False)
     relativeTime: str = field(init=False, default="")
     segments: List[Segment] = field(default_factory=list)
+
+
+@dataclass_json(undefined=Undefined.INCLUDE)
+@dataclass
+class SummaryRequest(Request):
+    unknown_fields: CatchAll
+    segments: List[Segment] = field(default_factory=list)
+    keyphrases: List[Keyphrase] = field(default_factory=list)
+    entities: List[Entity] = field(default_factory=list)
 
 
 @dataclass_json
@@ -168,10 +183,10 @@ class GraphResponse:
     xid: str
     attribute: str
     embedding_vector_uri: str
-    embedding_vector_group_uri: str
+    embedding_vector_group_uri: str = field(default="")
 
 
 @dataclass_json
 @dataclass
 class GraphSegmentResponse(ObjectConversions):
-    q: List[GraphResponse]
+    q: List[GraphResponse] = field(default_factory=list)

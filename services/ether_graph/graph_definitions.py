@@ -182,7 +182,7 @@ class TranscriptionSegment(DgraphAttributes):
     embedding_vector_uri: str = ""
     embedding_model: str = ""
     embedding_vector_group_uri: str = ""
-    groupId: str = ""
+    groupId: str = None
     highlight: bool = field(default=False)
 
     authoredBy: User = field(default=None)
@@ -190,7 +190,7 @@ class TranscriptionSegment(DgraphAttributes):
     hasSource: Source = field(default=None)
     hasKeywords: List[Keyphrase] = field(default_factory=list)
     hasEntities: List[Entity] = field(default_factory=list)
-    belongsTo: SummaryGroup = field(default_factory=dict)
+    belongsTo: SummaryGroup = field(default=None)
 
     attribute: str = field(default="segmentId")
 

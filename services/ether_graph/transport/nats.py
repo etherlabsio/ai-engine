@@ -26,6 +26,7 @@ class NATSTransport(object):
         await self.nats_manager.subscribe(
             context_created_topic, handler=self.context_created_handler, queued=True,
         )
+        await self.eg_service.set_schema()
 
     async def context_created_handler(self, msg):
         msg_data = json.loads(msg.data)
@@ -53,12 +54,12 @@ class NATSTransport(object):
             queued=True,
         )
         await self.nats_manager.subscribe(
-            topic="context.instance.add_segments",
+            topic="ether_graph_service.add_segments",
             handler=self.populate_segment_data,
             queued=True,
         )
         await self.nats_manager.subscribe(
-            topic="ether_graph_service.populate_segments",
+            topic="ether_graph_service.populate_summary",
             handler=self.populate_summary_data,
             queued=True,
         )
@@ -71,9 +72,9 @@ class NATSTransport(object):
     async def unsubscribe_lifecycle_events(self):
         await self.nats_manager.unsubscribe(topic="context.instance.started")
         await self.nats_manager.unsubscribe(topic="context.instance.ended")
-        await self.nats_manager.unsubscribe(topic="context.instance.add_segments")
+        await self.nats_manager.unsubscribe(topic="ether_graph_service.add_segments")
         await self.nats_manager.unsubscribe(
-            topic="ether_graph_service.populate_segments"
+            topic="ether_graph_service.populate_summary"
         )
         await self.nats_manager.unsubscribe(topic="ether_graph_service.perform_query")
 
@@ -83,7 +84,6 @@ class NATSTransport(object):
         request = json.loads(msg.data)
         try:
             req_data = ContextRequest.get_object_from_dict(request)
-            # resp = self.eg_service.set_schema()
             resp = await self.eg_service.populate_context_info(req_data=req_data)
 
             logger.info(
