@@ -27,6 +27,7 @@ class NATSTransport(object):
             context_created_topic, handler=self.context_created_handler, queued=True,
         )
         await self.eg_service.set_schema()
+        logger.info("Updated schema",)
 
     async def context_created_handler(self, msg):
         msg_data = json.loads(msg.data)

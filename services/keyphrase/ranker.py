@@ -42,6 +42,7 @@ class KeyphraseRanker(object):
             response = await self.query_client.query_graph(
                 query_object=GraphQueryRequest.get_dict(segment_query_obj)
             )
+            print(response)
             npz_file = self.query_segment_embeddings(
                 response=GraphSegmentResponse.get_object(response),
                 highlight=highlight,

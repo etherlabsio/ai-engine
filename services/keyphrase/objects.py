@@ -103,17 +103,6 @@ class Context(ObjectConversions):
         self.instanceId = str(uuid.UUID(self.instanceId))
 
 
-# @dataclass_json
-# @dataclass(init=False)
-# class SegmentAttributes:
-#     embedding_vector_uri: str = field(default="")
-#     embedding_vector_group_uri: str = field(default="")
-#     embedding_model: str = field(default="")
-#     text: str = field(default="")
-#     groupId: str = field(default=None)
-#     highlight: bool = field(default=False)
-
-
 @dataclass_json(undefined=Undefined.INCLUDE)
 @dataclass
 class Segment(ObjectConversions):
