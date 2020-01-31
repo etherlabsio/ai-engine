@@ -51,7 +51,7 @@ class RecWatchers(object):
         self.feature_dir = "/features/recommendation/"
 
     def initialize_reference_objects(
-        self, context_id: str, top_n: int = 50, perform_query: bool = True
+        self, context_id: str, top_n: int = 100, perform_query: bool = True
     ):
 
         if perform_query:
