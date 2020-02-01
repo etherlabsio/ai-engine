@@ -10,10 +10,10 @@ from graph_definitions import Keyphrase, Entity, ObjectConversions
 @dataclass_json(undefined=Undefined.INCLUDE)
 @dataclass
 class ContextRequest(ObjectConversions):
+    unknown_fields: CatchAll
     contextId: str
     instanceId: str
-    mindId: str
-    unknown_fields: CatchAll
+    mindId: str = field(default=None)
 
     def __post_init__(self):
         self.instanceId = str(uuid.UUID(self.instanceId))

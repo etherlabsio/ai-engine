@@ -20,6 +20,10 @@ class GraphHandler(object):
         logger.info("Client stub connection is closed.")
         self.client_stub.close()
 
+    # Drop All - discard all data and start from a clean slate.
+    async def drop_all(self):
+        return self.dgraph.alter(pydgraph.Operation(drop_all=True))
+
     def query_transform_node(self, node_obj, extra_field=None):
         """
         Given an xid a query request for UID is made and given a node object, transform the node object to use the UID

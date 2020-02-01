@@ -94,10 +94,10 @@ class Phrase(ObjectConversions):
 @dataclass_json(undefined=Undefined.INCLUDE)
 @dataclass
 class Context(ObjectConversions):
+    unknown_fields: CatchAll
     contextId: str
     instanceId: str
-    mindId: str
-    unknown_fields: CatchAll
+    mindId: str = field(default=None)
 
     def __post_init__(self):
         self.instanceId = str(uuid.UUID(self.instanceId))
@@ -125,7 +125,7 @@ class Segment(ObjectConversions):
     embedding_vector_group_uri: str = ""
     embedding_model: str = ""
     text: str = ""
-    groupId: str = None
+    groupId: str = field(default=None)
     highlight: bool = False
 
     keyphrases: List[Keyphrase] = field(default_factory=list)

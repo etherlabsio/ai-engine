@@ -26,8 +26,13 @@ class NATSTransport(object):
         await self.nats_manager.subscribe(
             context_created_topic, handler=self.context_created_handler, queued=True,
         )
-        await self.eg_service.set_schema()
-        logger.info("Updated schema",)
+
+        # # Drop all data before applying schema
+        # await self.eg_service.gh.drop_all()
+        # logger.info("Dropping data before applying schema ...")
+
+        # await self.eg_service.set_schema()
+        # logger.info("Updated schema",)
 
     async def context_created_handler(self, msg):
         msg_data = json.loads(msg.data)

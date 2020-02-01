@@ -187,7 +187,7 @@ class KeyphraseUtils(object):
 
             if len(multi_keyphrase) > 0:
                 multi_key_obj.originalForm = multi_keyphrase
-                processed_entities.extend(multi_key_obj)
+                processed_entities.append(multi_key_obj)
 
         # Remove the entities which already occur in keyphrases
         processed_entities.extend(single_phrase)

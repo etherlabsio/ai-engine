@@ -508,6 +508,7 @@ class KeyphraseExtractor(object):
                     "errMsg": traceback.print_exc(),
                 },
             )
+            print(traceback.print_exc())
             raise
 
     def _make_validation(self, phrase_object: PhraseType, context_id, instance_id):
@@ -720,6 +721,8 @@ class KeyphraseExtractor(object):
                         pagerank=pagerank_score, loc=loc + offset_time,
                     )
                     keyphrase_object.score = keyphrase_score_obj
+                else:
+                    keyphrase_object.to_remove = True
 
             # Add entity scores in the object
             for entity_object in entity_object_list:
@@ -745,6 +748,8 @@ class KeyphraseExtractor(object):
                         pagerank=entity_pagerank_score, loc=final_loc + offset_time,
                     )
                     entity_object.score = entity_score
+                else:
+                    entity_object.to_remove = True
 
             phrase_obj = Phrase(
                 segmentId=input_segment_id,
