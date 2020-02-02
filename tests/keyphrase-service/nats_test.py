@@ -286,7 +286,7 @@ def replace_ids(context_id=None, instance_id=None, topic=None, resp=dict()):
 
     if context_id is None and instance_id is None:
         context_id = "6baa3490"
-        instance_id = "b5d4"
+        instance_id = "d052f2e7-3c79-45e4-aee5-9af0f7c2053e"
 
     resp["instanceId"] = instance_id
     resp["contextId"] = context_id

@@ -3,7 +3,9 @@ import logging
 import traceback
 import json
 from timeit import default_timer as timer
-from typing import Tuple
+from typing import Tuple, List, Text, Dict, Union
+
+from .objects import Entity, Score, Keyphrase
 
 logger = logging.getLogger(__name__)
 
@@ -28,11 +30,7 @@ class WordGraphBuilder(object):
     def process_text(
         self, text, filter_by_pos=True, stop_words=False, syntactic_filter=None
     ):
-        (
-            original_tokens,
-            pos_tuple,
-            filtered_pos_tuple,
-        ) = self.tp.preprocess_text(
+        (original_tokens, pos_tuple, filtered_pos_tuple,) = self.tp.preprocess_text(
             text,
             filter_by_pos=filter_by_pos,
             pos_filter=syntactic_filter,
@@ -49,12 +47,10 @@ class WordGraphBuilder(object):
         preserve_common_words=False,
         syntactic_filter=None,
         add_context=False,
-    ):
+    ) -> nx.Graph:
         meeting_word_graph = graph
         for text in text_list:
-            original_tokens, pos_tuple, filtered_pos_tuple = self.process_text(
-                text
-            )
+            original_tokens, pos_tuple, filtered_pos_tuple = self.process_text(text)
             meeting_word_graph = self.gr.build_word_graph(
                 graph_obj=graph,
                 input_pos_text=pos_tuple,
@@ -76,7 +72,7 @@ class WordGraphBuilder(object):
         normalize_score=False,
         descriptive=False,
         post_process_descriptive=False,
-    ):
+    ) -> Tuple[Text, float]:
 
         keyphrases = self.gr.get_keyphrases(
             graph_obj=graph,
@@ -92,7 +88,7 @@ class WordGraphBuilder(object):
 
         return keyphrases
 
-    def get_custom_entities(self, input_segment):
+    def get_custom_entities(self, input_segment: Text) -> List[Entity]:
         entity_list = []
         entity_preference_map = {
             "MISC": 1,
@@ -109,25 +105,25 @@ class WordGraphBuilder(object):
         for entity, conf_score in entity_dict.items():
             entity_label = entity_label_dict[entity]
             entity_list.append(
-                {
-                    "text": entity,
-                    "preference": entity_preference_map[entity_label],
-                    "conf_score": conf_score,
-                }
+                Entity(
+                    originalForm=entity,
+                    label=entity_label,
+                    preference=entity_preference_map[entity_label],
+                    score=Score(),
+                    confidence_score=conf_score,
+                )
             )
 
             logger.debug(
                 "Obtained entities",
-                extra={
-                    "entities": entity,
-                    "label": entity_label,
-                    "score": conf_score,
-                },
+                extra={"entities": entity, "label": entity_label, "score": conf_score},
             )
 
         return entity_list
 
-    def call_custom_ner(self, input_segment):
+    def call_custom_ner(
+        self, input_segment: Text
+    ) -> Tuple[Union[Dict, str], Union[Dict, str]]:
 
         start = timer()
         lambda_payload = {"body": {"originalText": input_segment}}
@@ -141,10 +137,7 @@ class WordGraphBuilder(object):
             )
 
             lambda_output = (
-                invoke_response["Payload"]
-                .read()
-                .decode("utf8")
-                .replace("'", '"')
+                invoke_response["Payload"].read().decode("utf8").replace("'", '"')
             )
             response = json.loads(lambda_output)
             status_code = response["statusCode"]
@@ -180,37 +173,44 @@ class WordGraphBuilder(object):
             return entity_dict, entity_label_dict
 
     def get_segment_keyphrases(
-        self, segment_object: dict, word_graph: nx.Graph
-    ) -> Tuple[list, list]:
+        self, segment_text: str, word_graph: nx.Graph
+    ) -> List[Keyphrase]:
 
         keyphrase_list = []
-        descriptive_keyphrase_list = []
-        segment_list = self.utils.read_segments(segment_object=segment_object)
         try:
-            for text in segment_list:
-                (
-                    original_tokens,
-                    pos_tuple,
-                    filtered_pos_tuple,
-                ) = self.process_text(text)
+            original_tokens, pos_tuple, filtered_pos_tuple = self.process_text(
+                segment_text
+            )
 
-                keyphrase_list.extend(
-                    self.get_custom_keyphrases(
-                        graph=word_graph, pos_tuple=pos_tuple
-                    )
+            descriptive_kp = self.get_custom_keyphrases(
+                graph=word_graph,
+                pos_tuple=pos_tuple,
+                descriptive=True,
+                post_process_descriptive=True,
+            )
+            non_descriptive_kp = self.get_custom_keyphrases(
+                graph=word_graph, pos_tuple=pos_tuple
+            )
+
+            descriptive_kp_obj = [
+                Keyphrase(
+                    originalForm=word, type="descriptive", score=Score(pagerank=pg_rank)
                 )
-                descriptive_keyphrase_list.extend(
-                    self.get_custom_keyphrases(
-                        graph=word_graph,
-                        pos_tuple=pos_tuple,
-                        descriptive=True,
-                        post_process_descriptive=True,
-                    )
+                for word, pg_rank in descriptive_kp
+            ]
+            non_descriptive_kp_obj = [
+                Keyphrase(
+                    originalForm=word, type="original", score=Score(pagerank=pg_rank)
                 )
+                for word, pg_rank in non_descriptive_kp
+            ]
+            keyphrase_list.extend(descriptive_kp_obj)
+            keyphrase_list.extend(non_descriptive_kp_obj)
+
         except Exception:
             logger.error(
                 "error retrieving descriptive phrases",
                 extra={"err": traceback.print_exc()},
             )
 
-        return keyphrase_list, descriptive_keyphrase_list
+        return keyphrase_list

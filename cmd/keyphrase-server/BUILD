@@ -31,7 +31,8 @@ python_library(
 		'3rdparty/python:python-dotenv',
 		'3rdparty/python:pydgraph',
 		'3rdparty/python:fuzzywuzzy',
-		'3rdparty/python:python-levenshtein'
+		'3rdparty/python:python-levenshtein',
+		'3rdparty/python:dataclasses-json'
 	],
 
 )

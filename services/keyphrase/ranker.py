@@ -4,19 +4,74 @@ from scipy.spatial.distance import cosine
 import numpy as np
 import json
 from nltk.tokenize import sent_tokenize
+from typing import List
+
+from .objects import Phrase, Keyphrase, Request, GraphQueryRequest, GraphSegmentResponse
 
 logger = logging.getLogger(__name__)
 
 
 class KeyphraseRanker(object):
     def __init__(
-        self, s3_io_util, utils, context_dir, encoder_lambda_client, lambda_function
+        self,
+        s3_io_util,
+        utils,
+        context_dir,
+        encoder_lambda_client,
+        lambda_function,
+        query_client,
     ):
         self.encoder_lambda_client = encoder_lambda_client
         self.lambda_function = lambda_function
         self.context_dir = context_dir
         self.io_util = s3_io_util
         self.utils = utils
+        self.query_client = query_client
+
+    async def compute_relevance(
+        self,
+        phrase_object_list: List[Phrase],
+        group_id: str,
+        highlight: bool = False,
+        default_form="descriptive",
+    ) -> List[Phrase]:
+
+        for i, phrase_object in enumerate(phrase_object_list):
+            segment_id = phrase_object.segmentId
+            segment_query_obj = self.form_segment_query(segment_id=segment_id)
+            response = await self.query_client.query_graph(
+                query_object=GraphQueryRequest.get_dict(segment_query_obj)
+            )
+            npz_file = self.query_segment_embeddings(
+                response=GraphSegmentResponse.get_object(response),
+                highlight=highlight,
+                group_id=group_id,
+            )
+            phrase_object = self._compute_relevant_phrases(
+                npz_file=npz_file,
+                segment_id=segment_id,
+                phrase_object=phrase_object,
+                highlight=highlight,
+                group_id=group_id,
+            )
+
+        phrase_object_list = self.compute_normalized_boosted_rank(
+            phrase_object=phrase_object_list, dict_key=default_form
+        )
+
+        return phrase_object_list
+
+    def _compute_relevant_phrases(self, phrase_object, **kwargs) -> Phrase:
+        phrase_object = self.compute_local_relevance(
+            dict_key="descriptive", phrase_object=phrase_object, **kwargs
+        )
+
+        # Compute the relevance of entities
+        phrase_object = self.compute_local_relevance(
+            dict_key="entities", phrase_object=phrase_object, **kwargs
+        )
+
+        return phrase_object
 
     def _get_pairwise_embedding_distance(self, embedding_array):
 
@@ -24,13 +79,15 @@ class KeyphraseRanker(object):
 
         return dist
 
-    def get_embeddings(self, input_list, req_data=None):
+    def get_embeddings(self, input_list: List[str], req_data: Request = None):
 
         start = timer()
         if req_data is None:
             lambda_payload = {"body": {"text_input": input_list}}
         else:
-            lambda_payload = {"body": {"request": req_data, "text_input": input_list}}
+            lambda_payload = {
+                "body": {"request": Request.to_dict(req_data), "text_input": input_list}
+            }
 
         try:
             logger.info("Invoking lambda function")
@@ -106,24 +163,30 @@ class KeyphraseRanker(object):
 
     def compute_local_relevance(
         self,
-        kp_dict,
+        phrase_object: Phrase,
         segment_id,
         npz_file,
         dict_key="descriptive",
         normalize: bool = False,
         norm_limit: int = 4,
-        populate_graph=True,
-        group_id="",
+        highlight: bool = False,
+        group_id: str = None,
     ):
 
-        if populate_graph is not True:
+        if highlight:
             segment_embedding = npz_file[segment_id + "_" + group_id]
         else:
             segment_embedding = npz_file[segment_id]
 
-        keyphrase_dict = kp_dict[dict_key]
-        segment_relevance_score_list = []
-        for j, (phrase, values) in enumerate(keyphrase_dict.items()):
+        if dict_key == "descriptive" or dict_key == "original":
+            keyphrase_object = [
+                kp_obj for kp_obj in phrase_object.keyphrases if kp_obj.type == dict_key
+            ]
+        else:
+            keyphrase_object = phrase_object.entities
+
+        for j, kp_obj in enumerate(keyphrase_object):
+            phrase = kp_obj.originalForm
             phrase_len = len(phrase.split())
 
             try:
@@ -145,13 +208,14 @@ class KeyphraseRanker(object):
             else:
                 norm_seg_score = seg_score
 
-            keyphrase_dict[phrase][1] = norm_seg_score
+            kp_obj.score.segsim = norm_seg_score
 
             # Compute boosted score
-            keyphrase_dict = self.compute_boosted_rank(
-                ranked_keyphrase_dict=keyphrase_dict
-            )
-            segment_relevance_score_list.append(keyphrase_dict[phrase][2])
+            kp_obj = self.compute_boosted_rank(ranked_keyphrase_object=kp_obj)
+
+        segment_relevance_score_list = [
+            kp_obj.score.boosted_sim for kp_obj in keyphrase_object
+        ]
 
         if len(segment_relevance_score_list) > 0:
             segment_confidence_score = np.mean(segment_relevance_score_list)
@@ -161,99 +225,107 @@ class KeyphraseRanker(object):
             median_score = 0
 
         if dict_key == "descriptive" or dict_key == "original":
-            kp_dict["keyphraseQuality"] = segment_confidence_score
-            kp_dict["medianKeyphraseQuality"] = median_score
-
+            phrase_object.keyphraseQuality = segment_confidence_score
+            phrase_object.medianKeyphraseQuality = median_score
         else:
-            kp_dict["entitiesQuality"] = segment_confidence_score
-            kp_dict["medianEntitiesQuality"] = median_score
+            phrase_object.entitiesQuality = segment_confidence_score
+            phrase_object.medianEntitiesQuality = median_score
 
         logger.info("Computed segment relevance score")
 
-        return kp_dict
+        return phrase_object
 
-    def compute_boosted_rank(self, ranked_keyphrase_dict):
+    def compute_boosted_rank(self, ranked_keyphrase_object: Keyphrase):
 
-        for i, (phrase, items) in enumerate(ranked_keyphrase_dict.items()):
-            pagerank_score = items[0]
-            segment_score = items[1]
+        keyphrase_score_obj = ranked_keyphrase_object.score
+        pagerank_score = keyphrase_score_obj.pagerank
+        segment_score = keyphrase_score_obj.segsim
 
-            boosted_score = pagerank_score + segment_score
-            ranked_keyphrase_dict[phrase][2] = boosted_score
+        boosted_score = pagerank_score + segment_score
+        keyphrase_score_obj.boosted_sim = boosted_score
 
-        return ranked_keyphrase_dict
+        return ranked_keyphrase_object
 
-    def compute_normalized_boosted_rank(self, keyphrase_object, dict_key="descriptive"):
+    def compute_normalized_boosted_rank(
+        self, phrase_object: List[Phrase], dict_key="descriptive"
+    ):
 
         total_keyphrase_quality = [
-            kp_dict["medianKeyphraseQuality"] for kp_dict in keyphrase_object
+            phrase_obj.medianKeyphraseQuality for phrase_obj in phrase_object
         ]
         total_keyphrase_quality_score = np.sum(total_keyphrase_quality)
 
         total_entities_quality = [
-            kp_dict["entitiesQuality"] for kp_dict in keyphrase_object
+            phrase_obj.entitiesQuality for phrase_obj in phrase_object
         ]
         total_entities_quality_score = np.sum(total_entities_quality)
 
-        for i, kp_dict in enumerate(keyphrase_object):
-            keyphrase_dict = kp_dict[dict_key]
-            entity_dict = kp_dict["entities"]
-            segment = kp_dict["segments"]
+        for i, phrase_obj in enumerate(phrase_object):
+            keyphrase_object = [
+                kp_obj for kp_obj in phrase_obj.keyphrases if kp_obj.type == dict_key
+            ]
+            entity_object = phrase_obj.entities
+            segment = phrase_obj.originalText
             segment_sentence_len = len(sent_tokenize(segment))
 
-            ent_quality_score = kp_dict["entitiesQuality"]
-            kp_quality_score = kp_dict["medianKeyphraseQuality"]
+            ent_quality_score = phrase_obj.entitiesQuality
+            kp_quality_score = phrase_obj.medianKeyphraseQuality
 
-            for phrase, scores in keyphrase_dict.items():
-                boosted_score = scores[2]
+            for kp_obj in keyphrase_object:
+                keyphrase_score = kp_obj.score
+                boosted_score = keyphrase_score.boosted_sim
 
                 norm_boosted_score = (
                     boosted_score * kp_quality_score * segment_sentence_len
                 ) / (total_keyphrase_quality_score)
-                keyphrase_dict[phrase][3] = norm_boosted_score
 
-            for phrase, scores in entity_dict.items():
-                boosted_score = scores[2]
+                keyphrase_score.norm_boosted_sim = norm_boosted_score
+
+            for ent_obj in entity_object:
+                entity_score = ent_obj.score
+                boosted_score = entity_score.boosted_sim
 
                 norm_boosted_score = (
                     boosted_score * ent_quality_score * segment_sentence_len
                 ) / (total_entities_quality_score)
-                entity_dict[phrase][3] = norm_boosted_score
 
-        return keyphrase_object
+                entity_score.norm_boosted_sim = norm_boosted_score
 
-    def query_segment_embeddings(self, response, populate_graph=True):
+        return phrase_object
+
+    def query_segment_embeddings(
+        self,
+        response: GraphSegmentResponse,
+        highlight: bool = False,
+        group_id: str = None,
+    ) -> str:
 
         # Get segment embedding vector from context graph
-        if populate_graph:
-            embedding_uri = response["q"][0].get("embedding_vector_uri")
+        vector_location = response.q[0].embedding_vector_uri
+        if not highlight:
+            embedding_uri = vector_location
         else:
-            embedding_uri = response["q"][0].get("embedding_vector_group_uri")
+            f_name = vector_location.split(".")[0]
+            f_format = vector_location.split(".")[1]
+            embedding_uri = f_name + "_" + group_id + "." + f_format
 
         npz_file = self.io_util.download_npz(npz_file_path=embedding_uri)
         return npz_file
 
-    def form_segment_query(self, segment_id, populate_graph=True):
-        query = """query q($i: string) {
-                                q(func: eq(xid, $i)) {
-                                    uid
-                                    attribute
-                                    xid
-                                    embedding_vector_uri
-                                }
-                            }"""
-
-        if populate_graph is not True:
-            query = """query q($i: string) {
-                                    q(func: eq(xid, $i)) {
-                                        uid
-                                        attribute
-                                        xid
-                                        embedding_vector_group_uri
-                                    }
-                                }"""
+    def form_segment_query(self, segment_id: str) -> GraphQueryRequest:
+        query = """
+        query q($i: string) {
+            q(func: eq(xid, $i)) {
+                uid
+                attribute
+                xid
+                embedding_vector_uri
+                embedding_vector_group_uri
+            }
+        }
+        """
 
         variables = {"$i": segment_id}
-        query_object = {"query": query, "variables": variables}
+        query_object = GraphQueryRequest(query=query, variables=variables)
 
         return query_object

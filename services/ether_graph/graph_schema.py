@@ -29,6 +29,7 @@ type Context {
     attribute: string
     associatedMind: Mind
     hasMeeting: [ContextSession]
+    hasMember: [User]
 }
 
 type Mind {
@@ -41,14 +42,14 @@ type Mind {
 type User {
     xid: string
     attribute: string
-    belongsTo: [Context]
     email: string
     name: string
-    status: string
     deleted: bool
-    createdAt: datetime
-    deletedAt: datetime
-    updatedAt: datetime
+    createdAt: dateTime
+    deletedAt: dateTime
+    updatedAt: dateTime
+    userEntities: [Entity]
+    groupedWith: [User]
 }
 
 type ContextSession {
@@ -61,10 +62,10 @@ type ContextSession {
 type Marker {
     xid: string
     attribute: string
-    automaticMarker: bool
+    isSuggested: bool
     type: string
     description: string
-    createdAt: datetime
+    createdAt: dateTime
     createdBy: User
 }
 
@@ -77,15 +78,17 @@ type TranscriptionSegment {
     embedding_model: string
     embedding_vector_group_uri: string
     groupId: string
-    confidence: float
     language: string
-    startTime: datetime
-    endTime: datetime
+    startTime: dateTime
+    endTime: dateTime
     duration: int
+    highlight: bool
     authoredBy: User
-    hasKeywords: Keyphrase
-    hasSource: [Source]
+    hasSource: Source
     providedBy: TranscriptionProvider
+    hasKeywords: [Keyphrase]
+    hasEntities: [Entity]
+    belongsTo: SummaryGroup
 }
 
 type Source {
@@ -102,26 +105,47 @@ type TranscriptionProvider {
 
 type Keyphrase {
     xid: string
-    values: [string]
+    originalForm: string
+    value: string
     attribute: string
     type: string
+}
+
+type Entity {
+    xid: string
+    originalForm: string
+    value: string
+    label: string
+    related_to_keyphrase: bool
+    attribute: string
+}
+
+type SummaryGroup {
+    xid: string
+    attribute: string
+    hasKeywords: [Keyphrase]
+    hasEntities: [Entity]
+    hasUser: [User]
 }
 
 xid: string @index(exact) @upsert .
 name: string @index(term) .
 email: string @index(exact) .
-values: [string] @index(term, fulltext) .
+value: string @index(term, fulltext) .
+originalForm: string @index(term, fulltext) .
 attribute: string @index(hash) .
+label: string @index(exact) .
 text: string @index(fulltext) .
 embedding_vector_uri: string .
 embedding_vector_group_uri: string .
-groupId: string @index(hash) .
 associatedMind: uid @reverse .
 hasMeeting: [uid] @reverse .
 hasSegment: [uid] @reverse .
-hasKeywords: uid @reverse .
+hasKeywords: [uid] @reverse .
+hasEntities: [uid] @reverse .
 authoredBy: uid @reverse .
 providedBy: uid .
+hasSource: uid .
 belongsTo: uid @reverse .
 hasMember: [uid] @reverse .
 hasContext: uid @reverse .
@@ -130,6 +154,8 @@ hasUser: [uid] @reverse .
 createdBy: uid @reverse .
 description: string @index(term, fulltext) .
 type: string @index(term) .
+groupedWith: [uid] .
+userEntities: [uid] .
 
 """
         return meeting_def
