@@ -123,5 +123,5 @@ class DgraphClient(object):
 
         """
         # Create a new transaction.
-        txn = self.client.txn()
+        # txn = self.client.txn()
         pass

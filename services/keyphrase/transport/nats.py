@@ -208,6 +208,7 @@ class NATSTransport(object):
             summary_request_dict = SummaryRequest.get_dict(summary_request_object)
 
             await self.populate_summary_info(summary_req_data=summary_request_dict)
+
             logger.info(
                 "Publishing summary keyphrases",
                 extra={

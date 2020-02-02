@@ -11,6 +11,11 @@ class NATSTransport(object):
         self.nats_manager = nats_manager
         self.watcher_service = watcher_service
         self.meeting_service = meeting_service
+        self.whitelist_contexts = [
+            "01DJSFMQ5MP8AX83Y89QC6T39E",
+            "01DBB3SN99AVJ8ZWJDQ57X9TGX",
+            "01DBB3SN874B4V18DCP4ATMRXA",
+        ]
 
     async def subscribe_context(self):
         context_created_topic = "context.instance.created"
@@ -68,19 +73,49 @@ class NATSTransport(object):
 
     async def context_start_handler(self, msg):
         request = json.loads(msg.data)
+        context_id = request["contextId"]
         try:
-            self.watcher_service.featurize_reference_users()
+            start = timer()
+            (
+                reference_user_dict,
+                reference_features,
+            ) = self.watcher_service.initialize_reference_objects(
+                context_id=context_id, perform_query=True
+            )
+
+            end = timer()
             logger.info(
-                "Vectorized and Hashed reference users",
-                extra={"instanceId": request["instanceId"]},
+                "Vectorized reference users",
+                extra={
+                    "instanceId": request["instanceId"],
+                    "contextId": context_id,
+                    "responseTime": end - start,
+                },
+            )
+
+            self.watcher_service.featurize_reference_users(
+                reference_user_dict=reference_user_dict,
+                reference_features=reference_features,
+            )
+
+            end = timer()
+            logger.info(
+                "Formed LSH Buckets for reference users",
+                extra={
+                    "instanceId": request["instanceId"],
+                    "contextId": context_id,
+                    "responseTime": end - start,
+                },
             )
         except Exception as e:
             logger.error(
                 "Error computing features for reference users", extra={"err": e},
             )
+            traceback.print_exc()
             raise
 
     async def context_end_handler(self, msg):
+        logger.info("Meeting ended")
         pass
 
     # Topic Handler functions
@@ -88,12 +123,17 @@ class NATSTransport(object):
     async def get_watchers(self, msg):
         start = timer()
         request = json.loads(msg.data)
+        context_id = request["contextId"]
         segment_object = request["segments"]
         segment_ids = [seg_ids["id"] for seg_ids in segment_object]
         keyphrase_list = request["keyphrases"]
         segment_user_ids = [seg_ids["spokenBy"] for seg_ids in segment_object]
 
         try:
+            (
+                reference_user_dict,
+                reference_features,
+            ) = self.watcher_service.download_reference_objects(context_id=context_id)
             (
                 rec_users_dict,
                 related_words,
@@ -103,13 +143,12 @@ class NATSTransport(object):
                 input_kw_query=keyphrase_list,
                 segment_obj=segment_object,
                 hash_result=None,
+                segment_user_ids=segment_user_ids,
+                reference_user_meta_dict=reference_user_dict,
             )
             rec_users = list(rec_users_dict.keys())
-            # watcher_response = {"users": rec_users, "words": related_words}
-
-            # await self.nats_manager.conn.publish(
-            #     msg.reply, json.dumps(watcher_response).encode()
-            # )
+            watcher_response = {"recommendedWatchers": rec_users}
+            output_response = {**request, **watcher_response}
 
             end = timer()
             logger.info(
@@ -123,19 +162,25 @@ class NATSTransport(object):
                 },
             )
 
-            self.watcher_service.prepare_slack_validation(
-                req_data=request,
-                user_dict=rec_users_dict,
-                word_list=related_words,
-                suggested_users=suggested_user_list,
-                segment_users=segment_user_ids,
-                upload=True,
+            await self.nats_manager.conn.publish(
+                msg.reply, json.dumps(output_response).encode()
             )
+
+            # Logic for posting to slack
+            # if context_id in self.whitelist_contexts:
+            #     self.watcher_service.prepare_slack_validation(
+            #         req_data=request,
+            #         user_dict=rec_users_dict,
+            #         word_list=related_words,
+            #         suggested_users=suggested_user_list,
+            #         segment_users=segment_user_ids,
+            #         upload=True,
+            #     )
         except Exception as e:
             logger.error(
-                "Error computing recommended watchers",
-                extra={"err": e, "stack": traceback.print_exc()},
+                "Error computing recommended watchers", extra={"err": e},
             )
+            traceback.print_exc()
             raise
 
     async def get_meetings(self, msg):

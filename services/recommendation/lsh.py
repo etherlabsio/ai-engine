@@ -1,5 +1,8 @@
 import numpy as np
 import pickle
+import logging
+
+logger = logging.getLogger(__name__)
 
 
 class MinHash(object):
@@ -66,16 +69,10 @@ class LSH(object):
 
 class WordSearch(object):
     def __init__(
-        self,
-        vectorizer=None,
-        num_buckets: int = 8,
-        hash_size: int = 4,
-        dim: int = 512,
+        self, vectorizer=None, num_buckets: int = 8, hash_size: int = 4, dim: int = 512,
     ):
         self.dim_size = dim
-        self.lsh = LSH(
-            self.dim_size, num_buckets=num_buckets, hash_size=hash_size
-        )
+        self.lsh = LSH(self.dim_size, num_buckets=num_buckets, hash_size=hash_size)
         self.vectorizer = vectorizer
         self.num_features_in_input = dict()
 
@@ -118,48 +115,26 @@ class WordSearch(object):
 
 class UserSearch(object):
     def __init__(
-        self,
-        input_dict: dict,
-        user_vector_data=None,
-        vectorizer=None,
-        num_buckets: int = 8,
-        hash_size: int = 4,
-        dim: int = 512,
+        self, vectorizer=None, num_buckets: int = 8, hash_size: int = 4, dim: int = 512,
     ):
         self.dim_size = dim
-        self.user_vector_data = user_vector_data
-        self.lsh = LSH(
-            self.dim_size, num_buckets=num_buckets, hash_size=hash_size
-        )
+        self.lsh = LSH(self.dim_size, num_buckets=num_buckets, hash_size=hash_size)
         self.vectorizer = vectorizer
-        self.input_dict = input_dict
         self.num_features_in_input = dict()
-        for user, kw in self.input_dict.items():
-            self.num_features_in_input[user] = 0
 
-    def featurize(
-        self, write=False, file_name="reference_user_kw_vector.pickle"
-    ):
-
-        user_vec_dict = {}
-
-        for user, kw in self.input_dict.items():
-            if self.user_vector_data is None:
-                kw_features = self.vectorizer.get_embeddings(input_list=kw)
-
-                if write:
-                    user_vec_dict[user] = kw_features
-                    with open(file_name, "wb") as f_:
-                        pickle.dump(user_vec_dict, f_)
-
-            else:
-                try:
-                    kw_features = self.user_vector_data[user]
-                except KeyError:
-                    continue
+    def featurize(self, input_dict, user_vector_data):
+        self.num_features_in_input = {u: 0 for u in input_dict.keys()}
+        for user, kw in input_dict.items():
+            try:
+                kw_features = user_vector_data[user]
+            except KeyError as e:
+                logger.warning(
+                    "could'nt find feature vector", extra={"warn": e, "userId": user}
+                )
+                continue
 
             self.lsh.add(kw_features, user)
-            self.num_features_in_input[user] += len(kw_features)
+            self.num_features_in_input[user] = len(kw_features)
 
     def query(self, input_list):
         kw_features = self.vectorizer.get_embeddings(input_list=input_list)

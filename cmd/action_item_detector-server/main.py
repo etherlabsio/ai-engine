@@ -23,6 +23,7 @@ s3 = boto3.resource("s3")
 logger = logging.getLogger(__name__)
 setup_server_logger(debug=False)  # default False for disabling debug mode
 
+whitelisted_channels = ['01DJSFMQ5MP8AX83Y89QC6T39E','01DBB3SN99AVJ8ZWJDQ57X9TGX','01DBB3SN874B4V18DCP4ATMRXA','01DBCSGJACKS03CP9XY69XBNXK']
 
 def load_model():
     bucket = os.getenv("BUCKET_NAME")
@@ -55,11 +56,24 @@ def handler(event, context):
 
     try:
         ai_detector = ad.ActionItemDetector(json_request["segments"], model)
-        (action_items, decisions,) = ai_detector.get_action_decision_subjects_list()
+        (action_items, decisions,questions,) = ai_detector.get_action_decision_subjects_list()
 
-        response = json.dumps({"actions": action_items, "decisions": decisions})
-        return {"statusCode": 200, "body": response}
+        response = json.dumps({"actions": action_items, "decisions": decisions,"questions": questions})
+        #Posting result on question-detection channel
+        try:
+            if len(questions)>0 and (json_request["contextId"].upper() in whitelisted_channels):
+                for quest in questions:
+                    slack_msg = "*Question*: {}".format(quest['subject'])
+                    slack_web_hook_url = "https://hooks.slack.com/services/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"
+                    slack_payload = {"text": slack_msg}
+                    slack_response = requests.post(
+                        url=slack_web_hook_url, data=json.dumps(slack_payload).encode()
+                    )
+        except KeyError:
+            pass
         logger.info("Action and decision extraction success")
+        return {"statusCode": 200, "body": response}
+        
 
     except Exception as e:
         logger.error(

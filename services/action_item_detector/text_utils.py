@@ -140,7 +140,6 @@ class CandidateKPExtractor(object):
         candidate_phrases = self.get_candidate_phrases(text)
         candidate_phrases = self.filter_phrases_by_word_lookup(text, candidate_phrases, present_signifier_words)
         candidate_phrases = [candidate for candidate in candidate_phrases if candidate.split(' ')[0] not in drop_md_vb_words]
-
         candidate_subject_list = []
         #text to search - input text starting from the start of first candidate phrase
         if len(candidate_phrases)>0:
@@ -151,8 +150,8 @@ class CandidateKPExtractor(object):
             if len(candidate_subject_list)==0:
                 pos_search_pattern_list=[r"""verbnoun:{<VB>+<.+>{0,5}<NN.*>+(<.+>{0,2}<JJ.*>*<NN.*>+)*}"""]
                 candidate_subject_list+=self.get_candidate_phrases(text,pos_search_pattern_list,call_ctr = 1)
-
         candidate_subject_list = [candidate for candidate in candidate_subject_list if candidate.split(' ')[0] not in drop_subj_verbs]
+        candidate_subject_list = [candidate for candidate in candidate_subject_list if candidate.split(' ')[0] not in drop_md_vb_words]
         return candidate_subject_list
 
     def get_ai_subjects(self,text,filter_neg_subjs=True):
@@ -165,7 +164,7 @@ class CandidateKPExtractor(object):
             
         ai_candidates = self.get_subject_candidates(text)
         if filter_neg_subjs:
-            ai_candidates = self.filter_phrases_by_word_lookup(text,ai_candidates,negating_words)
+            ai_candidates = self.filter_phrases_by_word_lookup(text,ai_candidates,negating_words,1)
         return ai_candidates
         
     def getregexChunks(self, text, grammar):
@@ -197,7 +196,7 @@ class CandidateKPExtractor(object):
                 filtered_tok_list.append(tok)
         return(' '.join(filtered_tok_list))
 
-    def filter_phrases_by_word_lookup(self,input_sentence, subject_list, drop_words):
+    def filter_phrases_by_word_lookup(self,input_sentence, subject_list, drop_words, neg_check = 0):
     #for each find the
         input_sentence = input_sentence.replace('.','')
         input_sentence = input_sentence.replace(',','')
@@ -205,18 +204,21 @@ class CandidateKPExtractor(object):
         filtered_subjects_list = []
         input_string_split = input_sentence.split(' ')
         negation_search_window = 3
-
+        
         for candidate_subject in subject_list:
             candidate_split = candidate_subject.split(' ')
             candidate_start_locs = [enum for enum,ele in enumerate(input_string_split) if ele == candidate_split[0]]
             candidate_end_locs = [enum for enum,ele in enumerate(input_string_split) if ele == candidate_split[-1]]
-
             for start_loc in candidate_start_locs:
                 for end_loc in candidate_end_locs:
                     if (input_string_split[start_loc:end_loc+1])==candidate_split:
                         #check any of the previous elements contain negating words
                         search_start_idx = max(0,start_loc-negation_search_window)
+                        
                         if len(set(input_string_split[search_start_idx:start_loc]) & set(drop_words))==0:
                             filtered_subjects_list.append(candidate_subject)
+                        elif(neg_check==1):
+                            pos_search_pattern_list=[r"""negation:{(<.*><RB>)+<.+>{0,2}<VB>+<.+>{0,2}<NN.*>+(<.+>{0,2}<JJ.*>*<NN.*>+)*}"""]
+                            filtered_subjects_list+=self.get_candidate_phrases(input_sentence,pos_search_pattern_list,call_ctr = 1)
 
         return list(filtered_subjects_list)
