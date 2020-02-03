@@ -120,38 +120,58 @@ class UserSearch(object):
         self.dim_size = dim
         self.lsh = LSH(self.dim_size, num_buckets=num_buckets, hash_size=hash_size)
         self.vectorizer = vectorizer
-        self.num_features_in_input = dict()
 
-    def featurize(self, input_dict, user_vector_data):
-        self.num_features_in_input = {u: 0 for u in input_dict.keys()}
+    def featurize(self, input_dict, user_vector_data, user_feature_map: dict):
+        num_features_in_input = user_feature_map
         for user, kw in input_dict.items():
             try:
                 kw_features = user_vector_data[user]
             except KeyError as e:
                 logger.warning(
-                    "could'nt find feature vector", extra={"warn": e, "userId": user}
+                    "could not find feature vector", extra={"warn": e, "userId": user}
                 )
                 continue
 
             self.lsh.add(kw_features, user)
-            self.num_features_in_input[user] = len(kw_features)
+            num_features_in_input[user] = len(kw_features)
 
-    def query(self, input_list):
+        logger.debug(
+            "hashed users",
+            extra={
+                "users": list(num_features_in_input.keys()),
+                "featureLen": list(num_features_in_input.values()),
+                "totalFeat": len(list(num_features_in_input.keys())),
+            },
+        )
+
+        return num_features_in_input
+
+    def query(self, input_list, user_feature_map: dict):
         kw_features = self.vectorizer.get_embeddings(input_list=input_list)
 
         results = self.lsh.query(kw_features)
-        print("num results", len(results))
+        logger.info("num results", extra={"totalMatches": len(results)})
 
-        counts = dict()
+        counts = {}
         for r in results:
             if r["label"] in counts.keys():
                 counts[r["label"]] += 1
             else:
                 counts[r["label"]] = 1
         for k in counts:
-            counts[k] = float(counts[k]) / self.num_features_in_input[k]
+            counts[k] = float(counts[k]) / user_feature_map[k]
         return counts
 
     def describe(self):
         for t in self.lsh.describe():
             yield (t)
+
+
+class HashSession(object):
+    def __init__(
+        self, vectorizer=None, num_buckets: int = 8, hash_size: int = 4, dim: int = 512
+    ):
+        us = UserSearch(
+            vectorizer=vectorizer, num_buckets=num_buckets, hash_size=hash_size, dim=dim
+        )
+        self.hs = us

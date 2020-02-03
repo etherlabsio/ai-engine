@@ -2,6 +2,7 @@ import json
 import logging
 from timeit import default_timer as timer
 import traceback
+import uuid
 
 logger = logging.getLogger(__name__)
 
@@ -17,6 +18,9 @@ class NATSTransport(object):
             "01DBB3SN874B4V18DCP4ATMRXA",
         ]
 
+        self.context_user_feature_map = {}
+        self.context_hash_session = {}
+
     async def subscribe_context(self):
         context_created_topic = "context.instance.created"
         logger.info(
@@ -31,9 +35,20 @@ class NATSTransport(object):
         msg_data = json.loads(msg.data)
         context_id = msg_data["contextId"]
         instance_id = msg_data["instanceId"]
+        session_id = context_id + ":" + instance_id
+
+        self.context_user_feature_map.update({session_id: {}})
+        self.context_hash_session.update(
+            {session_id: self.watcher_service.create_hash_session()}
+        )
         logger.info(
             "instance created",
-            extra={"contextId": context_id, "instanceId": instance_id},
+            extra={
+                "contextId": context_id,
+                "instanceId": instance_id,
+                "sessionId": session_id,
+                "contextHashSessions": self.context_hash_session,
+            },
         )
         await self.subscribe_context_events()
         logger.info(
@@ -74,6 +89,8 @@ class NATSTransport(object):
     async def context_start_handler(self, msg):
         request = json.loads(msg.data)
         context_id = request["contextId"]
+        instance_id = request["instanceId"]
+        session_id = context_id + ":" + instance_id
         try:
             start = timer()
             (
@@ -87,23 +104,42 @@ class NATSTransport(object):
             logger.info(
                 "Vectorized reference users",
                 extra={
-                    "instanceId": request["instanceId"],
+                    "instanceId": instance_id,
                     "contextId": context_id,
                     "responseTime": end - start,
                 },
             )
+            try:
+                user_feature_map = self.context_user_feature_map[session_id]
+                context_hash_session = self.context_hash_session[session_id]
+            except KeyError as e:
+                logger.warning(
+                    "could not find the hash session ... creating new session",
+                    extra={"warn": e},
+                )
+                self.context_user_feature_map.update({session_id: {}})
+                self.context_hash_session.update(
+                    {session_id: self.watcher_service.create_hash_session()}
+                )
 
-            self.watcher_service.featurize_reference_users(
+                user_feature_map = self.context_user_feature_map[session_id]
+                context_hash_session = self.context_hash_session[session_id]
+
+            updated_user_feature_map = await self.watcher_service.featurize_reference_users(
                 reference_user_dict=reference_user_dict,
                 reference_features=reference_features,
+                user_feature_map=user_feature_map,
+                hash_session_object=context_hash_session,
             )
+            self.context_user_feature_map[session_id] = updated_user_feature_map
 
             end = timer()
             logger.info(
                 "Formed LSH Buckets for reference users",
                 extra={
-                    "instanceId": request["instanceId"],
+                    "instanceId": instance_id,
                     "contextId": context_id,
+                    "featureMap": updated_user_feature_map,
                     "responseTime": end - start,
                 },
             )
@@ -111,7 +147,7 @@ class NATSTransport(object):
             logger.error(
                 "Error computing features for reference users", extra={"err": e},
             )
-            traceback.print_exc()
+            print(traceback.print_exc())
             raise
 
     async def context_end_handler(self, msg):
@@ -124,12 +160,32 @@ class NATSTransport(object):
         start = timer()
         request = json.loads(msg.data)
         context_id = request["contextId"]
+        instance_id = request["instanceId"]
         segment_object = request["segments"]
         segment_ids = [seg_ids["id"] for seg_ids in segment_object]
         keyphrase_list = request["keyphrases"]
-        segment_user_ids = [seg_ids["spokenBy"] for seg_ids in segment_object]
+        segment_user_ids = [
+            str(uuid.UUID(seg_ids["spokenBy"])) for seg_ids in segment_object
+        ]
+        session_id = context_id + ":" + instance_id
 
         try:
+            try:
+                user_feature_map_for_context = self.context_user_feature_map[session_id]
+                context_hash_session = self.context_hash_session[session_id]
+            except KeyError as e:
+                logger.warning(
+                    "could not find the hash session ... creating new session",
+                    extra={"warn": e},
+                )
+                self.context_user_feature_map.update({session_id: {}})
+                self.context_hash_session.update(
+                    {session_id: self.watcher_service.create_hash_session()}
+                )
+
+                user_feature_map_for_context = self.context_user_feature_map[session_id]
+                context_hash_session = self.context_hash_session[session_id]
+
             (
                 reference_user_dict,
                 reference_features,
@@ -142,19 +198,22 @@ class NATSTransport(object):
                 input_query_list=keyphrase_list,
                 input_kw_query=keyphrase_list,
                 segment_obj=segment_object,
+                user_feature_map=user_feature_map_for_context,
                 hash_result=None,
                 segment_user_ids=segment_user_ids,
                 reference_user_meta_dict=reference_user_dict,
+                hash_session_object=context_hash_session,
+                user_vector_data=reference_features,
             )
             rec_users = list(rec_users_dict.keys())
-            watcher_response = {"recommendedWatchers": rec_users}
-            output_response = {**request, **watcher_response}
+            watcher_response = {"recommendedWatchers": suggested_user_list}
 
             end = timer()
             logger.info(
                 "Recommended watchers computed",
                 extra={
                     "recWatchers": rec_users,
+                    "suggestedWatchers": suggested_user_list,
                     "relatedWords": related_words,
                     "instanceId": request["instanceId"],
                     "segmentsReceived": segment_ids,
@@ -163,7 +222,7 @@ class NATSTransport(object):
             )
 
             await self.nats_manager.conn.publish(
-                msg.reply, json.dumps(output_response).encode()
+                msg.reply, json.dumps(watcher_response).encode()
             )
 
             # Logic for posting to slack
@@ -180,7 +239,7 @@ class NATSTransport(object):
             logger.error(
                 "Error computing recommended watchers", extra={"err": e},
             )
-            traceback.print_exc()
+            print(traceback.print_exc())
             raise
 
     async def get_meetings(self, msg):

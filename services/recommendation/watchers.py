@@ -1,14 +1,14 @@
 import json as js
 import pickle
 import logging
-from typing import List, Dict
+from typing import List, Dict, Mapping
 import numpy as np
 import uuid
 import itertools
 from fuzzywuzzy import process
 import traceback
 
-from lsh import UserSearch
+from lsh import HashSession
 from explain import Explainability
 from graph_query import QueryHandler, GraphQuery
 from utils import Utils
@@ -48,26 +48,23 @@ class RecWatchers(object):
             hash_size=self.hash_size,
         )
 
-        self.us = UserSearch(
-            vectorizer=self.vectorizer,
-            num_buckets=self.num_buckets,
-            hash_size=self.hash_size,
-        )
         self.feature_dir = "/features/recommendation/"
 
     def initialize_reference_objects(
-        self, context_id: str, top_n: int = 50, perform_query: bool = True
+        self, context_id: str, top_n: int = 100, perform_query: bool = True
     ):
 
         if perform_query:
-            query_text, variables = self.query_client.form_reference_users_query(
+            query_text, variables = self.query_client.form_user_contexts_query(
                 context_id=context_id, top_n_result=top_n
             )
             response = self.query_client.perform_query(
                 query=query_text, variables=variables
             )
 
-            reference_user_dict = self.query_handler.format_reference_response(response)
+            reference_user_dict = self.query_handler.format_user_contexts_reference_response(
+                response
+            )
             (
                 reference_user_json_path,
                 features_path,
@@ -127,29 +124,58 @@ class RecWatchers(object):
             logger.error("Error downloading objects", extra={"err": e})
             raise
 
-    def featurize_reference_users(
-        self, reference_user_dict: Dict, reference_features: Dict
+    def create_hash_session(self):
+        hs = HashSession(
+            vectorizer=self.vectorizer,
+            num_buckets=self.num_buckets,
+            hash_size=self.hash_size,
+        )
+        return hs
+
+    async def featurize_reference_users(
+        self,
+        reference_user_dict: Dict,
+        reference_features: Dict,
+        user_feature_map: Dict[str, int],
+        hash_session_object,
     ):
+        session = hash_session_object
         # Featurize reference users
-        self.us.featurize(
-            input_dict=reference_user_dict, user_vector_data=reference_features
+        updated_user_feature_map = session.hs.featurize(
+            input_dict=reference_user_dict,
+            user_vector_data=reference_features,
+            user_feature_map=user_feature_map,
         )
 
-    def perform_hash_query(self, input_list):
-        hash_result = self.us.query(input_list=input_list)
+        return updated_user_feature_map
 
-        return hash_result
+    def perform_hash_query(
+        self, input_list, user_feature_map: Dict[str, int], hash_session_object
+    ):
+        session = hash_session_object
+        hash_result = session.hs.query(
+            input_list=input_list, user_feature_map=user_feature_map
+        )
+        norm_hash_result, cut_off_score = self._normalize_lsh_score(
+            similar_users_dict=hash_result
+        )
+
+        return norm_hash_result
 
     def get_recommended_watchers(
         self,
         input_query_list,
         input_kw_query,
+        user_feature_map: Dict,
+        hash_session_object=None,
         reference_user_meta_dict: Dict = None,
         hash_result=None,
         segment_obj=None,
         segment_user_ids=None,
         n_users=6,
         n_kw=6,
+        check_relevancy=False,
+        user_vector_data=None,
     ):
         top_n_user_object = {}
         top_user_words = []
@@ -158,28 +184,37 @@ class RecWatchers(object):
             if segment_user_ids is None:
                 segment_user_ids = []
 
-            if hash_result is None:
-                rehash_result = self.re_hash_users(input_list=input_kw_query)
-                similar_user_scores_dict = self.query_similar_users(
-                    hash_result=rehash_result, input_list=input_query_list
+            if hash_result is None or len(list(hash_result.keys())) < 1:
+                hash_result = self.perform_hash_query(
+                    input_list=input_kw_query,
+                    user_feature_map=user_feature_map,
+                    hash_session_object=hash_session_object,
                 )
 
-            else:
-                if len(list(hash_result.keys())) < 1:
-                    rehash_result = self.re_hash_users(input_list=input_kw_query)
-                    similar_user_scores_dict = self.query_similar_users(
-                        hash_result=rehash_result, input_list=input_kw_query
-                    )
-                else:
-                    similar_user_scores_dict = self.query_similar_users(
-                        hash_result=hash_result, input_list=input_kw_query
-                    )
+            if len(hash_result.keys()) == 0 or hash_result is None:
+                logger.info(
+                    "No recommendations available... couldn't find or less user data available"
+                )
+                return top_n_user_object, top_user_words, suggested_users
+
+            similar_user_scores_dict = self.query_similar_users(
+                hash_result=hash_result, input_list=input_kw_query
+            )
 
             if len(similar_user_scores_dict.keys()) == 0:
                 logger.info(
                     "No recommendations available... couldn't find or less user data available"
                 )
                 return top_n_user_object, top_user_words, suggested_users
+
+            if check_relevancy:
+                relevant_recommendation = self.check_recommendation_relevancy(
+                    hash_result=hash_result, relevance_threshold=0.40
+                )
+                if not relevant_recommendation:
+                    logger.info("Low relevance score... No recommendations")
+
+                    return top_n_user_object, top_user_words, suggested_users
 
             logger.info("Computing explainability...")
             top_n_user_object, top_related_words = self.exp.get_explanation(
@@ -188,6 +223,7 @@ class RecWatchers(object):
                 input_query=input_query_list,
                 input_kw_query=input_kw_query,
                 query_key="keywords",
+                user_vector_data=user_vector_data,
             )
 
             user_scores = list(top_n_user_object.values())
@@ -204,9 +240,22 @@ class RecWatchers(object):
             ]
             top_user_words = list(process.dedupe(top_user_words))
 
+            top_n_user_names = [
+                self.get_user_names(u_id) for u_id in top_n_user_object.keys()
+            ]
+            suggested_user_names = [
+                self.get_user_names(u_id) for u_id in suggested_users
+            ]
+
             logger.info(
                 "Top recommended users found",
-                extra={"users": list(top_n_user_object.keys()), "scores": user_scores},
+                extra={
+                    "users": list(top_n_user_object.keys()),
+                    "userName": top_n_user_names,
+                    "scores": user_scores,
+                    "suggestedUsers": suggested_users,
+                    "suggestedUserNames": suggested_user_names,
+                },
             )
 
             logger.info(
@@ -219,31 +268,13 @@ class RecWatchers(object):
 
             return top_n_user_object, top_user_words[:n_kw], suggested_users
         except Exception as e:
-            logger.warning("Unable to get recommendation", extra={"warn": e})
+            logger.warning("Unable to get recommendation", extra={"err": e})
             print(traceback.print_exc())
 
             return top_n_user_object, top_user_words, suggested_users
 
     def query_similar_users(self, hash_result, input_list: List, n_retries=3) -> Dict:
-        # result = self.us.query(input_list=input_list)
         top_similar_users = self.utils.sort_dict_by_value(hash_result)
-
-        # Logic for handling random cases where standard deviation between users is very high
-        for i in range(n_retries):
-            high_user_dev = self._check_high_user_deviation(
-                similar_user_scores_dict=top_similar_users
-            )
-            if high_user_dev:
-                logger.debug(
-                    "Recomputing hashes - Re-try {}".format(i),
-                    extra={"currentScore": top_similar_users},
-                )
-                hash_result = self.re_hash_users(input_list=input_list)
-                top_similar_users = self.utils.sort_dict_by_value(hash_result)
-
-            else:
-                logger.debug("Appropriate search found...Final user list")
-                break
 
         similar_users_dict, cutoff_score = self._normalize_lsh_score(
             top_similar_users, normalize_by="percentile", percentile_val=70
@@ -265,21 +296,48 @@ class RecWatchers(object):
             "Top recommended users",
             extra={
                 "totalSimilarUsers": len(similar_users_dict),
-                # "users": user_names,
                 "scores": user_scores,
                 "numFilteredUsers": len(filtered_similar_users_dict),
-                # "filteredUsers": filtered_user_names,
                 "cutOffScore": cutoff_score,
             },
         )
 
         return filtered_similar_users_dict
 
+    def get_user_names(self, user_id):
+        query, var = self.query_client.get_user_name_query(user_id=user_id)
+        response = self.query_client.perform_query(query, var)
+        user_name = self.query_handler.get_user_name(response=response)
+
+        return user_name
+
     def re_hash_users(self, input_list):
         # self.featurize_reference_users()
         hash_result = self.perform_hash_query(input_list=input_list)
 
         return hash_result
+
+    def check_recommendation_relevancy(
+        self, hash_result: Dict, relevance_threshold: float = 0.40
+    ) -> bool:
+        # Hash relevancy
+        # norm_hash_result, cut_off_score = self._normalize_lsh_score(hash_result)
+        sorted_hash_result = self.utils.sort_dict_by_value(hash_result)
+        user_hash_scores = list(sorted_hash_result.values())
+
+        logger.debug(
+            "Verifying Relevancy",
+            extra={
+                "relevanceScore": user_hash_scores[0],
+                "relevanceThreshold": relevance_threshold,
+            },
+        )
+
+        # Check if the top user's hash score is greater than the threshold
+        if user_hash_scores[0] >= relevance_threshold:
+            return True
+        else:
+            return False
 
     def _check_high_user_deviation(self, similar_user_scores_dict, limit=3):
         user_scores = list(similar_user_scores_dict.values())
@@ -307,14 +365,18 @@ class RecWatchers(object):
             for r, score in similar_users_dict.items()
         }
 
-        if normalize_by == "mean":
-            cutoff_score = np.mean(list(similar_users_dict.values()))
-        elif normalize_by == "median":
-            cutoff_score = np.median(list(similar_users_dict.values()))
-        elif normalize_by == "percentile":
-            cutoff_score = np.percentile(
-                list(similar_users_dict.values()), percentile_val
-            )
+        try:
+            if normalize_by == "mean":
+                cutoff_score = np.mean(list(similar_users_dict.values()))
+            elif normalize_by == "median":
+                cutoff_score = np.median(list(similar_users_dict.values()))
+            elif normalize_by == "percentile":
+                cutoff_score = np.percentile(
+                    list(similar_users_dict.values()), percentile_val
+                )
+        except Exception as e:
+            logger.warning(e)
+            cutoff_score = 0
 
         return similar_users_dict, cutoff_score
 
@@ -328,17 +390,18 @@ class RecWatchers(object):
         return filtered_similar_users
 
     def post_process_users(self, segment_obj=None, user_dict=None, percentile_val=70):
-        percentile_cutoff = np.percentile(list(user_dict.values()), percentile_val)
         try:
+            percentile_cutoff = np.percentile(list(user_dict.values()), percentile_val)
             suggested_users = [
                 user
                 for user, scores in user_dict.items()
                 if scores >= percentile_cutoff
             ]
-            return suggested_users
         except Exception as e:
             logger.warning(e)
-            pass
+            suggested_users = [user for user, scores in user_dict.items()]
+
+        return suggested_users
 
     def prepare_slack_validation(
         self,

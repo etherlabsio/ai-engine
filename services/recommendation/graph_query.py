@@ -98,12 +98,66 @@ class GraphQuery(object):
 
         return ref_user_query, variables
 
+    def form_user_contexts_query(self, context_id, top_n_result):
+        alt_query = """
+        query userContextKw($c: string, $t: int) {
+          var(func: eq(xid, $c)) {
+            xid 
+            attribute
+            ~hasContext {
+              xid
+              attribute
+              hasMember {
+                user_id as uid
+              }
+            }
+          }
+
+          userContextKw(func: uid(user_id)) @cascade{
+            xid
+            segments: ~authoredBy (first: $t) {
+              xid
+              attribute
+              text
+              instances: ~hasSegment {
+                contexts: ~hasMeeting {
+                  xid
+                  attribute
+                  }
+            	}
+              hasKeywords {
+                values
+              }
+        	}
+          }
+        }
+        """
+        variables = {"$c": context_id, "$t": str(top_n_result)}
+
+        return alt_query, variables
+
+    def get_user_name_query(self, user_id):
+        query = """
+           query userName($u: string) {
+              userName(func: eq(xid, $u)) {
+                uid
+                xid
+                attribute
+                name
+              }
+            }
+        """
+        variables = {"$u": user_id}
+        return query, variables
+
 
 class QueryHandler(object):
     def __init__(self, vectorizer=None, s3_client=None):
         self.vectorizer = vectorizer
         self.s3_client = s3_client
         self.feature_dir = "/features/recommendation/"
+
+        self.blacklist_context = ["01DBB3SN6EVW6Y4CZ6ETFC9Y9X"]
 
     def to_json(self, data, filename):
         with open(filename + ".json", "w", encoding="utf-8") as f_:
@@ -179,6 +233,95 @@ class QueryHandler(object):
 
         return user_dict
 
+    def format_user_contexts_reference_response(
+        self, query_response: Dict, function_name: str = "userContextKw"
+    ) -> Dict:
+        user_dict = {}
+
+        for info in query_response[function_name]:
+            user_id = info["xid"]
+            segment_obj = info["segments"]
+            for segment_info in segment_obj:
+                segment_kw = []
+                seg_ids = []
+                seg_texts = []
+
+                context_list = []
+                context_instance_obj = segment_info["instances"]
+                # for instance_info in context_instance_obj:
+                context_obj = context_instance_obj[0]["contexts"]
+                # for context_info in context_obj:
+                context_id = context_obj[0]["xid"]
+
+                if context_id in self.blacklist_context:
+                    continue
+                else:
+                    context_list.append(context_id)
+
+                try:
+                    u_id = user_dict[user_id]
+                except KeyError:
+                    # Intialize
+                    user_dict.update(
+                        {
+                            user_id: {
+                                "keywords": None,
+                                "text": None,
+                                "segment_id": None,
+                                "context_id": context_list,
+                            }
+                        }
+                    )
+
+                try:
+                    keyword_object = segment_info["hasKeywords"]
+                except KeyError:
+                    continue
+                segment_kw.extend(list(process.dedupe(keyword_object["values"])))
+                seg_texts.append(segment_info["text"])
+                seg_ids.append(segment_info["xid"])
+
+                user_kw_list = user_dict[user_id].get("keywords")
+                user_text_list = user_dict[user_id].get("text")
+                user_id_list = user_dict[user_id].get("segment_id")
+                user_context_list = user_dict[user_id].get("context_id")
+                if user_kw_list is not None:
+                    user_kw_list.extend(segment_kw)
+                    user_text_list.extend(seg_texts)
+                    user_id_list.extend(seg_ids)
+                    user_context_list.extend(context_list)
+                    user_dict[user_id].update(
+                        {
+                            "keywords": list(set(user_kw_list)),
+                            "text": user_text_list,
+                            "segment_id": user_id_list,
+                            "context_id": user_context_list,
+                        }
+                    )
+                else:
+                    user_dict[user_id].update(
+                        {
+                            "keywords": segment_kw,
+                            "text": seg_texts,
+                            "segment_id": seg_ids,
+                            "context_id": user_context_list,
+                        }
+                    )
+
+        return user_dict
+
+    def get_user_name(self, response: Dict, function_name: str = "userName"):
+
+        for u_info in response[function_name]:
+            user_id = u_info["xid"]
+            try:
+                user_name = u_info["name"]
+            except Exception:
+                logger.warning("Could not get user name ... using ID instead")
+                user_name = user_id
+
+            return user_name
+
     def form_reference_features(
         self,
         reference_user_dict: Dict,
@@ -242,3 +385,22 @@ class QueryHandler(object):
             os.remove(local_path)
 
         return s3_path
+
+
+# if __name__ == "__main__":
+#     test_file = "eg.json"
+#     with open(test_file, 'rb') as f_:
+#         data = js.load(f_)
+#
+#     q = QueryHandler()
+#     dg = GraphQuery("localhost:9080")
+#     query, var = dg.form_user_contexts_query("01DTTZY046AE4P5X0VJNHY5MWT", top_n_result=100)
+#     resp = dg.perform_query(query, var)
+#     user_info = q.format_user_contexts_reference_response(resp)
+#
+#     print(user_info.keys(), len(user_info.keys()))
+#     print()
+#
+#     q.to_json(user_info, "new_user_format")
+#
+#     q.form_reference_features(user_info, context_id="01DTTZY046AE4P5X0VJNHY5MWT")
