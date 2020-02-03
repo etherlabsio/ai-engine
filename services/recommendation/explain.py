@@ -5,6 +5,7 @@ from fuzzywuzzy import process, fuzz
 from scipy.spatial.distance import cosine
 import numpy as np
 import logging
+import traceback
 
 logger = logging.getLogger(__name__)
 
@@ -41,6 +42,7 @@ class Explainability(object):
         input_query: List[str],
         input_kw_query: List[str],
         query_key="keywords",
+        user_vector_data=None,
     ) -> Tuple[Dict, Dict]:
         try:
             input_query_text = self._form_query_text(query_list=input_query)
@@ -62,6 +64,7 @@ class Explainability(object):
                 reference_user_dict=reference_user_dict,
                 query_feature_vector=query_feature_vector,
                 input_query_text=input_query_text,
+                user_vector_data=user_vector_data,
             )
             sorted_user_meta = self.utils.sort_dict_by_value(
                 user_meta_dict, key="confidence"
@@ -95,6 +98,7 @@ class Explainability(object):
             return top_user_object, top_words_dict
         except Exception as e:
             logger.warning("Couldn't get explanations", extra={"warn": e})
+            print(traceback.print_exc())
 
     def _filter_pos(self, word_list):
         filtered_word = []
@@ -179,8 +183,8 @@ class Explainability(object):
         self, similar_users_info_dict: Dict, input_query: str
     ) -> [List, Dict]:
         filtered_sim_user_info = similar_users_info_dict.copy()
-        for u, words in similar_users_info_dict.items():
-            filtered_sim_user_info[u] = list(process.dedupe(filtered_sim_user_info[u]))
+        # for u, words in similar_users_info_dict.items():
+        #     filtered_sim_user_info[u] = list(process.dedupe(filtered_sim_user_info[u]))
 
         return filtered_sim_user_info
 
@@ -254,6 +258,7 @@ class Explainability(object):
         reference_user_dict: Dict,
         query_feature_vector,
         input_query_text,
+        user_vector_data=None,
     ):
         user_meta_dict = {}
 
@@ -264,13 +269,29 @@ class Explainability(object):
 
         for users, user_kw in similar_users_dict.items():
             if len(user_kw) > 0:
-                user_kw_features = self.ws.featurize_input(user_kw)
-                similarity_dict = {
-                    user_kw[i]: self._compute_cosine_similarity(
-                        user_kw_features[i], query_feature_vector
+                # Use stored features instead of computing again
+                try:
+                    user_kw_features = user_vector_data[users]
+
+                    similarity_dict = {
+                        user_kw[i]: self._compute_cosine_similarity(
+                            user_kw_features[i], query_feature_vector
+                        )
+                        for i in range(len(user_kw_features))
+                    }
+                except Exception as e:
+                    logger.warning(
+                        "unable to load features for explainability ... Using vectorizer instead",
+                        extra={"warn": e},
                     )
-                    for i in range(user_kw_features.shape[0])
-                }
+                    user_kw_features = self.ws.featurize_input(user_kw)
+
+                    similarity_dict = {
+                        user_kw[i]: self._compute_cosine_similarity(
+                            user_kw_features[i], query_feature_vector
+                        )
+                        for i in range(len(user_kw_features))
+                    }
                 sorted_similarity_dict = self.utils.sort_dict_by_value(similarity_dict)
 
                 phrase_score = np.mean(list(sorted_similarity_dict.values())[:10])
