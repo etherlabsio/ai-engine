@@ -18,9 +18,7 @@ async def get_recommendations():
     topic = "recommendation.service.get_watchers"
     await nc.connect(servers=[nats_url])
     test_json = read_json(test_json_file)
-    topic, resp = replace_ids(
-        test_json["contextId"], test_json["instanceId"], topic, resp={}
-    )
+    test_json = get_slack_keyphrases(test_json)
     msg = await nc.request(topic, json.dumps(test_json).encode(), timeout=TIMEOUT)
     data = msg.data.decode()
     print("Received a message: {data}".format(data=data))
@@ -29,10 +27,14 @@ async def get_recommendations():
 async def create_context():
     nc = NATS()
     topic = "context.instance.created"
+    test_json = read_json(test_json_file)
     await nc.connect(servers=[nats_url])
-    resp = {"contextId": "*", "instanceId": "*", "state": "created"}
+    resp = {
+        "contextId": test_json["contextId"],
+        "instanceId": test_json["instanceId"],
+        "state": "created",
+    }
 
-    topic, resp = replace_ids(topic=topic, resp=resp)
     await nc.publish(topic, json.dumps(resp).encode())
     pass
 
@@ -41,8 +43,12 @@ async def start_context():
     nc = NATS()
     topic = "context.instance.started"
     await nc.connect(servers=[nats_url])
-    resp = {"instanceId": "*", "state": "started", "contextId": "*"}
-    topic, resp = replace_ids(topic=topic, resp=resp)
+    test_json = read_json(test_json_file)
+    resp = {
+        "instanceId": test_json["instanceId"],
+        "state": "started",
+        "contextId": test_json["contextId"],
+    }
     await nc.publish(topic, json.dumps(resp).encode())
     pass
 
@@ -51,8 +57,12 @@ async def end_context():
     nc = NATS()
     topic = "context.instance.ended"
     await nc.connect(servers=[nats_url])
-    resp = {"instanceId": "*", "state": "ended"}
-    topic, resp = replace_ids(topic=topic, resp=resp)
+    test_json = read_json(test_json_file)
+    resp = {
+        "instanceId": test_json["instanceId"],
+        "state": "ended",
+        "contextId": test_json["contextId"],
+    }
     await nc.publish(topic, json.dumps(resp).encode())
     await nc.flush()
     await nc.close()
@@ -63,6 +73,14 @@ def read_json(json_file):
     with open(json_file) as f_:
         meeting = json.load(f_)
     return meeting
+
+
+def get_slack_keyphrases(test_json: dict):
+    slack_input = "example of the user signs, create a team, Terry ID, AI, select domain mind, meeting person"
+    query_keywords = [w for w in slack_input.split(", ")]
+    test_json["keyphrases"] = query_keywords
+
+    return test_json
 
 
 def replace_ids(context_id=None, instance_id=None, topic=None, resp=dict()):
