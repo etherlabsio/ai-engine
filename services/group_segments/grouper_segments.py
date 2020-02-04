@@ -291,7 +291,7 @@ class community_detection:
         for nodea, nodeb, weight in graph_data:
             if weight["weight"] > outlier_score[nodea]["outlier"] or (((self.segments_order[graph_list[nodeb][-1]] - self.segments_order[graph_list[nodea][-1]]) in [0])):
                 pass
-            elif (self.segments_order[graph_list[nodeb][-1]] - self.segments_order[graph_list[nodea][-1]]) in [2, -1, 1, 2] and weight["weight"] >= outlier_score[nodea]["q3"] :
+            elif (self.segments_order[graph_list[nodeb][-1]] - self.segments_order[graph_list[nodea][-1]]) in [2, -1, 1, 2] and weight["weight"] >= outlier_score[nodea]["avg+pstd"] :
                     #print (graph_list[nodea], graph_list[nodeb])
                 pass
             else:
@@ -787,7 +787,9 @@ class community_detection:
             new_pims[key] = deepcopy(pims[key])
         logger.info("Final PIMs", extra={"PIMs": new_pims})
 
-        return new_pims
+        topics_extracted = get_topics(new_pims)
+
+        return topics_extracted, new_pims
 
     def combine_pims_by_time(self, pims, group_info):
         print("Before Merging", len(pims.keys()))
@@ -1075,6 +1077,16 @@ class community_detection:
         print ("Computed phase 2 community.")
         pims = self.combine_pims_by_time(pims, group_seg_list)
         print ("Computed phase 2 Groups")
+        logger.info("Intermediate PIMs", extra={"PIMs": pims})
+        if (self.mind_id).lower() in ["01daayheky5f4e02qvrjptftxv", "01daaqy88qzb19jqz5prjfr76y", "01daatanxnrqa35e6004hb7mbn", "01dadp74wfv607knpcb6vvxgtg", "01daaqyn9gbebc92aywnxedp0c", "01daatbc3ak1qwc5nyc5ahv2xz", "01dsyjns6ky64jd9736yt0nfjz"]:
+            logger.info("Using Noun Graph for Ranking Groups.")
+            se_graph = self.get_noun_graph()
+            pims = self.filter_by_noun_graph(pims, se_graph)
+            logger.info("Final PIMs based on roun_graph ranking and filteration", extra={"PIMs": pims})
+            topics_extracted = get_topics(pims)
+
+            return pims, topics_extracted
+
         if (self.mind_id).lower() not in ["01daaqy88qzb19jqz5prjfr76y", "01daatanxnrqa35e6004hb7mbn", "01dadp74wfv607knpcb6vvxgtg", "01daaqyn9gbebc92aywnxedp0c", "01daatbc3ak1qwc5nyc5ahv2xz", "01dsyjns6ky64jd9736yt0nfjz"] :
         # if (self.mind_id).lower() not in ["01daaqy88qzb19jqz5prjfr76y"] :
 
@@ -1084,13 +1096,6 @@ class community_detection:
             return pims, topics_extracted
 
         logger.info("Intermediate PIMs", extra={"PIMs": pims})
-        if (self.mind_id).lower() == "01daaqy88qzb19jqz5prjfr76y":
-            se_graph = self.get_noun_graph()
-            pims = self.filter_by_noun_graph(pims, se_graph)
-            logger.info("Final PIMs based on roun_graph ranking and filteration", extra={"PIMs": pims})
-            topics_extracted = get_topics(pims)
-
-            return pims, topics_extracted
         print ("Ranking and filtering groups based on domain mind.")
         pims_copy = deepcopy(pims)
         group_score = self.get_group_scores(pims_copy, segment_scores)

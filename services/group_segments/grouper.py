@@ -14,7 +14,7 @@ def get_groups(segments, model1, mind_dict, for_pims=False):
             raise Exception
     except Exception as e:
         print ("Error while forming groups: ", e )
-        pims = community_extraction.fallback_pims()
+        topics_extracted, pims = community_extraction.fallback_pims()
 
     #topics = get_topics(pims)
 
