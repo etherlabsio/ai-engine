@@ -220,9 +220,14 @@ class ActionItemDetector:
             transcript_text = re.sub("[a-z][.?][A-Z]", self.matcher, transcript_text)
             sent_list = sent_tokenize(transcript_text)
             for sent in sent_list:
+                curr_quest_subjects =[]
                 if len(sent.split(" ")) > 2:
                     if (sent[-1]=="?"):
-                        question_sentences.append(sent)
+                        curr_quest_subjects = self.post_process_ai_check(sent)[1]
+                        if(len(curr_quest_subjects)>0):
+                            question_sentences.append(sent)
+                        else:
+                            pass
         return question_sentences
 
     def get_ai_users(self, ai_sent_list):
