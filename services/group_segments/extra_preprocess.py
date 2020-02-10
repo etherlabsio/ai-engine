@@ -5,7 +5,7 @@ from datetime import datetime
 import json
 
 
-def preprocess_text(text, scorer=False):
+def preprocess_text(text):
     mod_texts_unfiltered = tp.preprocess(text, stop_words=False, remove_punct=False)
     mod_texts = []
     if mod_texts_unfiltered is not None:
@@ -53,6 +53,7 @@ def format_time(tz_time, datetime_object=False):
 
 
 def format_pims_output(pim, req, segmentsmap, mindId, topics_extracted):
+    # print (topics_extracted)
     pims = {}
     pims["group"] = {}
     for no in pim.keys():

@@ -80,7 +80,7 @@ stop_words = set(list(stop_words)+list(stop_words_spacy))
 
 class CandidateKPExtractor(object):
 
-    def __init__(self, stop_words, filter_small_sents = True):
+    def __init__(self, filter_small_sents = True):
 
         self.punct = set(string.punctuation)
         self.filter_small_sents = filter_small_sents

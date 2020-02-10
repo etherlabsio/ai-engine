@@ -115,7 +115,7 @@ def get_topics(groups):
         text_fv = get_feature_vector([text], "sentence-encoder-lambda")[0]
         ranked = [(kp, 1-cosine(text_fv, kp_fv[kp])) for kp in [i[0] for i in pg_sorted]]
         pg_sorted = (sorted(ranked, key=lambda kv:kv[1], reverse=True))[:5]
-        result[pos] = [i for i, j in pg_sorted[:2]]
-        print (pg_sorted[:5])
+        result[group] = [i for i, j in pg_sorted[:2]]
+        print (group, pg_sorted[:2])
         #groups[groupid]["segment0"]["topics"] = [topic for topic, score in pg_sorted[:2]]
     return result

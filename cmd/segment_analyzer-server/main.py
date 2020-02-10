@@ -7,7 +7,6 @@ import os
 import logging
 from log.logger import setup_server_logger
 import json
-from mind_utils import load_mind_features, load_entity_features, load_entity_graph
 from scorer import transport as tp_scorer
 from group_segments import transport as tp_gs
 from group_segments import grouper
@@ -25,21 +24,12 @@ def handler(event, context):
         json_request = json.loads(event['body'])
     else:
         json_request = event["body"]
-    try:
-        mind_dict = load_mind_features(json_request["detail"]["mindId"].lower())
-        if (json_request["detail"]["mindId"]).lower() in ["01daaqy88qzb19jqz5prjfr76y", "01daatanxnrqa35e6004hb7mbn", "01dadp74wfv607knpcb6vvxgtg", "01daaqyn9gbebc92aywnxedp0c", "01daatbc3ak1qwc5nyc5ahv2xz","01dsyjns6ky64jd9736yt0nfjz"] :
-        # if (json_request["detail"]["mindId"]).lower() in ["01daaqy88qzb19jqz5prjfr76y"] :
-
-            entity_dict_full = load_entity_features(json_request["detail"]["mindId"].lower())
-            pg_scores, entity_community_map, entity_community_rank = load_entity_graph(json_request["detail"]["mindId"].lower())
-            common_entities = entity_dict_full.keys() & entity_community_map.keys()
-            entity_dict = {}
-            for ent in common_entities:
-                if True not in np.isnan([entity_dict_full[ent]]):
-                    entity_dict[ent] = entity_dict_full[ent]
-
+    if True:#try:
+        # To compute embeddings for the segment recieved
         if json_request["type"] == "segment_analyzer.extract_features":
+            # preprocess the segment text.
             Request = tp_scorer.decode_json_request(json_request["detail"])
+            # check if segment is empty after preprocessing it.
             if isinstance(Request, bool) and not Request:
                 logger.info("Warning: No fv upload. removed segments because of preprocessing conditions.")
                 output_pims = {
@@ -48,48 +38,20 @@ def handler(event, context):
                     "body": json.dumps({"analyzedSegment": True}),
                 }
                 return output_pims
+
             vector_list = list(
                 map(
                     lambda s: get_score(
                         Request.mind_id,
-                        mind_dict,
                         s,
                         Request.context_id,
                         Request.instance_id,
-                        for_pims=True,
                     ),
                     Request.segments,
                 )
             )
             assert(len(vector_list) == len(Request.segments))
-            if (json_request["detail"]["mindId"]).lower() in ["01daaqy88qzb19jqz5prjfr76y", "01daatanxnrqa35e6004hb7mbn", "01dadp74wfv607knpcb6vvxgtg", "01daaqyn9gbebc92aywnxedp0c", "01daatbc3ak1qwc5nyc5ahv2xz", "01dsyjns6ky64jd9736yt0nfjz"] :
-           # if (json_request["detail"]["mindId"]).lower() in ["01daaqy88qzb19jqz5prjfr76y"] :
-                if vector_list is not False:
-                    similar_entities = list(
-                        map(
-                            lambda s: get_similar_entities(
-                                entity_dict,
-                                s[0],
-                                s[1]
-                            ),
-                            zip(Request.segments, vector_list),
-                        )
-                    )
 
-                    segment_rank = list(
-                        map(
-                            lambda ent_list: get_segment_rank_pc(
-                                ent_list,
-                                pg_scores,
-                                entity_community_map,
-                                entity_community_rank,
-                                (Request.mind_id).lower()
-                            ),
-                            similar_entities,
-                        )
-                    )
-
-                    result = upload_segment_rank(segment_rank, Request.instance_id, Request.context_id, Request.segments)
             output_pims = {
                "statusCode": 200,
                "headers": {"Content-Type": "application/json"},
@@ -99,14 +61,14 @@ def handler(event, context):
         else:
             logger.info("POST request Recieved: ", extra={"Request": json_request['detail']})
             Request_obj = tp_gs.decode_json_request(json_request['detail'])
-            mindId = str(Request_obj.mind_id).lower()
-            lambda_function = "mind-" + mindId
+            lambda_function = "mind-" + Request_obj.mind_id
             if not Request_obj.segments:
+                # To Do: It's better to raise an error than directly return an error.
                 return json({"msg": "No segments to process"})
             topics = {}
             pim = {}
             topics_extracted, pim = grouper.get_groups(
-                Request_obj, lambda_function, mind_dict, for_pims=True
+                Request_obj, lambda_function, for_pims=True
             )
             topics["contextId"] = Request_obj.context_id
             topics["instanceId"] = Request_obj.instance_id
@@ -118,11 +80,11 @@ def handler(event, context):
                 Request_obj.mind_id,
                 topics_extracted
             )
-    except Exception as e:
-        logger.warning("Unable to compute PIMs", extra={"exception": e})
-        output_pims = {
-           "statusCode": 200,
-           "headers": {"Content-Type": "application/json"},
-           "body": json.dumps({"err": "Unable to extract topics " + str(e)}),
-        }
+    #except Exception as e:
+    #    logger.warning("Unable to compute PIMs", extra={"exception": e})
+    #    output_pims = {
+    #       "statusCode": 200,
+    #       "headers": {"Content-Type": "application/json"},
+    #       "body": json.dumps({"err": "Unable to extract topics " + str(e)}),
+    #    }
     return output_pims

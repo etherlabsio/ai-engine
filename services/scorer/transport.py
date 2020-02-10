@@ -23,7 +23,7 @@ def decode_json_request(body) -> Request:
     req = body
 
     def decode_segments(seg):
-        pre_processed_text = pt(seg["originalText"], scorer=True)
+        pre_processed_text = pt(seg["originalText"])
         if pre_processed_text == "":
             return False
         seg_id = seg["id"]

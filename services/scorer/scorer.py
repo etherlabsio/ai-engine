@@ -64,53 +64,31 @@ def upload_fv(fv_list, Request, context_id, instance_id):
 
 def get_score(
     mind_id: str,
-    mind_dict,
     Request: TextSegment,
     context_id,
-    instance_id,
-    for_pims=False,
+    instance_id
 ) -> Score:
     score = []
-    pre_processed_input = pt(Request.text, scorer=True)
+    # To do: This is a redundent preprocessing. sync this with main file preprocessing.
+    pre_processed_input = pt(Request.text)
     lambda_function = "mind-" + mind_id
     transcript_text = Request.text
     if len(pre_processed_input) != 0:
         mind_input = json.dumps({"text": pre_processed_input})
         mind_input = json.dumps({"body": mind_input})
-        # logger.info("sending request to mind service")
-        if for_pims is False:
-            transcript_score = get_feature_vector(
-                mind_input,
-                lambda_function,
-                mind_dict,
-                Request,
-                context_id,
-                instance_id,
-            )
+        response = get_feature_vector(
+            mind_input,
+            lambda_function,
+            Request,
+            context_id,
+            instance_id
+        )
+        if response is not False:
+            return response
         else:
-            response = get_feature_vector(
-                mind_input,
-                lambda_function,
-                mind_dict,
-                Request,
-                context_id,
-                instance_id,
-                store_features=True,
-            )
-            if response is not False:
-                return response
-            else:
-                return False
+            return False
     else:
         return True
-        transcript_score = 0.00001
-        logger.warn("processing transcript: {}".format(transcript_text))
-        logger.warn("transcript too small to process. Returning default score")
-    # hack to penalize out of domain small transcripts coming as PIMs - word level
-    if len(transcript_text.split(" ")) < 40:
-        transcript_score = 0.1 * transcript_score
-    score = 1 / transcript_score
-    return score
 
 def cosine(vec1, vec2):
     return dot(vec1, vec2) / (norm(vec1) * norm(vec2))
@@ -126,11 +104,9 @@ def getClusterScore(mind_vec, sent_vec):
 def get_feature_vector(
     mind_input,
     lambda_function,
-    mind_dict,
     Request,
     context_id,
-    instance_id,
-    store_features=False,
+    instance_id
 ):
     invoke_response = lambda_client.invoke(
         FunctionName=lambda_function,
@@ -140,50 +116,11 @@ def get_feature_vector(
     out_json = invoke_response["Payload"].read().decode("utf8").replace("'", '"')
     data = json.loads(json.loads(out_json)["body"])
     response = json.loads(out_json)["statusCode"]
-    if store_features is True:
-        vector_list = data["sent_feats"][0]
-        upload_fv(vector_list, Request, context_id, instance_id)
-        return vector_list
+    vector_list = data["sent_feats"][0]
+    # Upload the feature vector to S3 Bucket.
+    upload_fv(vector_list, Request, context_id, instance_id)
 
-    feats = list(mind_dict["feature_vector"].values())
-    mind_vector = np.array(feats).reshape(len(feats), -1)
-    transcript_score = 0.00001
-    transcript_mind_list = []
-    transcript_score_list = []
-    if response == 200:
-        logger.info("got {} from mind server".format(response))
-        feature_vector = np.array(data["sent_feats"][0])
-        if len(feature_vector) > 0:
-            # For paragraphs, uncomment below LOC
-            # feature_vector = np.mean(np.array(feature_vector),0).reshape(1,-1)
-            batch_size = min(10, feature_vector.shape[0])
-            for i in range(0, feature_vector.shape[0], batch_size):
-                mind_vec = np.expand_dims(np.array(mind_vector), 2)
-                sent_vec = feature_vector[i : i + batch_size]
-
-                cluster_scores = getClusterScore(mind_vec, sent_vec)
-
-                batch_scores = cluster_scores.max(1)
-                transcript_score_list.extend(batch_scores)
-
-                minds_selected = cluster_scores.argmax(1)
-                transcript_mind_list.extend(minds_selected)
-            transcript_score = np.mean(transcript_score_list)
-            logger.info(
-                "Mind Selected is {}".format(
-                    {
-                        ele: transcript_mind_list.count(ele)
-                        for ele in set(transcript_mind_list)
-                    }
-                )
-            )
-    else:
-        logger.debug(
-            "Invalid response from mind service for input: {}".format(mind_input)
-        )
-        logger.debug("Returning default score")
-
-    return transcript_score
+    return vector_list
 
 def get_similar_entities(ent_fv, segment_info, sent_fv ):
     ent_score = []
