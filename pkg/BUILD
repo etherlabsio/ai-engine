@@ -75,3 +75,31 @@ python_library(
         ],
     )
 )
+
+python_library(
+    name='distilbert_pos_tagger-pkg',
+    sources=['distilbert_pos_tagger/*.py'],
+    dependencies=[
+        'pkg/distilbert_pos_tagger:distilbert_pos_tagger'
+    ],
+    provides=setup_py(
+        name='distilbert_pos_tagger',
+        version='0.1',
+        description='Package to perform Pos tagging',
+        author='Shubham',
+        author_email='shubham@etherlabs.io',
+        python_requires='>=3.6.0',
+        url='https://github.com/etherlabsio/ai-engine',
+        license='MIT',
+        classifiers=[
+            # Trove classifiers
+            # Full list: https://pypi.python.org/pypi?%3Aaction=list_classifiers
+            'License :: OSI Approved :: MIT License',
+            'Programming Language :: Python',
+            'Programming Language :: Python :: 3',
+            'Programming Language :: Python :: 3.7',
+            'Programming Language :: Python :: Implementation :: CPython',
+            'Programming Language :: Python :: Implementation :: PyPy'
+        ],
+    )
+)
