@@ -78,7 +78,7 @@ python_library(
 
 python_library(
     name='distilbert_pos_tagger-pkg',
-    sources=['distilbert_pos_tagger/*.py'],
+    sources=['distilbert_pos_tagger/*'],
     dependencies=[
         'pkg/distilbert_pos_tagger:distilbert_pos_tagger'
     ],
