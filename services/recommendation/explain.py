@@ -41,16 +41,21 @@ class Explainability(object):
         reference_user_dict: Dict,
         input_query: List[str],
         input_kw_query: List[str],
-        query_key="keywords",
+        query_by="keywords",
         user_vector_data=None,
     ) -> Tuple[Dict, Dict]:
         try:
             input_query_text = self._form_query_text(query_list=input_query)
 
-            similar_users_info_dict = {
-                k: reference_user_dict[k][query_key]
-                for k in similar_user_scores_dict.keys()
-            }
+            try:
+                similar_users_info_dict = {
+                    k: reference_user_dict[k][query_by]
+                    for k in similar_user_scores_dict.keys()
+                }
+            except Exception:
+                similar_users_info_dict = {
+                    k: "" for k in similar_user_scores_dict.keys()
+                }
             filtered_sim_user_dict = self._filter_user_info(
                 similar_users_info_dict=similar_users_info_dict,
                 input_query=input_query_text,
@@ -102,7 +107,7 @@ class Explainability(object):
 
     def _filter_pos(self, word_list):
         filtered_word = []
-        multi_phrase = []
+        # multi_phrase = []
 
         for word in word_list:
             single_phrases = []
@@ -115,7 +120,8 @@ class Explainability(object):
                     single_phrases.append(tags[0])
                 else:
                     if len(single_phrases) > 1:
-                        multi_phrase = [" ".join(single_phrases)]
+                        # multi_phrase = [" ".join(single_phrases)]
+                        pass
 
                     single_phrases = []
 
