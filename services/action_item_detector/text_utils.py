@@ -1,6 +1,9 @@
 import string
 import itertools
 import nltk
+from distilbert_pos_tagger import DistilBertPosTagger as dbpt
+
+dbtag = dbpt()
 
 #def replaceContractions()
 
@@ -170,9 +173,10 @@ class CandidateKPExtractor(object):
     def getregexChunks(self, text, grammar):
 
         chunker = nltk.chunk.regexp.RegexpParser(grammar)
-        tagged_sents = nltk.pos_tag_sents(
-            nltk.word_tokenize(sent) for sent in nltk.sent_tokenize(text)
-        )
+        #tagged_sents = nltk.pos_tag_sents(
+        #    nltk.word_tokenize(sent) for sent in nltk.sent_tokenize(text)
+        #)
+        tagged_sents = [dbtag.get_sent_pos_tags(t) for t in nltk.sent_tokenize(text) ]
         all_chunks = list(
             itertools.chain.from_iterable(
                 nltk.chunk.tree2conlltags(chunker.parse(tagged_sent))
