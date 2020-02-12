@@ -1,6 +1,16 @@
 import numpy as np
-import pickle
 import logging
+from typing import List, MutableMapping
+
+from object_def import (
+    UserID,
+    InputData,
+    MetaData,
+    UserVectorData,
+    UserFeatureMap,
+    UserMetaData,
+    HashResult,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -77,9 +87,6 @@ class WordSearch(object):
         self.num_features_in_input = dict()
 
     def featurize(self, reference_features, reference_input_list):
-        # kw_features = self.vectorizer.get_embeddings(
-        #     input_list=self.input_list
-        # )
         for kw in reference_input_list:
             self.num_features_in_input[kw] = 0
 
@@ -119,10 +126,16 @@ class UserSearch(object):
     ):
         self.dim_size = dim
         self.lsh = LSH(self.dim_size, num_buckets=num_buckets, hash_size=hash_size)
-        self.vectorizer = vectorizer
 
-    def featurize(self, input_dict, user_vector_data, user_feature_map: dict):
-        num_features_in_input = user_feature_map
+    def featurize(
+        self,
+        input_dict: UserMetaData,
+        user_vector_data: UserVectorData,
+        user_feature_map: UserFeatureMap,
+    ) -> UserFeatureMap:
+        num_features_in_input = (
+            user_feature_map if user_feature_map is not None else dict()
+        )
         for user, kw in input_dict.items():
             try:
                 kw_features = user_vector_data[user]
@@ -146,8 +159,10 @@ class UserSearch(object):
 
         return num_features_in_input
 
-    def query(self, input_list, user_feature_map: dict):
-        kw_features = self.vectorizer.get_embeddings(input_list=input_list)
+    def query(
+        self, kw_features: InputData, user_feature_map: UserFeatureMap, tag: str = "v1"
+    ):
+        # kw_features = self.vectorizer.get_embeddings(input_list=input_list)
 
         results = self.lsh.query(kw_features)
         logger.info("num results", extra={"totalMatches": len(results)})
@@ -158,20 +173,56 @@ class UserSearch(object):
                 counts[r["label"]] += 1
             else:
                 counts[r["label"]] = 1
-        for k in counts:
-            counts[k] = float(counts[k]) / user_feature_map[k]
+
+        # total_features = np.sum([user_feature_map[k] for k in counts])
+        if tag == "v1":
+            for k in counts:
+                counts[k] = float(counts[k]) / user_feature_map[k]
+        else:
+            try:
+                norm_user_feature_num = self.norm(
+                    lower=np.mean(list(user_feature_map.values())),
+                    upper=np.max(list(user_feature_map.values())),
+                    d=user_feature_map,
+                )
+            except Exception:
+                norm_user_feature_num = user_feature_map
+            for k in counts:
+                counts[k] = float(counts[k]) / (len(results) * norm_user_feature_num[k])
+
         return counts
 
     def describe(self):
         for t in self.lsh.describe():
             yield (t)
 
+    def norm(self, lower, upper, d: dict):
+        l_norm = {x: lower + (upper - lower) * v for x, v in d.items()}
+        return l_norm
 
-class HashSession(object):
+
+class HashSession(UserSearch):
     def __init__(
         self, vectorizer=None, num_buckets: int = 8, hash_size: int = 4, dim: int = 512
     ):
-        us = UserSearch(
-            vectorizer=vectorizer, num_buckets=num_buckets, hash_size=hash_size, dim=dim
+        super().__init__(vectorizer, num_buckets, hash_size, dim)
+
+    def hash_features(
+        self,
+        input_dict: UserMetaData,
+        user_vector_data: UserVectorData,
+        user_feature_map: UserFeatureMap,
+    ):
+        num_features = self.featurize(
+            input_dict=input_dict,
+            user_vector_data=user_vector_data,
+            user_feature_map=user_feature_map,
         )
-        self.hs = us
+
+        return num_features
+
+    def hash_query(
+        self, kw_features: InputData, user_feature_map: UserFeatureMap, tag: str = "v1"
+    ):
+        counts = self.query(kw_features, user_feature_map, tag=tag)
+        return counts

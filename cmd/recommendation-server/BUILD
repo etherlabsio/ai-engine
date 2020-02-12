@@ -32,7 +32,8 @@ python_library(
 		'3rdparty/python:requests',
 		'3rdparty/python:fuzzywuzzy',
 		'3rdparty/python:python-levenshtein',
-		'3rdparty/python:scipy'
+		'3rdparty/python:scipy',
+		'3rdparty/python:walrus'
 	],
 
 )
