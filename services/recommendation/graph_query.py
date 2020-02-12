@@ -13,7 +13,7 @@ logger = logging.getLogger(__name__)
 
 
 class GraphQuery(object):
-    def __init__(self, dgraph_url: str, dgraph_client=None):
+    def __init__(self, dgraph_url: str):
         self.client_stub = pydgraph.DgraphClientStub(dgraph_url)
         self.client = pydgraph.DgraphClient(self.client_stub)
         # self.client = dgraph_client
@@ -64,9 +64,11 @@ class GraphQuery(object):
 
         return user_kw_query, variables
 
+    # Tag - v1
     def form_reference_users_query(
         self, context_id: str, top_n_result: int = 10
     ) -> Tuple[str, Dict]:
+        logger.info("Using v1 for querying")
         ref_user_query = """
         query contextUserInfo($c: string, $t: int) {
           contextUserInfo(func: eq(xid, $c)) @cascade{
@@ -98,37 +100,49 @@ class GraphQuery(object):
 
         return ref_user_query, variables
 
+    # Tag - v2
     def form_user_contexts_query(self, context_id, top_n_result):
+        logger.info("Using v2 for querying")
         alt_query = """
         query userContextKw($c: string, $t: int) {
-          var(func: eq(xid, $c)) {
-            xid 
-            attribute
-            ~hasContext {
-              xid
+            var(func: eq(xid, $c)) {
+              xid 
               attribute
-              hasMember {
-                user_id as uid
+              ~hasContext {
+                xid
+                attribute
+                hasMember {
+                 user as uid
+                }
+                belongsTo {
+                  attribute
+                  c_id as uid
+                }
               }
             }
-          }
-
-          userContextKw(func: uid(user_id)) @cascade{
-            xid
-            segments: ~authoredBy (first: $t) {
-              xid
-              attribute
-              text
-              instances: ~hasSegment {
-                contexts: ~hasMeeting {
-                  xid
-                  attribute
+        
+        
+            userContextKw(func: uid(c_id)) @normalize @cascade{
+            channels: ~belongsTo @filter(eq(attribute, "channelId") AND NOT anyofterms(name, "test testing vtemp only")) {
+            contexts: hasContext {
+              context_id: xid
+                instances: hasMeeting (orderdesc: startTime, first: $t){
+                 xid
+                segments: hasSegment {
+                  segment_id: xid
+                  text: text
+                  time: startTime
+                  authors: authoredBy @filter(uid(user)){
+                    user_id: xid
+                    user_name: name
                   }
-            	}
-              hasKeywords {
-                values
+                  keywords: hasKeywords {
+                    values: values
+                  }
+                }
               }
-        	}
+            }   
+            }
           }
         }
         """
@@ -152,10 +166,17 @@ class GraphQuery(object):
 
 
 class QueryHandler(object):
-    def __init__(self, vectorizer=None, s3_client=None):
+    def __init__(
+        self,
+        dgraph_url,
+        vectorizer=None,
+        s3_client=None,
+        feature_dir: str = "/features/recommendation/",
+    ):
         self.vectorizer = vectorizer
         self.s3_client = s3_client
-        self.feature_dir = "/features/recommendation/"
+        self.query_client = GraphQuery(dgraph_url=dgraph_url)
+        self.feature_dir = feature_dir
 
         self.blacklist_context = ["01DBB3SN6EVW6Y4CZ6ETFC9Y9X"]
 
@@ -239,74 +260,81 @@ class QueryHandler(object):
         user_dict = {}
 
         for info in query_response[function_name]:
-            user_id = info["xid"]
-            segment_obj = info["segments"]
-            for segment_info in segment_obj:
-                segment_kw = []
-                seg_ids = []
-                seg_texts = []
+            context_list = []
+            context_object = info["contexts"]
+            context_id = context_object["context_id"]
 
-                context_list = []
-                context_instance_obj = segment_info["instances"]
-                # for instance_info in context_instance_obj:
-                context_obj = context_instance_obj[0]["contexts"]
-                # for context_info in context_obj:
-                context_id = context_obj[0]["xid"]
+            if context_id in self.blacklist_context:
+                continue
+            else:
+                context_list.append(context_id)
 
-                if context_id in self.blacklist_context:
-                    continue
-                else:
-                    context_list.append(context_id)
+            instance_object = context_object["instances"]
 
-                try:
-                    u_id = user_dict[user_id]
-                except KeyError:
-                    # Intialize
-                    user_dict.update(
-                        {
-                            user_id: {
-                                "keywords": None,
-                                "text": None,
-                                "segment_id": None,
+            for instance_info in instance_object:
+                segment_object = instance_info["segments"]
+                for segment_info in segment_object:
+                    segment_kw = []
+                    seg_ids = []
+                    seg_texts = []
+
+                    segment_id = segment_info["segment_id"]
+                    text = segment_info["text"]
+                    keyword_object = segment_info["keywords"]
+                    user_object = segment_info["authors"]
+
+                    user_id = user_object["user_id"]
+
+                    try:
+                        u_id = user_dict[user_id]
+                    except KeyError:
+                        # Intialize
+                        user_dict.update(
+                            {
+                                user_id: {
+                                    "keywords": None,
+                                    "text": None,
+                                    "segment_id": None,
+                                    "context_id": context_list,
+                                }
+                            }
+                        )
+
+                    try:
+                        keyword_values = keyword_object["values"]
+                    except KeyError:
+                        continue
+                    segment_kw.extend(list(process.dedupe(keyword_object["values"])))
+                    seg_texts.append(text)
+                    seg_ids.append(segment_id)
+
+                    user_kw_list = user_dict[user_id].get("keywords")
+                    user_text_list = user_dict[user_id].get("text")
+                    user_id_list = user_dict[user_id].get("segment_id")
+                    user_context_list = user_dict[user_id].get("context_id")
+
+                    if user_kw_list is not None:
+                        user_kw_list.extend(segment_kw)
+                        user_text_list.extend(seg_texts)
+                        user_id_list.extend(seg_ids)
+                        user_context_list.extend(context_list)
+                        user_dict[user_id].update(
+                            {
+                                "keywords": list(set(user_kw_list)),
+                                "text": list(set(user_text_list)),
+                                "segment_id": list(set(user_id_list)),
+                                "context_id": list(set(user_context_list)),
+                            }
+                        )
+                    else:
+                        user_dict[user_id].update(
+                            {
+                                "keywords": segment_kw,
+                                "text": seg_texts,
+                                "segment_id": seg_ids,
                                 "context_id": context_list,
                             }
-                        }
-                    )
-
-                try:
-                    keyword_object = segment_info["hasKeywords"]
-                except KeyError:
-                    continue
-                segment_kw.extend(list(process.dedupe(keyword_object["values"])))
-                seg_texts.append(segment_info["text"])
-                seg_ids.append(segment_info["xid"])
-
-                user_kw_list = user_dict[user_id].get("keywords")
-                user_text_list = user_dict[user_id].get("text")
-                user_id_list = user_dict[user_id].get("segment_id")
-                user_context_list = user_dict[user_id].get("context_id")
-                if user_kw_list is not None:
-                    user_kw_list.extend(segment_kw)
-                    user_text_list.extend(seg_texts)
-                    user_id_list.extend(seg_ids)
-                    user_context_list.extend(context_list)
-                    user_dict[user_id].update(
-                        {
-                            "keywords": list(set(user_kw_list)),
-                            "text": user_text_list,
-                            "segment_id": user_id_list,
-                            "context_id": user_context_list,
-                        }
-                    )
-                else:
-                    user_dict[user_id].update(
-                        {
-                            "keywords": segment_kw,
-                            "text": seg_texts,
-                            "segment_id": seg_ids,
-                            "context_id": user_context_list,
-                        }
-                    )
+                        )
 
         return user_dict
 
@@ -326,11 +354,12 @@ class QueryHandler(object):
         self,
         reference_user_dict: Dict,
         context_id: str,
-        ref_key: str = "keywords",
+        query_by: str = "keywords",
         write: bool = True,
+        tag: str = "v1",
     ):
         ref_user_info_dict = {
-            u: reference_user_dict[u][ref_key] for u in reference_user_dict.keys()
+            u: reference_user_dict[u][query_by] for u in reference_user_dict.keys()
         }
 
         user_vector_data = {}
@@ -341,18 +370,20 @@ class QueryHandler(object):
             user_vector_data.update({user: kw_features})
             num_features_in_input[user] = len(kw_features)
 
+        total_features = np.sum(list(num_features_in_input.values()))
+
         if write:
             file_name = context_id
-            with open(file_name + ".pickle", "wb") as f_:
+            with open(file_name + "_" + tag + ".pickle", "wb") as f_:
                 pickle.dump(user_vector_data, f_)
 
             features_s3_path = self._upload_file(
                 context_id=context_id,
                 feature_dir=self.feature_dir,
-                file_name=file_name + ".pickle",
+                file_name=file_name + "_" + tag + ".pickle",
             )
             reference_user_json_name = self.to_json(
-                reference_user_dict, filename=context_id
+                reference_user_dict, filename=context_id + "_" + tag
             )
             reference_user_json_path = self._upload_file(
                 context_id=context_id,
@@ -373,7 +404,7 @@ class QueryHandler(object):
                 },
             )
 
-            return reference_user_json_path, features_s3_path
+            return reference_user_json_path, features_s3_path, total_features
 
     def _upload_file(self, context_id, feature_dir, file_name):
         s3_path = context_id + feature_dir + file_name
@@ -386,21 +417,59 @@ class QueryHandler(object):
 
         return s3_path
 
+    def form_user_contexts_query(
+        self, context_id: str, top_n_result: int, tag: str, query_by: str = "keywords"
+    ):
+        if tag == "v1":
+            query, variables = self.query_client.form_reference_users_query(
+                context_id=context_id, top_n_result=top_n_result
+            )
 
-# if __name__ == "__main__":
-#     test_file = "eg.json"
-#     with open(test_file, 'rb') as f_:
-#         data = js.load(f_)
-#
-#     q = QueryHandler()
-#     dg = GraphQuery("localhost:9080")
-#     query, var = dg.form_user_contexts_query("01DTTZY046AE4P5X0VJNHY5MWT", top_n_result=100)
-#     resp = dg.perform_query(query, var)
-#     user_info = q.format_user_contexts_reference_response(resp)
-#
-#     print(user_info.keys(), len(user_info.keys()))
-#     print()
-#
-#     q.to_json(user_info, "new_user_format")
-#
-#     q.form_reference_features(user_info, context_id="01DTTZY046AE4P5X0VJNHY5MWT")
+            response = self.query_client.perform_query(query=query, variables=variables)
+
+            reference_user_dict = self.format_reference_response(response)
+        else:
+            query, variables = self.query_client.form_user_contexts_query(
+                context_id=context_id, top_n_result=top_n_result
+            )
+            response = self.query_client.perform_query(query=query, variables=variables)
+
+            reference_user_dict = self.format_user_contexts_reference_response(response)
+
+        (
+            reference_user_json_path,
+            features_path,
+            total_features,
+        ) = self.form_reference_features(
+            reference_user_dict=reference_user_dict,
+            context_id=context_id,
+            query_by=query_by,
+            tag=tag,
+        )
+
+        return reference_user_json_path, features_path, total_features
+
+
+if __name__ == "__main__":
+    test_file = "eg.json"
+    with open(test_file, "rb") as f_:
+        data = js.load(f_)
+
+    q = QueryHandler(dgraph_url="localhost:9080")
+    dg = GraphQuery("localhost:9080")
+    query, var = dg.form_user_contexts_query(
+        "01DBB3SN874B4V18DCP4ATMRXA", top_n_result=50
+    )
+    resp = dg.perform_query(query, var)
+    user_info = q.format_user_contexts_reference_response(resp)
+
+    print(user_info.keys(), len(user_info.keys()))
+    print()
+    kw_list = []
+    for k, v in user_info.items():
+        kw_list.extend(v["keywords"])
+
+    print(len(kw_list))
+    q.to_json(user_info, "new_user_format")
+
+    q.form_reference_features(user_info, context_id="01DBB3SN874B4V18DCP4ATMRXA")
