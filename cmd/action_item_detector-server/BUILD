@@ -2,12 +2,12 @@ python_binary(
 	name="server",
 	dependencies = [
 		'pkg:common-libs',
+		'pkg:distilbert_pos_tagger-libs',
 		'services/action_item_detector:action_item_detector-libs',
 		':action_item_detector-dep',
-		'services:action_item_detector',
 	],
 	source="main.py",
-    compatibility=['CPython==3.7.*'],
+    compatibility=['CPython>=3.6.*'],
     platforms=['linux-x86_64']
 )
 

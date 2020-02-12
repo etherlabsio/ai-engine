@@ -1,6 +1,9 @@
 python_library(
     name='common-libs',
-    sources=['*/*', '*']
+    dependencies=[
+        ':logger-libs',
+        ':s3-libs'
+    ]
 )
 
 python_library(
@@ -18,6 +21,14 @@ python_library(
     name='s3-libs',
     sources=['s3client/*']
 )
+
+python_library(
+    name='distilbert_pos_tagger-libs',
+    dependencies=[
+        'pkg/distilbert_pos_tagger:distilbert_pos_tagger'
+    ]
+)
+
 python_library(
     name='graphrank-pkg',
     sources=['graphrank/*.py'],
@@ -78,7 +89,6 @@ python_library(
 
 python_library(
     name='distilbert_pos_tagger-pkg',
-    sources=['distilbert_pos_tagger/*'],
     dependencies=[
         'pkg/distilbert_pos_tagger:distilbert_pos_tagger'
     ],
