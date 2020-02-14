@@ -7,7 +7,7 @@ python_binary(
 		':action_item_detector-dep',
 	],
 	source="main.py",
-    compatibility=['CPython>=3.6.*'],
+    compatibility=['CPython==3.7.*'],
     platforms=['linux-x86_64']
 )
 
