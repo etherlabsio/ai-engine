@@ -17,7 +17,10 @@
     and in part from HuggingFace PyTorch version of Google AI Bert model (https://github.com/google-research/bert)
 """
 from __future__ import absolute_import, division, print_function, unicode_literals
-
+try:
+    import unzip_requirements
+except ImportError:
+    pass
 import json
 import logging
 import math

@@ -23,7 +23,10 @@ import json
 import logging
 import os
 from io import open
-
+try:
+    import unzip_requirements
+except ImportError:
+    pass
 import six
 import torch
 from torch import nn

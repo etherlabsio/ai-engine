@@ -21,9 +21,9 @@ import boto3
 from botocore.config import Config
 from botocore.exceptions import ClientError
 import requests
-from tqdm.auto import tqdm
-from contextlib import contextmanager
-from . import __version__
+#from tqdm.auto import tqdm
+#from contextlib import contextmanager
+#from . import __version__
 
 logger = logging.getLogger(__name__)  # pylint: disable=invalid-name
 
