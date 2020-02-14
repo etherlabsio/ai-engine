@@ -1,6 +1,11 @@
+try:
+    import unzip_requirements
+except ImportError:
+    pass
 import torch
 import torch.nn as nn
 import os
+import io
 import boto3
 import requests
 from distilbert_utils.modeling_distilbert import DistilBertPreTrainedModel,  DistilBertModel, DistilBertConfig
