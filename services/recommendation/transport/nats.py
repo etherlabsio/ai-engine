@@ -3,6 +3,7 @@ import logging
 from timeit import default_timer as timer
 import traceback
 import uuid
+from typing import List, Dict, Mapping
 
 logger = logging.getLogger(__name__)
 
@@ -195,7 +196,12 @@ class NATSTransport(object):
             tag = "v2"
 
         try:
+            participant_response = await self.get_meeting_attendees(
+                instance_id=instance_id
+            )
+            attendees_response_object = participant_response.get("attendees", None)
             (
+                original_rec_users,
                 rec_users_dict,
                 related_words,
                 suggested_user_list,
@@ -203,7 +209,9 @@ class NATSTransport(object):
                 rec_user_names,
             ) = self.watcher_service.get_recommended_watchers(
                 context_id=context_id,
+                instance_id=instance_id,
                 session_id=session_id,
+                participant_response=attendees_response_object,
                 input_query_list=keyphrase_list,
                 input_kw_query=keyphrase_list,
                 segment_user_ids=segment_user_ids,
@@ -220,6 +228,7 @@ class NATSTransport(object):
             logger.info(
                 "Recommended watchers computed",
                 extra={
+                    "originalRecWatchers": list(original_rec_users.keys()),
                     "recWatchers": rec_users,
                     "recWatcherNames": rec_user_names,
                     "userScores": list(rec_users_dict.values()),
@@ -239,9 +248,10 @@ class NATSTransport(object):
             )
 
             # Logic for posting to slack
-            if context_id in self.whitelist_contexts:
+            if context_id in (self.whitelist_contexts + self.production_testing):
                 self.watcher_service.prepare_slack_validation(
                     req_data=request,
+                    original_user_dict=original_rec_users,
                     user_dict=rec_users_dict,
                     word_list=related_words,
                     suggested_users=suggested_user_names,
@@ -255,6 +265,19 @@ class NATSTransport(object):
             )
             print(traceback.print_exc())
             raise
+
+    async def get_meeting_attendees(self, instance_id: str) -> Mapping[str, List[Dict]]:
+        topic = "ether.meeting.attendees"
+        request_obj = {"meetingID": instance_id}
+
+        msg = await self.nats_manager.conn.request(
+            topic, json.dumps(request_obj).encode(), timeout=20
+        )
+        resp = json.loads(msg.data.decode())
+
+        logger.debug("Response received", extra={"attendeesResp": resp})
+
+        return resp
 
     async def get_meetings(self, msg):
         msg_data = json.loads(msg.data)

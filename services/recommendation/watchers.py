@@ -166,18 +166,17 @@ class RecWatchers(object):
         hash_result = hash_session.hash_query(
             kw_features=input_features, user_feature_map=user_feature_map, tag=tag
         )
-        norm_hash_result, cut_off_score = self._normalize_lsh_score(
-            similar_users_dict=hash_result
-        )
 
-        return norm_hash_result
+        return hash_result
 
     def get_recommended_watchers(
         self,
         context_id: str,
+        instance_id: str,
         session_id: str,
         input_query_list: InputData,
         input_kw_query: InputData,
+        participant_response: List[Dict] = None,
         user_feature_map: UserFeatureMap = None,
         hash_session=None,
         reference_user_meta_dict: UserMetaData = None,
@@ -190,12 +189,16 @@ class RecWatchers(object):
         query_by: str = "keywords",
         tag: str = "v1",
     ):
+        original_rec_users = {}
         top_n_user_object = {}
         top_user_words = []
         suggested_users = []
         suggested_user_names = []
         top_n_user_names = []
         try:
+            if segment_user_ids is None:
+                segment_user_ids = []
+
             if hash_session is None:
                 hash_session_object = self.hash_store.get_object(key=session_id)
                 user_feature_map = self.user_feature_store.get_object(session_id)
@@ -226,9 +229,6 @@ class RecWatchers(object):
 
                 hash_session_object = self.hash_store.get_object(key=session_id)
 
-            if segment_user_ids is None:
-                segment_user_ids = []
-
             if hash_result is None or len(list(hash_result.keys())) < 1:
                 hash_result = self.perform_hash_query(
                     input_list=input_kw_query,
@@ -236,26 +236,14 @@ class RecWatchers(object):
                     hash_session=hash_session_object,
                     tag=tag,
                 )
+                original_rec_users = hash_result
 
             if len(hash_result.keys()) == 0 or hash_result is None:
                 logger.info(
                     "No recommendations available... couldn't find or less user data available"
                 )
                 return (
-                    top_n_user_object,
-                    top_user_words,
-                    suggested_users,
-                    suggested_user_names,
-                    top_n_user_names,
-                )
-
-            similar_user_scores_dict = self.query_similar_users(hash_result=hash_result)
-
-            if len(similar_user_scores_dict.keys()) == 0:
-                logger.info(
-                    "No recommendations available... couldn't find or less user data available"
-                )
-                return (
+                    original_rec_users,
                     top_n_user_object,
                     top_user_words,
                     suggested_users,
@@ -271,12 +259,35 @@ class RecWatchers(object):
                     logger.info("Low relevance score... No recommendations")
 
                     return (
+                        original_rec_users,
                         top_n_user_object,
                         top_user_words,
                         suggested_users,
                         suggested_user_names,
                         top_n_user_names,
                     )
+
+            participant_list = self.wu.get_active_participants(
+                response=participant_response
+            )
+            similar_user_scores_dict = self.query_similar_users(
+                hash_result=hash_result,
+                participants=participant_list,
+                instance_id=instance_id,
+            )
+
+            if len(similar_user_scores_dict.keys()) == 0:
+                logger.info(
+                    "No recommendations available... couldn't find or less user data available"
+                )
+                return (
+                    original_rec_users,
+                    top_n_user_object,
+                    top_user_words,
+                    suggested_users,
+                    suggested_user_names,
+                    top_n_user_names,
+                )
 
             logger.info("Computing explainability...")
             top_n_user_object, top_related_words = self.exp.get_explanation(
@@ -322,6 +333,7 @@ class RecWatchers(object):
             )
 
             return (
+                original_rec_users,
                 top_n_user_object,
                 top_user_words,
                 suggested_users,
@@ -333,6 +345,7 @@ class RecWatchers(object):
             print(traceback.print_exc())
 
             return (
+                original_rec_users,
                 top_n_user_object,
                 top_user_words,
                 suggested_users,
@@ -340,8 +353,29 @@ class RecWatchers(object):
                 top_n_user_names,
             )
 
-    def query_similar_users(self, hash_result) -> Dict:
+    def query_similar_users(
+        self, hash_result, instance_id: str, participants: List
+    ) -> Dict:
         top_similar_users = self.utils.sort_dict_by_value(hash_result)
+
+        if len(participants) > 0:
+            # Restrict top similar users object to non-participants
+            top_similar_users = {
+                u: s for u, s in top_similar_users.items() if u not in participants
+            }
+
+            logger.info(
+                "Modified search space after removing meeting participants",
+                extra={
+                    "instanceId": instance_id,
+                    "totalParticipants": len(participants),
+                    "totalNonParticipants": len(top_similar_users.keys()),
+                    "participants": [self.wu.get_user_names(p) for p in participants],
+                    "modSimilarUsers": [
+                        self.wu.get_user_names(u) for u in top_similar_users.keys()
+                    ],
+                },
+            )
 
         similar_users_dict, cutoff_score = self._normalize_lsh_score(
             top_similar_users, normalize_by="percentile", percentile_val=70
@@ -355,7 +389,7 @@ class RecWatchers(object):
         logger.debug(
             "Top recommended users",
             extra={
-                "totalSimilarUsers": len(similar_users_dict),
+                "totalSimilarUsers": len(hash_result),
                 "scores": user_scores,
                 "numFilteredUsers": len(filtered_similar_users_dict),
                 "cutOffScore": cutoff_score,
@@ -374,8 +408,8 @@ class RecWatchers(object):
         self, hash_result: HashResult, relevance_threshold: float = 0.40
     ) -> bool:
         # Hash relevancy
-        # norm_hash_result, cut_off_score = self._normalize_lsh_score(hash_result)
-        sorted_hash_result = self.utils.sort_dict_by_value(hash_result)
+        norm_hash_result, cut_off_score = self._normalize_lsh_score(hash_result)
+        sorted_hash_result = self.utils.sort_dict_by_value(norm_hash_result)
         user_hash_scores = list(sorted_hash_result.values())
 
         logger.debug(
@@ -492,6 +526,7 @@ class RecWatchers(object):
     def prepare_slack_validation(
         self,
         req_data,
+        original_user_dict,
         user_dict,
         word_list,
         suggested_users,
@@ -499,13 +534,19 @@ class RecWatchers(object):
         upload=False,
         post_to_slack=False,
     ):
+        original_user_list = list(original_user_dict.keys())
+        original_user_score = list(original_user_dict.values())
         user_list = list(user_dict.keys())
         user_scores = list(user_dict.values())
         # segment_user_ids = [str(uuid.UUID(u)) for u in segment_users]
         try:
             segment_user_names = [self.wu.get_user_names(uid) for uid in segment_users]
+            original_user_names = [
+                self.wu.get_user_names(uid) for uid in original_user_list
+            ]
         except Exception:
             segment_user_names = ["NA"]
+            original_user_names = ["NA"]
 
         self.utils.make_validation_data(
             req_data=req_data,
@@ -514,6 +555,8 @@ class RecWatchers(object):
             suggested_user_list=suggested_users,
             word_list=word_list,
             segment_users=segment_user_names,
+            original_user_score=original_user_score,
+            original_user_names=original_user_names,
             upload=upload,
         )
 
