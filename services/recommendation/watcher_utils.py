@@ -2,6 +2,8 @@ import logging
 import json as js
 import pickle
 import math
+import uuid
+from typing import Iterable, List, Dict
 
 logger = logging.getLogger(__name__)
 
@@ -137,3 +139,16 @@ class WatcherUtils(object):
         user_name = self.query_handler.get_user_name(response=response)
 
         return user_name
+
+    def get_active_participants(self, response: List[Dict]) -> List:
+        try:
+            participants = [resp_obj["sourceUserId"] for resp_obj in response]
+            participants = [str(uuid.UUID(u)) for u in participants]
+        except Exception as e:
+            logger.warning(
+                "unable to get participant list",
+                extra={"warn": e, "participantResponse": response},
+            )
+            participants = []
+
+        return participants

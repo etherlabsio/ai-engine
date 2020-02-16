@@ -43,6 +43,8 @@ class Utils(object):
         suggested_user_list,
         word_list,
         segment_users,
+        original_user_score,
+        original_user_names,
         upload=False,
     ):
         segment_obj = req_data["segments"]
@@ -69,6 +71,8 @@ class Utils(object):
                     "contextId": context_id,
                     "instanceId": instance_id,
                     "segmentId": segment_ids,
+                    "originalUsers": original_user_names,
+                    "originalUserScores": original_user_score,
                     "suggestedUsers": suggested_user_list,
                     "userScore": user_scores,
                     "keyphrases": input_keyphrase_list,
