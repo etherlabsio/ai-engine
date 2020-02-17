@@ -158,16 +158,21 @@ class BERT_NER:
             "hi",
             "hey",
             "welcome",
-            "like",
+            "bye",
+            "goodbye",
+            "i",
+            "aha",
+            "ugh",
+            "ah",
             "oh",
             "uh",
             "um",
             "huh",
+            "like",
             "right",
             "yeah",
             "okay",
-            "i",
-            "of",
+            "s",
             "ourselves",
             "hers",
             "between",
@@ -193,6 +198,7 @@ class BERT_NER:
             "yours",
             "such",
             "into",
+            "of",
             "most",
             "itself",
             "other",
@@ -277,13 +283,16 @@ class BERT_NER:
             "after",
             "few",
             "whom",
+            "t",
             "being",
             "if",
             "theirs",
             "my",
             "against",
+            "a",
             "by",
             "doing",
+            "it",
             "how",
             "further",
             "was",
@@ -318,12 +327,13 @@ class BERT_NER:
         for word in text.split(" "):
             if self.contractions.get(word.casefold()):
                 text = text.replace(word, self.contractions[word.casefold()])
-            # Handling cases where sentence begins with lower case and no space
-            if "." in word:
+            
+            if "." in word.strip("."):
                 if not re.match(self.url_regex, word) and any(
                     [len(ini) > 1 for ini in word.split(".")]
                 ):
                     text = text.replace(word, word.replace(".", " "))
+        
         # Handle URLs with words
         text = re.sub(self.url_regex, lambda m: self.clean_url(m.group(0)), text)
         return text
@@ -502,7 +512,8 @@ class BERT_NER:
             if len(word_fragments) == 1:
                 if label[0] == "O" and (grouped_words[i][1][0] not in {"N", "F"}):
                     continue
-                word_fragments = [" ".join(word_fragments).split("'")[0]]
+            if "'" in word_fragments[-1]:
+                word_fragments[-1] = word_fragments[-1].split("'")[0]
 
             # r - stripping stop_words
             while word_fragments and word_fragments[-1].lower() in self.stop_words:
