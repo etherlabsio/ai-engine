@@ -148,7 +148,8 @@ class ActionItemDetector:
             input_sent = input_sent[:-1]  # inline with training data
         input_ids = torch.tensor(self.tokenizer.encode(input_sent))
         input_ids = input_ids.unsqueeze(0)
-        ai_scores = self.model(input_ids)
+        with torch.no_grad():
+            ai_scores = self.model(input_ids)
         # [0,1] - [non_ai, ai] scores respectively
         return ai_scores.detach().numpy()[0][1]
 
