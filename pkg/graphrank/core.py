@@ -521,6 +521,8 @@ class GraphRank(object):
         sorted_keyphrases = self.graph_utils.sort_by_value(
             scored_keyphrases, order="desc"
         )
+        if post_process:
+            sorted_keyphrases = self.post_process(sorted_keyphrases)
 
         # Choose `top_n` number of keyphrases, if given
         if top_n is not None:
@@ -576,3 +578,95 @@ class GraphRank(object):
             multi_phrase_term.append((phrase_token_list, phrase_score_list))
 
         return multi_phrase_term
+
+    def post_process(self, keyphrases):
+        """
+        Post process to remove duplicate words from single phrases.
+        Args:
+            keyphrases (list): list of tuple of keyphrases and scores
+
+        Returns:
+            processed_keyphrases (list): list of post-processed keyphrases
+        """
+        processed_keyphrases = []
+
+        # Remove same word occurrences in a multi-keyphrase
+        for multi_key, multi_score in keyphrases:
+            kw_m = multi_key.split()
+            unique_kp_list = list(dict.fromkeys(kw_m))
+            multi_keyphrase = " ".join(unique_kp_list)
+            processed_keyphrases.append((multi_keyphrase, multi_score))
+
+        # Remove duplicates from the single phrases which are occurring in multi-keyphrases
+        single_phrase = [
+            phrases for phrases in processed_keyphrases if len(phrases[0].split()) == 1
+        ]
+        multi_proc_phrases = [
+            phrases for phrases in processed_keyphrases if len(phrases[0].split()) > 1
+        ]
+
+        for tup in single_phrase:
+            kw = tup[0]
+            for tup_m in multi_proc_phrases:
+                kw_m = tup_m[0]
+                r = kw_m.find(kw)
+                if r > -1:
+                    try:
+                        processed_keyphrases.remove(tup)
+                    except Exception:
+                        continue
+
+        # Remove duplicates from multi-phrases
+        proc_phrase = processed_keyphrases
+        for tup in proc_phrase:
+            kw = tup[0]
+            for tup_m in processed_keyphrases:
+                kw_m = tup_m[0]
+                if kw in kw_m or kw_m in kw:
+                    if kw != kw_m:
+                        processed_keyphrases.remove(tup_m)
+                    else:
+                        continue
+
+        # Remove single lettered phrases
+        unwanted_list = []
+        for tup_m in processed_keyphrases:
+            kw_m = tup_m[0]
+            kw_m_tokens = kw_m.split(" ")
+            for t in kw_m_tokens:
+                if len(t) >= 2:
+                    continue
+                else:
+                    unwanted_list.append(tup_m)
+
+        processed_keyphrases = [
+            pk for pk in processed_keyphrases if pk not in unwanted_list
+        ]
+
+        # Sort the multi-keyphrases first and then append the single keywords to the tail of the list.
+        processed_keyphrases = self.graph_utils.sort_by_value(
+            processed_keyphrases, order="desc"
+        )
+
+        # Remove occurrences of Plurals if their singular form is existing
+        new_processed_keyphrases = self._lemmatize_sentence(processed_keyphrases)
+
+        return new_processed_keyphrases
+
+    def _lemmatize_sentence(self, keyphrase_list):
+        tmp_check_list = keyphrase_list
+        result = []
+
+        for tup in tmp_check_list:
+            phrase = tup[0]
+            score = tup[1]
+            tokenize_phrase = word_tokenize(phrase)
+            singular_tokens = [self.lemma.lemmatize(word) for word in tokenize_phrase]
+            singular_sentence = " ".join(singular_tokens)
+            if len(singular_sentence) > 0:
+                if singular_sentence in result:
+                    keyphrase_list.remove(tup)
+                else:
+                    result.append((phrase, score))
+
+        return result
