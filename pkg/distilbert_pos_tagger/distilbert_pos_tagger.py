@@ -102,9 +102,9 @@ class DistilBertPosTagger:
         predicted_label_list = []
         tokenized_sent = nltk.word_tokenize(text)
         text = " ".join(tokenized_sent)
-        input_ids = self.tokenizer.encode(text)
+        input_ids = self.tokenizer.encode(text,add_special_tokens=False)
         for i in range(0,len(input_ids),batch_size):
-            batch_input_ids = input_ids[i:i+batch_size] 
+            batch_input_ids = self.tokenizer.encode("[CLS]",add_special_tokens=False) + input_ids[i:i+batch_size] + self.tokenizer.encode("[SEP]",add_special_tokens=False)
             batch_input_ids = torch.tensor(batch_input_ids)    
             with torch.no_grad(): 
                 outputs = self.model(batch_input_ids.unsqueeze(0))
