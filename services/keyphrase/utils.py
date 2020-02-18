@@ -351,9 +351,14 @@ class KeyphraseUtils(object):
                     entity_score = norm_boosted_score
 
                 # Check for relevance scores if the entity type is other than Organization or Product
-                if preference_value > 2:
-                    if entity_score >= entity_quality_score:
+                if preference_value > 2 and preference_value != 5:
+                    if (
+                        len(entities_dict.keys()) >= 2
+                        and entity_score >= entity_quality_score
+                    ):
                         modified_entity_dict[entity] = scores
+                    else:
+                        continue
                 else:
                     if entity_score > 0:
                         modified_entity_dict[entity] = scores
