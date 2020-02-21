@@ -370,7 +370,7 @@ class BERT_NER:
                 lambda word: word not in ["", None],
                 re.split(
                     "[\s]|([?,!/()]+)|(\.)([A-Z][a-z]+)|(\w{2,}[*]*\.?\w{2,})(\.)\s",
-                    clean_text,
+                    clean_text+" ",
                 ),
             )
         )
@@ -387,7 +387,7 @@ class BERT_NER:
     def prioritize_labels(self, sent_labels):
         preference_labels = ["ORG", "MISC", "PER", "LOC", "O"]
         sent_labels = [
-            sorted(label_list, key=lambda l: preference_labels.index(l))[0]
+            min(label_list, key=lambda l: preference_labels.index(l))
             for label_list in sent_labels
         ]
         return sent_labels
