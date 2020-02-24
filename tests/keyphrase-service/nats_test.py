@@ -114,7 +114,7 @@ async def start_context():
     nc = NATS()
     topic = "context.instance.started"
     await nc.connect(servers=[nats_url])
-    resp = {"instanceId": "*", "state": "started", "contextId": "*"}
+    resp = {"instanceId": "*", "state": "started", "contextId": "*", "mindId": "76Y"}
     topic, resp = replace_ids(topic=topic, resp=resp)
     await nc.publish(topic, json.dumps(resp).encode())
     pass
@@ -286,7 +286,7 @@ def replace_ids(context_id=None, instance_id=None, topic=None, resp=dict()):
 
     if context_id is None and instance_id is None:
         context_id = "6baa3490"
-        instance_id = "b5d4"
+        instance_id = "d052f2e7-3c79-45e4-aee5-9af0f7c2053e"
 
     resp["instanceId"] = instance_id
     resp["contextId"] = context_id
@@ -356,8 +356,8 @@ if __name__ == "__main__":
     elif args.topics == "start":
         loop.run_until_complete(start_context())
     elif args.topics == "populate":
-        t1 = loop.run_until_complete(create_context())
-        loop.run_until_complete(start_context())
+        # t1 = loop.run_until_complete(create_context())
+        # loop.run_until_complete(start_context())
         loop.run_until_complete(populate_graph())
     elif args.topics == "pub_chapter":
         loop.run_until_complete(publish_chapter_keyphrase())

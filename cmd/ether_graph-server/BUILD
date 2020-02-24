@@ -18,7 +18,8 @@ python_library(
 		'3rdparty/python:uvloop',
         '3rdparty/python:python-json-logger',
 		'3rdparty/python:python-dotenv',
-		'3rdparty/python:pydgraph'
+		'3rdparty/python:pydgraph',
+		'3rdparty/python:dataclasses-json'
 	],
 
 )

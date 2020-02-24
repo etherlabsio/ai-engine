@@ -6,6 +6,7 @@ import hashlib
 import os
 import logging
 import traceback
+import simplejson as sjson
 
 from backfill import BackFillCleanupJob
 from graphio import GraphIO
@@ -18,7 +19,6 @@ class DgraphETL(object):
         self.list_type_edges = [
             "hasMeeting",
             "hasSegment",
-            "hasSource",
             "hasUser",
             "hasMember",
             "hasMarker",
@@ -57,7 +57,7 @@ class DgraphETL(object):
             with open(
                 os.path.join(os.getcwd(), filename + ".json"), "w", encoding="utf-8",
             ) as f_:
-                js.dump(data, f_, ensure_ascii=False, indent=4)
+                sjson.dump(data, f_, ensure_ascii=False, indent=4, ignore_nan=True)
         except Exception as e:
             print(e)
             print(traceback.print_exc())
@@ -113,17 +113,23 @@ class DgraphETL(object):
                     except KeyError as e:
                         target_dgraph_type = "null"
                         logger.warning(e)
+                        print(traceback.print_exc())
 
                     if relation == "hasKeywords":
-                        keyword_list.append(target_node)
-                        target_node_dict = {
-                            "dgraph.type": target_dgraph_type,
-                            "uid": "_:" + self._hash_sha_object(source),
-                            "xid": self._hash_sha_object(source),
-                            "values": keyword_list,
-                            **target_attr,
-                        }
-                        source_node.update({relation: target_node_dict})
+                        # keyword_list.append(target_node)
+                        segment_text = source_attr.get("text", "analyzedText")
+                        if target_node is not None and target_node in segment_text:
+                            target_node_dict = {
+                                "dgraph.type": target_dgraph_type,
+                                "uid": "_:" + self._hash_sha_object(target_node),
+                                "xid": self._hash_sha_object(target_node),
+                                "originalForm": target_node,
+                                "value": target_node.lower(),
+                                **target_attr,
+                                "type": "descriptive",
+                            }
+                            keyword_list.append(target_node_dict)
+                        source_node.update({relation: keyword_list})
                     elif relation in self.list_type_edges:
                         target_node_dict = {
                             "dgraph.type": target_dgraph_type,
@@ -158,4 +164,4 @@ if __name__ == "__main__":
     g = gio.cleanup_graph(graph_obj=g)
 
     dgraph_compat_data = dgraph.nx_dgraph(g)
-    dgraph.to_json(dgraph_compat_data, filename="meta_graph_prod")
+    dgraph.to_json(dgraph_compat_data, filename="meta_graph_prod_2")

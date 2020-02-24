@@ -17,7 +17,8 @@ python_library(
 	dependencies=[
         '3rdparty/python:python-json-logger',
 		'3rdparty/python:boto3',
-		'3rdparty/python:networkx'
+		'3rdparty/python:networkx',
+		'3rdparty/python:ciso8601'
 	],
 
 )

@@ -29,6 +29,10 @@ if __name__ == "__main__":
     # Load ENV variables
     nats_url = getenv("NATS_URL", "nats://localhost:4222")
     bucket_store = getenv("STORAGE_BUCKET", "io.etherlabs.staging2.contexts")
+    dgraph_url = getenv(
+        "DGRAPH_ENDPOINT", "dgraph-0.staging2.internal.etherlabs.io:9080"
+    )
+    redis_host = getenv("REDIS_ENDPOINT", "localhost")
     active_env = None
     encoder_lambda_function = getenv("FUNCTION_NAME", "sentence-encoder-lambda")
     ner_lambda_function = getenv("NER_FUNCTION_NAME", "ner")
@@ -52,16 +56,6 @@ if __name__ == "__main__":
         loop=loop, url=nats_url, queue_name="io.etherlabs.recommendation_service",
     )
 
-    reference_user_file = "reference_prod_user.json"
-    reference_user_vector_data = "reference_user_text_vector.pickle"
-    reference_user_kw_vector_data = "reference_user_kw_vector.pickle"
-
-    ether_demo_reference_user_file = "ether_demo_reference_users.json"
-    ether_demo_reference_text_vector_data = (
-        "reference_ether_demo_user_text_vector.pickle"
-    )
-    ether_demo_reference_kw_vector_data = "reference_ether_demo_user_vector.pickle"
-
     vectorizer = Vectorizer(
         lambda_client=lambda_client, lambda_function=encoder_lambda_function
     )
@@ -80,28 +74,14 @@ if __name__ == "__main__":
     else:
         web_hook_url = "https://hooks.slack.com/services/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"
 
-    if active_env == "test":
-        rec_object = RecWatchers(
-            ether_demo_reference_user_file,
-            ether_demo_reference_text_vector_data,
-            ether_demo_reference_kw_vector_data,
-            vectorizer=vectorizer,
-            s3_client=s3_client,
-            web_hook_url=web_hook_url,
-            active_env_ab_test=active_env,
-        )
-    else:
-        rec_object = RecWatchers(
-            reference_user_file,
-            reference_user_vector_data,
-            reference_user_kw_vector_data,
-            vectorizer=vectorizer,
-            s3_client=s3_client,
-            web_hook_url=web_hook_url,
-            active_env_ab_test=active_env,
-            num_buckets=100,
-            hash_size=16,
-        )
+    rec_object = RecWatchers(
+        dgraph_url=dgraph_url,
+        vectorizer=vectorizer,
+        s3_client=s3_client,
+        web_hook_url=web_hook_url,
+        active_env_ab_test=active_env,
+        redis_host=redis_host,
+    )
 
     nats_transport = NATSTransport(
         nats_manager=nats_manager, watcher_service=rec_object, meeting_service=None,
@@ -110,6 +90,7 @@ if __name__ == "__main__":
     def shutdown():
         logger.info("received interrupt; shutting down")
         loop.create_task(nats_manager.close())
+        loop.create_task(rec_object.clear_redis_db())
 
     loop.run_until_complete(nats_manager.connect())
     loop.run_until_complete(nats_transport.subscribe_context())

@@ -12,6 +12,7 @@ import uuid
 import nltk
 from nltk.tokenize import sent_tokenize
 from text_utils import CandidateKPExtractor
+from text_utils import replace_contractions
 
 
 nltk.data.path.append("/tmp/nltk_data")
@@ -95,8 +96,8 @@ yet you your yours yourself yourselves
 
 stop_words = set(list(stop_words) + stop_words_spacy)
 stop_words = set(list(stop_words) + list(stop_words_spacy))
-stop_words = stop_words - set(["get", "give", "go", "do", "make", "please"])    
-action_marker_list = ["we", "i", "you", "let's", "i'll", "we'll"]
+stop_words = stop_words - set(["get", "give", "go", "do", "make", "please","see"])
+action_marker_list = ["we", "i", "you", "let's", "i'll", "we'll","go"]
 
 
 class BertForActionItemDetection(BertPreTrainedModel):
@@ -147,7 +148,8 @@ class ActionItemDetector:
             input_sent = input_sent[:-1]  # inline with training data
         input_ids = torch.tensor(self.tokenizer.encode(input_sent))
         input_ids = input_ids.unsqueeze(0)
-        ai_scores = self.model(input_ids)
+        with torch.no_grad():
+            ai_scores = self.model(input_ids)
         # [0,1] - [non_ai, ai] scores respectively
         return ai_scores.detach().numpy()[0][1]
 
@@ -174,7 +176,7 @@ class ActionItemDetector:
     def matcher(self, matchObj):
         return matchObj.group(0)[0] + matchObj.group(0)[1] + " " + matchObj.group(0)[2]
 
-    def get_ai_candidates(self, transcript_text, ai_confidence_threshold=0.5):
+    def get_ai_candidates(self, transcript_text, ai_confidence_threshold=0.8):
 
         action_item_subjects = []
         action_item_sentences = []
@@ -187,11 +189,14 @@ class ActionItemDetector:
                 if len(sent.split(" ")) > 2:
                     # if (sent[-1]!="?" and sent[-2]!="?"):
                     sent_ai_prob = self.get_ai_probability(sent)
+                    
                     if (
                         sent_ai_prob >= ai_confidence_threshold
                         and self.post_process_ai_check(sent)[0]
                     ):
+                        
                         curr_ai_subjects = self.post_process_ai_check(sent)[1]
+                        sent = replace_contractions(sent)
                         if len(curr_ai_subjects) > 1:
                             # merge action items
                             start_idx = sent.lower().find(curr_ai_subjects[0].lower())
@@ -206,6 +211,25 @@ class ActionItemDetector:
                         action_item_subjects.append(ai_subject)
                         action_item_sentences.append(sent)
         return action_item_subjects, action_item_sentences
+
+    def get_quest_sentences(self, transcript_text):
+
+        question_sentences = []
+        if type(transcript_text) != str:
+            return []
+        else:
+            transcript_text = re.sub("[a-z][.?][A-Z]", self.matcher, transcript_text)
+            sent_list = sent_tokenize(transcript_text)
+            for sent in sent_list:
+                curr_quest_subjects =[]
+                if len(sent.split(" ")) > 2:
+                    if (sent[-1]=="?"):
+                        curr_quest_subjects = self.post_process_ai_check(sent)[1]
+                        if(len(curr_quest_subjects)>0):
+                            question_sentences.append(sent)
+                        else:
+                            pass
+        return question_sentences
 
     def get_ai_users(self, ai_sent_list):
         ai_assignee_list = []
@@ -232,6 +256,8 @@ class ActionItemDetector:
         ai_subject_list = []
         ai_user_list = []
         segment_id_list = []
+        quest_segment_id_list = []
+        quest_sent_list = []
         assignees_list = []
         isAssigneePrevious_list = []
         isAssigneeBoth_list = []
@@ -241,13 +267,14 @@ class ActionItemDetector:
             curr_assignees_list = []
             curr_isAssigneePrevious_list = []
             curr_isAssigneeBoth_list = []
-
+          
             transcript_text = seg_object["originalText"]
             # get the AI probabilities for each sentence in the transcript
             curr_ai_list, curr_ai_sents = self.get_ai_candidates(transcript_text)
+            curr_quest_list = self.get_quest_sentences(transcript_text)
             curr_ai_user_list = self.get_ai_users(curr_ai_sents)
             curr_segment_id_list = [seg_object["id"]] * len(curr_ai_list)
-
+            curr_quest_segment_id_list = [seg_object["id"]] * len(curr_quest_list)
             for ai_user in curr_ai_user_list:
                 if ai_user == 0:
                     curr_assignees_list += [seg_object["spokenBy"]]
@@ -268,6 +295,8 @@ class ActionItemDetector:
             assignees_list += curr_assignees_list
             isAssigneePrevious_list += curr_isAssigneePrevious_list
             isAssigneeBoth_list += curr_isAssigneeBoth_list
+            quest_segment_id_list += curr_quest_segment_id_list
+            quest_sent_list += curr_quest_list
 
         uuid_list = []
         ai_response_list = []
@@ -313,7 +342,19 @@ class ActionItemDetector:
                             "is_assignee_both": is_both,
                         }
                     )
-
+                    
+        question_response_list =[]
+        for (segment, quest_sent,) in zip(
+            quest_segment_id_list,
+            quest_sent_list,
+        ): 
+            question_response_list.append(
+                {
+                "id": str(str(uuid.uuid1())),
+                "segment_ids": [segment],
+                "subject": quest_sent,
+                }
+            )
         # placeholder decision list
         decision_response_list = [
             {
@@ -327,4 +368,10 @@ class ActionItemDetector:
                 "subject": "decision_text2",
             },
         ]
-        return ai_response_list, decision_response_list
+
+
+
+
+        return ai_response_list, decision_response_list, question_response_list
+
+

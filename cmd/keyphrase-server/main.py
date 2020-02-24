@@ -29,9 +29,7 @@ if __name__ == "__main__":
     # Load ENV variables
     nats_url = getenv("NATS_URL", "nats://localhost:4222")
     bucket_store = getenv("STORAGE_BUCKET", "io.etherlabs.staging2.contexts")
-    encoder_lambda_function = getenv(
-        "FUNCTION_NAME", "sentence-encoder-lambda"
-    )
+    encoder_lambda_function = getenv("FUNCTION_NAME", "sentence-encoder-lambda")
     ner_lambda_function = getenv("NER_FUNCTION_NAME", "ner")
     aws_region = getenv("AWS_DEFAULT_REGION", "us-east-1")
 
@@ -59,6 +57,7 @@ if __name__ == "__main__":
         encoder_lambda_client=lambda_client,
         lambda_function=encoder_lambda_function,
         ner_lambda_function=ner_lambda_function,
+        nats_manager=nats_manager,
     )
     logger.debug("download complete")
 

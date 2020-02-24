@@ -1,26 +1,28 @@
 {
-  "contextId": "6baa3490",
-  "instanceId": "b5d4",
-  "limit": 10,
-  "mindId": "mind123",
-  "segments": [
-    {
-      "transcriber": "google_speech_api",
-      "confidence": 0.82295096,
-      "spokenBy": "b782dae506de4b7abc7d789a1ad005e5",
-      "languageCode": "en-US",
-      "originalText": "We go into that issue because we read the from the Json field column tables. We we have their columns available, but we are not json and value from that column which is creating a problem but then you know, bring a that solution we should start needed it from that columns and only few places we've done ready need to do that the is the case. I think this not of code is the if you want to use the column portion of the values json log then there will be George changes setting. U a D then we start fields and all not so in case of meeting meeting and recording and markers. We have both Json fields and the call proper call call let let can that like that what I telling is will not do anything with that in the Json and value of d there right. We will replace the swing field with the Hyphen iPhone that's. The we are reading the ID from the Json. I'm not from the column. So in the days very while waiting from a database we need to change oriented B a force layer. I I will from the value where it is like it a relationship right but then the column or as become the that valuation can value. So if we start reading from actual columns we should not ask that's what I thinking less less. Let's see. And also just ping up existing links which we have doing the recording link right. That we it work automatically because those will not having open do id. Yeah, maybe if we can translate like internally and finish through that again. From layer where we to transfer it okay let me do five okay. I'll make the new are you working today. Yeah. Actually yesterday was what little bit from this cloud distribution task like basically what you what we to do is that me or we want to point it in and if the API part has a slack in okay part will do it routed to API p gateway but if it doesn't have any other if you are anything with before we have go to load we will go back to the same whatever we have the proxy right? So so the distribution and all to so that that part from started working yesterday I talk to trishant. So there are no blockage from there are point of view so we can like today be able to read that reference script for it. So after this I want to work on a P a service solution connect and is moving back to external load. The API will directed of external. So that with the proper point id. ",
-      "duration": 9,
-      "createdAt": "2019-09-05T21:13:12.10566238Z",
-      "deleted": false,
-      "transcriptId": "1cbf4fee-bf9c-4bb3-9be8-6bf97594d943",
-      "startTime": "2019-09-05T21:13:02Z",
-      "id": "354aa314d75142b791f178dacbe3a063",
-      "endTime": "2019-09-05T21:13:11Z",
-      "recordingId": "d1ad0c48a9af44119b0ea6b9c2aeec67",
-      "status": "completed",
-      "updatedAt": "2019-09-05T21:13:32.910095339Z"
-    }
-  ]
-}
-
+    "contextId":"6baa3490",
+    "instanceId":"d052f2e7-3c79-45e4-aee5-9af0f7c2053e",
+    "relativeTime": "2019-01-29T06:03:39.783385299Z",
+    "limit": 10,
+    "populateGraph": true,
+    "segments": [
+        {
+            "id": "0f1aa05f2e944142a18974369bb9b789",
+            "originalText": "would we want to live I want to live my great web workers emerging mobile applications just mobile cloud gaming or augmented reality requires strict Clayton latency constraints as well as high compute power survey of the latency of games is reported that less than 50 milliseconds of network latency is preferred for time-critical games, which is hard to achieve the traditional cloud system where Computing Services location data centers for from Thanks.",
+            "confidence": 0.86578494,
+            "startTime": "2019-01-29T06:03:02Z",
+            "endTime": "2019-01-29T06:03:14Z",
+            "duration": 12,
+            "recordingId": "9789538caa6d4857a7d6bf47584aafd8",
+            "spokenBy": "394d6dd0-7dbe-4d77-92c6-2af7f8314329",
+            "languageCode": "en-US",
+            "transcriber": "google_speech_api",
+            "status": "completed",
+            "transcriptId": "e62bba58-b959-4aab-af7e-a75737fd736c",
+            "createdAt": "2019-01-29T06:03:18.049750006Z",
+            "updatedAt": "2019-01-29T06:03:39.783385299Z",
+            "deletedAt": null,
+            "deleted": false,
+            "tenantId": "932daeaf-6ae7-44ed-8d8d-f0b6feedc3aa"
+        }
+        ]
+        }
