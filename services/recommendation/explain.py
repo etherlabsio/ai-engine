@@ -5,20 +5,15 @@ from fuzzywuzzy import process, fuzz
 from scipy.spatial.distance import cosine
 import numpy as np
 import logging
+import traceback
 
 logger = logging.getLogger(__name__)
 
 
 class Explainability(object):
     def __init__(
-        self,
-        reference_user_dict,
-        vectorizer,
-        num_buckets=8,
-        hash_size=4,
-        utils_obj=None,
+        self, vectorizer=None, num_buckets=8, hash_size=4, utils_obj=None,
     ):
-        self.reference_user_dict = reference_user_dict
         self.vectorizer = vectorizer
         self.utils = utils_obj
         self.num_buckets = num_buckets
@@ -43,51 +38,55 @@ class Explainability(object):
     def get_explanation(
         self,
         similar_user_scores_dict: Dict,
+        reference_user_dict: Dict,
         input_query: List[str],
         input_kw_query: List[str],
-        query_key="keywords",
+        query_by="keywords",
+        user_vector_data=None,
     ) -> Tuple[Dict, Dict]:
-
-        input_query_text = self._form_query_text(query_list=input_query)
-
-        similar_users_info_dict = {
-            k: self.reference_user_dict[k][query_key]
-            for k in similar_user_scores_dict.keys()
-        }
-        filtered_sim_user_dict = self._filter_user_info(
-            similar_users_info_dict=similar_users_info_dict,
-            input_query=input_query_text,
-        )
-
-        query_feature_vector = self.ws.featurize_input(input_list=input_query)
-
-        user_meta_dict = self.rerank_users(
-            similar_users_dict=filtered_sim_user_dict,
-            similar_user_scores_dict=similar_user_scores_dict,
-            query_feature_vector=query_feature_vector,
-            input_query_text=input_query_text,
-        )
-        sorted_user_meta = self.utils.sort_dict_by_value(
-            user_meta_dict, key="confidence"
-        )
-
         try:
+            input_query_text = self._form_query_text(query_list=input_query)
+
+            try:
+                similar_users_info_dict = {
+                    k: reference_user_dict[k][query_by]
+                    for k in similar_user_scores_dict.keys()
+                }
+            except Exception:
+                similar_users_info_dict = {
+                    k: "" for k in similar_user_scores_dict.keys()
+                }
+            filtered_sim_user_dict = self._filter_user_info(
+                similar_users_info_dict=similar_users_info_dict,
+                input_query=input_query_text,
+            )
+
+            query_feature_vector = self.ws.featurize_input(input_list=input_query)
+
+            user_meta_dict = self.rerank_users(
+                similar_users_dict=filtered_sim_user_dict,
+                similar_user_scores_dict=similar_user_scores_dict,
+                reference_user_dict=reference_user_dict,
+                query_feature_vector=query_feature_vector,
+                input_query_text=input_query_text,
+                user_vector_data=user_vector_data,
+            )
+            sorted_user_meta = self.utils.sort_dict_by_value(
+                user_meta_dict, key="confidence"
+            )
+
             top_user_object = {
-                sorted_user_meta[u]["name"]: sorted_user_meta[u]["confidence"]
+                u: sorted_user_meta[u]["confidence"]
                 for u in filtered_sim_user_dict.keys()
             }
             top_user_object = self.utils.sort_dict_by_value(top_user_object)
 
             top_words = {
-                sorted_user_meta[u]["name"]: sorted_user_meta[u]["topPhrases"][
-                    :50
-                ]
+                u: sorted_user_meta[u]["topPhrases"][:50]
                 for u in filtered_sim_user_dict.keys()
             }
 
-            input_kw_query_text = self._form_query_text(
-                query_list=input_kw_query
-            )
+            input_kw_query_text = self._form_query_text(query_list=input_kw_query)
             top_words_dict = self.filter_related_words(
                 top_words, input_query_text=input_kw_query_text
             )
@@ -102,12 +101,13 @@ class Explainability(object):
             )
 
             return top_user_object, top_words_dict
-        except KeyError as e:
-            logger.warning(e)
+        except Exception as e:
+            logger.warning("Couldn't get explanations", extra={"warn": e})
+            print(traceback.print_exc())
 
     def _filter_pos(self, word_list):
         filtered_word = []
-        multi_phrase = []
+        # multi_phrase = []
 
         for word in word_list:
             single_phrases = []
@@ -120,7 +120,8 @@ class Explainability(object):
                     single_phrases.append(tags[0])
                 else:
                     if len(single_phrases) > 1:
-                        multi_phrase = [" ".join(single_phrases)]
+                        # multi_phrase = [" ".join(single_phrases)]
+                        pass
 
                     single_phrases = []
 
@@ -130,13 +131,9 @@ class Explainability(object):
         # filtered_word.extend(single_phrases)
         return filtered_word
 
-    def filter_related_words(
-        self, top_words: Dict, input_query_text: str
-    ) -> Dict:
+    def filter_related_words(self, top_words: Dict, input_query_text: str) -> Dict:
 
-        filtered_top_words = {
-            u: self._filter_pos(w) for u, w in top_words.items()
-        }
+        filtered_top_words = {u: self._filter_pos(w) for u, w in top_words.items()}
         filtered_top_words = {
             u: list(process.dedupe(w)) for u, w in filtered_top_words.items()
         }
@@ -192,17 +189,8 @@ class Explainability(object):
         self, similar_users_info_dict: Dict, input_query: str
     ) -> [List, Dict]:
         filtered_sim_user_info = similar_users_info_dict.copy()
-        for u, words in similar_users_info_dict.items():
-            # filtered_sim_user_info[u] = [
-            #     filtered_w
-            #     for filtered_w, dist in process.extractWithoutOrder(
-            #         str(input_query), words
-            #     )
-            #     if dist >= 50
-            # ]
-            filtered_sim_user_info[u] = list(
-                process.dedupe(filtered_sim_user_info[u])
-            )
+        # for u, words in similar_users_info_dict.items():
+        #     filtered_sim_user_info[u] = list(process.dedupe(filtered_sim_user_info[u]))
 
         return filtered_sim_user_info
 
@@ -220,9 +208,7 @@ class Explainability(object):
         processed_related_words = process.extractBests(
             input_query_text, related_word_list, limit=limit
         )
-        processed_related_words = [
-            word for word, score in processed_related_words
-        ]
+        processed_related_words = [word for word, score in processed_related_words]
 
         return processed_related_words
 
@@ -273,10 +259,12 @@ class Explainability(object):
 
     def rerank_users(
         self,
-        similar_users_dict,
-        similar_user_scores_dict,
+        similar_users_dict: Dict,
+        similar_user_scores_dict: Dict,
+        reference_user_dict: Dict,
         query_feature_vector,
         input_query_text,
+        user_vector_data=None,
     ):
         user_meta_dict = {}
 
@@ -287,27 +275,40 @@ class Explainability(object):
 
         for users, user_kw in similar_users_dict.items():
             if len(user_kw) > 0:
-                user_kw_features = self.ws.featurize_input(user_kw)
-                similarity_dict = {
-                    user_kw[i]: self._compute_cosine_similarity(
-                        user_kw_features[i], query_feature_vector
-                    )
-                    for i in range(user_kw_features.shape[0])
-                }
-                sorted_similarity_dict = self.utils.sort_dict_by_value(
-                    similarity_dict
-                )
+                # Use stored features instead of computing again
+                try:
+                    user_kw_features = user_vector_data[users]
 
-                phrase_score = np.mean(
-                    list(sorted_similarity_dict.values())[:10]
-                )
+                    similarity_dict = {
+                        user_kw[i]: self._compute_cosine_similarity(
+                            user_kw_features[i], query_feature_vector
+                        )
+                        for i in range(len(user_kw_features))
+                    }
+                except Exception as e:
+                    logger.warning(
+                        "unable to load features for explainability ... Using vectorizer instead",
+                        extra={"warn": e},
+                    )
+                    user_kw_features = self.ws.featurize_input(user_kw)
+
+                    similarity_dict = {
+                        user_kw[i]: self._compute_cosine_similarity(
+                            user_kw_features[i], query_feature_vector
+                        )
+                        for i in range(len(user_kw_features))
+                    }
+                sorted_similarity_dict = self.utils.sort_dict_by_value(similarity_dict)
+
+                phrase_score = np.mean(list(sorted_similarity_dict.values())[:10])
                 top_words = list(sorted_similarity_dict.keys())[:10]
                 hash_score = similar_user_scores_dict[users]
 
                 user_meta_dict.update(
                     {
                         users: {
-                            "name": self.reference_user_dict[users]["name"],
+                            # "name": reference_user_dict[users]["name"],
+                            "name": users,
                             "topPhrases": top_words,
                             "phraseScore": phrase_score,
                             "hashScore": hash_score,
@@ -321,7 +322,8 @@ class Explainability(object):
                 user_meta_dict.update(
                     {
                         users: {
-                            "name": self.reference_user_dict[users]["name"],
+                            # "name": reference_user_dict[users]["name"],
+                            "name": users,
                             "topPhrases": list(),
                             "phraseScore": phrase_score,
                             "hashScore": hash_score,

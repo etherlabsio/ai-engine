@@ -8,46 +8,32 @@ import logging
 from copy import deepcopy
 
 NATS_URL = os.getenv("NATS_URL")
-TIMEOUT = os.getenv("TIMEOUT", 20)
+TIMEOUT = os.getenv("TIMEOUT", 120)
 
 logger = logging.getLogger(__name__)
 
 
-async def populate_segments():
+async def get_recommendations():
     nc = NATS()
-    topic = "context.instance.add_segments"
+    topic = "recommendation.service.get_watchers"
     await nc.connect(servers=[nats_url])
-    # test_json = read_json(multi_json_file)
-    test_json = read_json(meeting_json_file)
-    # topic, resp = replace_ids(
-    #     test_json["contextId"], test_json["instanceId"], topic, resp={}
-    # )
-
-    json_dict = deepcopy(test_json)
-    segment_object = test_json["segments"]
-    for i, segment_dict in enumerate(segment_object):
-        segment_object_list = []
-        segment_object_list.append(segment_dict)
-        json_dict["segments"] = segment_object_list
-
-        await nc.publish(topic, json.dumps(json_dict).encode())
-        await asyncio.sleep(0.2)
-    await nc.close()
+    test_json = read_json(test_json_file)
+    test_json = get_slack_keyphrases(test_json, v2=use_version2)
+    msg = await nc.request(topic, json.dumps(test_json).encode(), timeout=TIMEOUT)
+    data = msg.data.decode()
+    print("Received a message: {data}".format(data=data))
 
 
 async def create_context():
     nc = NATS()
     topic = "context.instance.created"
+    test_json = read_json(test_json_file)
     await nc.connect(servers=[nats_url])
-    test_json = read_json(meeting_json_file)
-    context_id = test_json["contextId"]
-    instance_id = test_json["instanceId"]
-    mind_id = test_json["mindId"]
-
+    if use_version2:
+        test_json["instanceId"] = test_json["instanceId"] + "_v2"
     resp = {
-        "contextId": context_id,
-        "instanceId": instance_id,
-        "mindId": mind_id,
+        "contextId": test_json["contextId"],
+        "instanceId": test_json["instanceId"],
         "state": "created",
     }
 
@@ -59,16 +45,15 @@ async def start_context():
     nc = NATS()
     topic = "context.instance.started"
     await nc.connect(servers=[nats_url])
-    test_json = read_json(meeting_json_file)
-    context_id = test_json["contextId"]
-    instance_id = test_json["instanceId"]
-    mind_id = test_json["mindId"]
-
+    test_json = read_json(test_json_file)
+    if use_version2:
+        test_json["instanceId"] = test_json["instanceId"] + "_v2"
+        topic = topic + ".v2"
     resp = {
-        "contextId": context_id,
-        "instanceId": instance_id,
-        "mindId": mind_id,
+        "instanceId": test_json["instanceId"],
         "state": "started",
+        "contextId": test_json["contextId"],
+        "extra_options": test_json["extra_options"],
     }
     await nc.publish(topic, json.dumps(resp).encode())
     pass
@@ -78,20 +63,16 @@ async def end_context():
     nc = NATS()
     topic = "context.instance.ended"
     await nc.connect(servers=[nats_url])
-    test_json = read_json(meeting_json_file)
-    context_id = test_json["contextId"]
-    instance_id = test_json["instanceId"]
-    mind_id = test_json["mindId"]
-
+    test_json = read_json(test_json_file)
+    if use_version2:
+        test_json["instanceId"] = test_json["instanceId"] + "_v2"
     resp = {
-        "contextId": context_id,
-        "instanceId": instance_id,
-        "mindId": mind_id,
+        "instanceId": test_json["instanceId"],
         "state": "ended",
+        "contextId": test_json["contextId"],
     }
     await nc.publish(topic, json.dumps(resp).encode())
     await nc.flush()
-    await nc.close()
     pass
 
 
@@ -101,10 +82,19 @@ def read_json(json_file):
     return meeting
 
 
+def get_slack_keyphrases(test_json: dict, v2=False):
+    query_keywords = [w for w in slack_input.split(", ")]
+    test_json["keyphrases"] = query_keywords
+    if v2:
+        test_json["instanceId"] = test_json["instanceId"] + "_v2"
+
+    return test_json
+
+
 def replace_ids(context_id=None, instance_id=None, topic=None, resp=dict()):
 
     if context_id is None and instance_id is None:
-        context_id = "6baa3490"
+        context_id = "01DBB3SN99AVJ8ZWJDQ57X9TGX"
         instance_id = "b5d4"
 
     resp["instanceId"] = instance_id
@@ -118,6 +108,17 @@ def replace_ids(context_id=None, instance_id=None, topic=None, resp=dict()):
     return formatted_topic, resp
 
 
+def str2bool(v):
+    if isinstance(v, bool):
+        return v
+    if v.lower() in ("yes", "true", "t", "y", "1"):
+        return True
+    elif v.lower() in ("no", "false", "f", "n", "0"):
+        return False
+    else:
+        raise argparse.ArgumentTypeError("Boolean value expected.")
+
+
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(
         description="topic arguments for keyphrase_service"
@@ -127,7 +128,7 @@ if __name__ == "__main__":
         "--topics",
         type=str,
         default="def",
-        help="define nats topics for the ether-graph service to listen to",
+        help="define nats topics for the recommendation service to listen to",
     )
     parser.add_argument(
         "-n", "--nats_url", type=str, default=NATS_URL, help="nats server url address",
@@ -143,23 +144,33 @@ if __name__ == "__main__":
         "-f",
         "--file",
         type=str,
-        default="data/meeting_test.json",
+        default="data/keyphrase_struct.json",
         help="specify filename for meeting transcript file for population",
+    )
+    parser.add_argument(
+        "--version2",
+        type=str2bool,
+        nargs="?",
+        const=True,
+        default=False,
+        help="Use alt version 2",
     )
     args = parser.parse_args()
 
-    meeting_json_file = os.path.join(os.getcwd(), args.file)
+    test_json_file = os.path.join(os.getcwd(), args.file)
+    use_version2 = args.version2
 
     nats_url = args.nats_url
     asyncio.set_event_loop_policy(uvloop.EventLoopPolicy())
     loop = asyncio.get_event_loop()
 
+    slack_input = "call at SRI, KP, further open build, domain mind Etc"
+
     if args.topics == "def":
         t1 = loop.run_until_complete(create_context())
     elif args.topics == "start":
         loop.run_until_complete(start_context())
-    elif args.topics == "populate":
-        loop.run_until_complete(populate_segments())
-
+    elif args.topics == "recommend":
+        loop.run_until_complete(get_recommendations())
     else:
         loop.run_until_complete(end_context())

@@ -1,5 +1,18 @@
 import numpy as np
-import pickle
+import logging
+from typing import List, MutableMapping
+
+from object_def import (
+    UserID,
+    InputData,
+    MetaData,
+    UserVectorData,
+    UserFeatureMap,
+    UserMetaData,
+    HashResult,
+)
+
+logger = logging.getLogger(__name__)
 
 
 class MinHash(object):
@@ -66,23 +79,14 @@ class LSH(object):
 
 class WordSearch(object):
     def __init__(
-        self,
-        vectorizer=None,
-        num_buckets: int = 8,
-        hash_size: int = 4,
-        dim: int = 512,
+        self, vectorizer=None, num_buckets: int = 8, hash_size: int = 4, dim: int = 512,
     ):
         self.dim_size = dim
-        self.lsh = LSH(
-            self.dim_size, num_buckets=num_buckets, hash_size=hash_size
-        )
+        self.lsh = LSH(self.dim_size, num_buckets=num_buckets, hash_size=hash_size)
         self.vectorizer = vectorizer
         self.num_features_in_input = dict()
 
     def featurize(self, reference_features, reference_input_list):
-        # kw_features = self.vectorizer.get_embeddings(
-        #     input_list=self.input_list
-        # )
         for kw in reference_input_list:
             self.num_features_in_input[kw] = 0
 
@@ -118,65 +122,107 @@ class WordSearch(object):
 
 class UserSearch(object):
     def __init__(
-        self,
-        input_dict: dict,
-        user_vector_data=None,
-        vectorizer=None,
-        num_buckets: int = 8,
-        hash_size: int = 4,
-        dim: int = 512,
+        self, vectorizer=None, num_buckets: int = 8, hash_size: int = 4, dim: int = 512,
     ):
         self.dim_size = dim
-        self.user_vector_data = user_vector_data
-        self.lsh = LSH(
-            self.dim_size, num_buckets=num_buckets, hash_size=hash_size
-        )
-        self.vectorizer = vectorizer
-        self.input_dict = input_dict
-        self.num_features_in_input = dict()
-        for user, kw in self.input_dict.items():
-            self.num_features_in_input[user] = 0
+        self.lsh = LSH(self.dim_size, num_buckets=num_buckets, hash_size=hash_size)
 
     def featurize(
-        self, write=False, file_name="reference_user_kw_vector.pickle"
-    ):
-
-        user_vec_dict = {}
-
-        for user, kw in self.input_dict.items():
-            if self.user_vector_data is None:
-                kw_features = self.vectorizer.get_embeddings(input_list=kw)
-
-                if write:
-                    user_vec_dict[user] = kw_features
-                    with open(file_name, "wb") as f_:
-                        pickle.dump(user_vec_dict, f_)
-
-            else:
-                try:
-                    kw_features = self.user_vector_data[user]
-                except KeyError:
-                    continue
+        self,
+        input_dict: UserMetaData,
+        user_vector_data: UserVectorData,
+        user_feature_map: UserFeatureMap,
+    ) -> UserFeatureMap:
+        num_features_in_input = (
+            user_feature_map if user_feature_map is not None else dict()
+        )
+        for user, kw in input_dict.items():
+            try:
+                kw_features = user_vector_data[user]
+            except KeyError as e:
+                logger.warning(
+                    "could not find feature vector", extra={"warn": e, "userId": user}
+                )
+                continue
 
             self.lsh.add(kw_features, user)
-            self.num_features_in_input[user] += len(kw_features)
+            num_features_in_input[user] = len(kw_features)
 
-    def query(self, input_list):
-        kw_features = self.vectorizer.get_embeddings(input_list=input_list)
+        logger.debug(
+            "hashed users",
+            extra={
+                "users": list(num_features_in_input.keys()),
+                "featureLen": list(num_features_in_input.values()),
+                "totalFeat": len(list(num_features_in_input.keys())),
+            },
+        )
+
+        return num_features_in_input
+
+    def query(
+        self, kw_features: InputData, user_feature_map: UserFeatureMap, tag: str = "v1"
+    ):
+        # kw_features = self.vectorizer.get_embeddings(input_list=input_list)
 
         results = self.lsh.query(kw_features)
-        print("num results", len(results))
+        logger.info("num results", extra={"totalMatches": len(results)})
 
-        counts = dict()
+        counts = {}
         for r in results:
             if r["label"] in counts.keys():
                 counts[r["label"]] += 1
             else:
                 counts[r["label"]] = 1
-        for k in counts:
-            counts[k] = float(counts[k]) / self.num_features_in_input[k]
+
+        # total_features = np.sum([user_feature_map[k] for k in counts])
+        if tag == "v1":
+            for k in counts:
+                counts[k] = float(counts[k]) / user_feature_map[k]
+        else:
+            try:
+                norm_user_feature_num = self.norm(
+                    lower=np.mean(list(user_feature_map.values())),
+                    upper=np.max(list(user_feature_map.values())),
+                    d=user_feature_map,
+                )
+            except Exception:
+                norm_user_feature_num = user_feature_map
+            for k in counts:
+                counts[k] = float(counts[k]) / (len(results) * norm_user_feature_num[k])
+
         return counts
 
     def describe(self):
         for t in self.lsh.describe():
             yield (t)
+
+    def norm(self, lower, upper, d: dict):
+        l_norm = {x: lower + (upper - lower) * v for x, v in d.items()}
+        return l_norm
+
+
+class HashSession(UserSearch):
+    def __init__(
+        self, vectorizer=None, num_buckets: int = 8, hash_size: int = 4, dim: int = 512
+    ):
+        super().__init__(vectorizer, num_buckets, hash_size, dim)
+
+    def hash_features(
+        self,
+        input_dict: UserMetaData,
+        user_vector_data: UserVectorData,
+        user_feature_map: UserFeatureMap,
+    ):
+        num_features = self.featurize(
+            input_dict=input_dict,
+            user_vector_data=user_vector_data,
+            user_feature_map=user_feature_map,
+        )
+
+        return num_features
+
+    def hash_query(
+        self, kw_features: InputData, user_feature_map: UserFeatureMap, tag: str = "v1"
+    ):
+        counts = self.query(kw_features, user_feature_map, tag=tag)
+        return counts

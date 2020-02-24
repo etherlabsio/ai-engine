@@ -29,3 +29,6 @@ jsonlines
 fuzzywuzzy
 python-levenshtein
 tldextract
+dataclasses-json
+walrus
+ciso8601

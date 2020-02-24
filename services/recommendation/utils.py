@@ -9,14 +9,23 @@ import numpy as np
 import uuid
 import hashlib
 
+from object_def import (
+    UserID,
+    InputData,
+    MetaData,
+    UserVectorData,
+    UserFeatureMap,
+    UserMetaData,
+    HashResult,
+)
+
 logger = logging.getLogger(__name__)
 
 
 class Utils(object):
-    def __init__(self, web_hook_url, s3_client=None, reference_user_dict=None):
+    def __init__(self, web_hook_url, s3_client=None):
         self.web_hook_url = web_hook_url
         self.s3_client = s3_client
-        self.reference_user_dict = reference_user_dict
         self.validation_dict = {}
 
     def hash_sha_object(self) -> str:
@@ -34,6 +43,8 @@ class Utils(object):
         suggested_user_list,
         word_list,
         segment_users,
+        original_user_score,
+        original_user_names,
         upload=False,
     ):
         segment_obj = req_data["segments"]
@@ -41,44 +52,51 @@ class Utils(object):
         context_id = req_data["contextId"]
         input_keyphrase_list = req_data["keyphrases"]
 
+        segment_ids = []
+        segment_texts = []
+
         for i in range(len(segment_obj)):
             segment_id = segment_obj[i]["id"]
             segment_text = segment_obj[i]["originalText"]
-            self.validation_dict.update(
-                {
-                    "text": segment_text,
-                    "labels": user_list,
-                    "meta": {
-                        "instanceId": instance_id,
-                        "segmentId": segment_id,
-                        "suggestedUsers": suggested_user_list,
-                        "userScore": user_scores,
-                        "keyphrases": input_keyphrase_list,
-                        "relatedWords": word_list,
-                        "positiveLabels": segment_users,
-                    },
-                }
-            )
+
+            segment_ids.append(segment_id)
+            segment_texts.append(segment_text)
+
+        text = " \n ".join(segment_texts)
+        self.validation_dict.update(
+            {
+                "text": text,
+                "labels": user_list,
+                "meta": {
+                    "contextId": context_id,
+                    "instanceId": instance_id,
+                    "segmentId": segment_ids,
+                    "originalUsers": original_user_names,
+                    "originalUserScores": original_user_score,
+                    "suggestedUsers": suggested_user_list,
+                    "userScore": user_scores,
+                    "keyphrases": input_keyphrase_list,
+                    "relatedWords": word_list,
+                    "positiveLabels": segment_users,
+                },
+            }
+        )
 
         if upload:
-            self._upload_validation_data(
-                instance_id=instance_id, context_id=context_id
-            )
+            self._upload_validation_data(instance_id=instance_id, context_id=context_id)
 
-    def _upload_validation_data(
-        self, instance_id, context_id, prefix="watchers_"
-    ):
+    def _upload_validation_data(self, instance_id, context_id, prefix="watchers_"):
         validation_id = self.hash_sha_object()
-        file_name = prefix + instance_id + "_" + validation_id + ".jsonl"
+        file_name = (
+            prefix + context_id + "_" + instance_id + "_" + validation_id + ".jsonl"
+        )
         with jsonlines.open(file_name, mode="w") as writer:
             writer.write(self.validation_dict)
 
         s3_path = "validation/recommendations/" + file_name
 
         try:
-            self.s3_client.upload_to_s3(
-                file_name=file_name, object_name=s3_path
-            )
+            self.s3_client.upload_to_s3(file_name=file_name, object_name=s3_path)
         except Exception as e:
             logger.warning(e)
 
@@ -110,16 +128,12 @@ class Utils(object):
         )
 
         slack_payload = {"text": msg_format}
-        requests.post(
-            url=self.web_hook_url, data=js.dumps(slack_payload).encode()
-        )
+        requests.post(url=self.web_hook_url, data=js.dumps(slack_payload).encode())
 
-    def _reformat_list_to_text(self, input_list):
+    def _reformat_list_to_text(self, input_list: InputData):
         try:
             if type(input_list[0]) != str:
-                formatted_text = ", ".join(
-                    ["{:.2f}".format(i) for i in input_list]
-                )
+                formatted_text = ", ".join(["{:.2f}".format(i) for i in input_list])
             else:
                 formatted_text = ", ".join([str(w) for w in input_list])
         except Exception as e:
@@ -128,7 +142,7 @@ class Utils(object):
 
         return formatted_text
 
-    def sort_dict_by_value(self, dict_var: dict, order="desc", key=None):
+    def sort_dict_by_value(self, dict_var: HashResult, order="desc", key=None):
         """
         A utility function to sort lists by their value.
         Args:

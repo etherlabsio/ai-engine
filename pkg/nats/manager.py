@@ -10,7 +10,11 @@ logger = logging.getLogger(__name__)
 
 class Manager:
     def __init__(
-        self, loop, queue_name, url="nats://docker.for.mac.localhost:4222", nc=NATS(),
+        self,
+        loop,
+        queue_name,
+        url="nats://docker.for.mac.localhost:4222",
+        nc=NATS(),
     ):
         self.conn = nc
         self.loop = loop
@@ -35,7 +39,9 @@ class Manager:
 
         async def reconnected_cb():
             logger.info(
-                "connected to NATS at {}...".format(self.conn.connected_url.netloc)
+                "connected to NATS at {}...".format(
+                    self.conn.connected_url.netloc
+                )
             )
 
         options = {
@@ -56,10 +62,14 @@ class Manager:
         sid = None
         if queued is True:
             sid = await self.conn.subscribe(
-                topic, queue=self.queue_name, cb=self.message_handler(cb=handler),
+                topic,
+                queue=self.queue_name,
+                cb=self.message_handler(cb=handler),
             )
         else:
-            sid = await self.conn.subscribe(topic, cb=self.message_handler(handler))
+            sid = await self.conn.subscribe(
+                topic, cb=self.message_handler(handler)
+            )
         self.subscriptions[topic] = sid
 
     async def unsubscribe(self, topic):
@@ -69,7 +79,8 @@ class Manager:
             self.subscriptions.pop(topic)
         else:
             logger.debug(
-                "Topic not found in the subscription list ", extra={"topic": topic},
+                "Topic not found in the subscription list ",
+                extra={"topic": topic},
             )
 
     def message_handler(self, cb):
@@ -79,7 +90,11 @@ class Manager:
                 reply = msg.reply
                 logger.info(
                     "received nats message ",
-                    extra={"subject": subject, "reply": reply, "data": msg.data,},
+                    extra={
+                        "subject": subject,
+                        "reply": reply,
+                        "data": msg.data,
+                    },
                 )
                 await cb(msg)
             except Exception as e:

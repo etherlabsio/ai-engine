@@ -1,4 +1,7 @@
 import networkx as nx
+import ciso8601
+import datetime
+import math
 
 # import pandas as pd
 import json as js
@@ -45,14 +48,14 @@ class BackFillCleanupJob(object):
         self.mind_label = {"attribute": "mindId", "name": ""}
         self.customer_label = {"attribute": "customerId"}
         self.mind_dict = {
-            "01DAAPWR6W051Q9WWQY99JSGFY": {"name": "generic", "type": "domain",},
+            "01DAAPWR6W051Q9WWQY99JSGFY": {"name": "generic", "type": "domain"},
             "01DAAQY88QZB19JQZ5PRJFR76Y": {
                 "name": "Software Engineering",
                 "type": "domain",
             },
             "01DAAQYN9GBEBC92AYWNXEDP0C": {"name": "HR", "type": "domain"},
-            "01DAATANXNRQA35E6004HB7MBN": {"name": "Marketing", "type": "domain",},
-            "01DAATBC3AK1QWC5NYC5AHV2XZ": {"name": "Product", "type": "domain",},
+            "01DAATANXNRQA35E6004HB7MBN": {"name": "Marketing", "type": "domain"},
+            "01DAATBC3AK1QWC5NYC5AHV2XZ": {"name": "Product", "type": "domain"},
             "01DADP74WFV607KNPCB6VVXGTG": {"name": "AI", "type": "domain"},
             "01DAAYHEKY5F4E02QVRJPTFTXV": {
                 "name": "Ether Engineering",
@@ -67,7 +70,13 @@ class BackFillCleanupJob(object):
         self.workspace_user_rel = {"relation": "hasMember"}
         self.context_mind_rel = {"relation": "associatedMind"}
 
-        return
+        self.tz_attributes = [
+            "createdAt",
+            "deletedAt",
+            "updatedAt",
+            "startTime",
+            "endTime",
+        ]
 
     def format_old_labels(self, g: nx.DiGraph):
         old_label_name = "label"
@@ -158,8 +167,10 @@ class BackFillCleanupJob(object):
         # Remove mindId with "undefinedMind" value
         try:
             g.remove_node("undefinedMind")
+            logger.warning("undefinedMind present")
         except Exception:
-            logger.warning("No undefinedMind present")
+            pass
+            # logger.warning("No undefinedMind present")
 
         return g
 
@@ -317,6 +328,8 @@ class BackFillCleanupJob(object):
         graph = BackFillCleanupJob.remove_word_graph_object(context_graph=graph)
         graph = BackFillCleanupJob.remove_embedded_nodes(context_graph=graph)
         graph = BackFillCleanupJob.remove_embedded_segments(context_graph=graph)
+        graph = self.reformat_datetime(context_graph=graph)
+        graph = self.handle_nonetype_values(graph)
 
         return graph
 
@@ -381,10 +394,45 @@ class BackFillCleanupJob(object):
 
         return context_graph
 
+    def reformat_datetime(self, context_graph):
+        """
+        Query and remove embeddings from segments
+        Args:
+            context_graph:
+
+        Returns:
+
+        """
+
+        for node, n_attr in context_graph.nodes.data():
+            for k, v in n_attr.items():
+                if k in self.tz_attributes:
+                    try:
+                        t = context_graph.nodes[node][k]
+
+                        if t is None:
+                            context_graph.nodes[node][k] = t
+                        else:
+                            ts = ciso8601.parse_datetime(t)
+                            ts_iso = ts.isoformat()
+                            context_graph.nodes[node][k] = ts_iso
+                    except Exception as e:
+                        logger.warning(e)
+                        continue
+
+        return context_graph
+
     def handle_nonetype_values(self, g: nx.DiGraph):
 
         # Remove null or None values in attributes
         for n, attr in g.nodes.data():
             for k, v in attr.items():
                 if v == "":
-                    g.nodes[n][k] = "None"
+                    g.nodes[n][k] = None
+                elif v in ["nan", "NaN"]:
+                    print(k, v)
+                    nan_bool = math.isnan(v)
+                    if nan_bool:
+                        g.nodes[n][k] = None
+
+        return g

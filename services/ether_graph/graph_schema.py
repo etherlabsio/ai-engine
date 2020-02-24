@@ -1,3 +1,6 @@
+class Schema(object):
+    def fetch_schema(self):
+        meeting_def = """
 type Customer {
     xid: string
     attribute: string
@@ -153,5 +156,6 @@ description: string @index(term, fulltext) .
 type: string @index(term) .
 groupedWith: [uid] .
 userEntities: [uid] .
-startTime: dateTime @index(month) .
 
+"""
+        return meeting_def
