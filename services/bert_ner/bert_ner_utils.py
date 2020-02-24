@@ -348,7 +348,7 @@ class BERT_NER:
             text += "."
         text = self.replace_contractions(text) + " "
         for sent in sent_tokenize(text):
-            if len(sent.split()) > 2:
+            if len(sent.split()) > 3:
                 (sent_ent, sent_score, sent_labels,) = self.get_entities_from_sentence(
                     sent
                 )
