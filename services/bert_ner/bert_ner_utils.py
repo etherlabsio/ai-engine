@@ -327,13 +327,13 @@ class BERT_NER:
         for word in text.split(" "):
             if self.contractions.get(word.casefold()):
                 text = text.replace(word, self.contractions[word.casefold()])
-            
+
             if "." in word.strip("."):
                 if not re.match(self.url_regex, word) and any(
                     [len(ini) > 1 for ini in word.split(".")]
                 ):
                     text = text.replace(word, word.replace(".", " "))
-        
+
         # Handle URLs with words
         text = re.sub(self.url_regex, lambda m: self.clean_url(m.group(0)), text)
         return text
@@ -370,7 +370,7 @@ class BERT_NER:
                 lambda word: word not in ["", None],
                 re.split(
                     "[\s]|([?,!/()]+)|(\.)([A-Z][a-z]+)|(\w{2,}[*]*\.?\w{2,})(\.)\s",
-                    clean_text+" ",
+                    clean_text + " ",
                 ),
             )
         )
@@ -385,7 +385,7 @@ class BERT_NER:
         return sent_entity_list, sent_scores, sent_labels
 
     def prioritize_labels(self, sent_labels):
-        preference_labels = ["ORG", "MISC", "PER", "LOC", "O"]
+        preference_labels = ["MISC", "ORG", "PER", "LOC", "O"]
         sent_labels = [
             min(label_list, key=lambda l: preference_labels.index(l))
             for label_list in sent_labels
