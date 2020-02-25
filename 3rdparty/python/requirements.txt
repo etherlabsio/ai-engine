@@ -28,3 +28,4 @@ uuid
 jsonlines
 fuzzywuzzy
 python-levenshtein
+walrus

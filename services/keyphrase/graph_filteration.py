@@ -76,14 +76,21 @@ stop_words = set(list(stop_words) + list(stop_words_spacy))
 
 
 class GraphFilter(object):
-    def __init__(self, s3_client=None, graph_file_path=None):
-        graph_object = s3_client.download_file(file_name=graph_file_path)
+    def __init__(self, s3_client=None, mind_store=None):
+        self.s3_client = s3_client
+        self.mind_store = mind_store
+
+    def download_mind(self, graph_file_path=None):
+        graph_object = self.s3_client.download_file(file_name=graph_file_path)
         graph_object_str = graph_object["Body"].read()
-        self.kp_graph = pickle.loads(graph_object_str)
+        # self.kp_graph = pickle.loads(graph_object_str)
+        mind_graph = pickle.loads(graph_object_str)
         # with open("entity_noun_graph.pkl", "rb") as f_:
         #     self.kp_graph = pickle.load(f_)
 
         logger.info("Downloaded and loaded ENT-KP graph")
+
+        return mind_graph
 
     def get_segment_nouns(self, segment_text_list):
         segment_noun_list = []
@@ -100,9 +107,11 @@ class GraphFilter(object):
 
         return segment_noun_list
 
-    def filter_keyphrases(self, phrase_dict, segment_text_list):
+    def filter_keyphrases(self, phrase_dict, segment_text_list, mind_id):
         filtered_kp_list = []
         dropped_kp_list = []
+
+        kp_graph = self.mind_store.get_object(key=mind_id)
 
         segment_noun_list = self.get_segment_nouns(segment_text_list=segment_text_list)
 
@@ -111,7 +120,7 @@ class GraphFilter(object):
 
             for kps, scores in phrase_dict.items():
                 kp_nouns = self.get_kp_nouns(kps, sent_nouns)
-                if set(kp_nouns) & set(self.kp_graph) == set(kp_nouns):
+                if set(kp_nouns) & set(kp_graph) == set(kp_nouns):
                     filtered_kp_list.append({kps: scores})
                 else:
                     dropped_kp_list.append({kps: scores})
@@ -121,16 +130,18 @@ class GraphFilter(object):
     def get_kp_nouns(self, kp, sent_nouns):
         return set(kp.lower().split(" ")) & set(sent_nouns)
 
-    def filter_entities(self, phrase_dict, segment_text_list):
+    def filter_entities(self, phrase_dict, segment_text_list, mind_id):
         filtered_ent_list = []
         dropped_ent_list = []
+
+        kp_graph = self.mind_store.get_object(key=mind_id)
 
         # segment_noun_list = self.get_segment_nouns(segment_text_list=segment_text_list)
 
         for text in segment_text_list:
             for ents, scores in phrase_dict.items():
                 ent = self.get_ent(ents)
-                if set(ent) & set(self.kp_graph) == set(ent):
+                if set(ent) & set(kp_graph) == set(ent):
                     filtered_ent_list.append({ents: scores})
                 else:
                     dropped_ent_list.append({ents: scores})

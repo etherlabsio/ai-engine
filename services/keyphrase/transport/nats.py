@@ -10,7 +10,6 @@ class NATSTransport(object):
     def __init__(self, nats_manager, keyphrase_service):
         self.nats_manager = nats_manager
         self.keyphrase_service = keyphrase_service
-        self.context_mind_map = {}
         self.se_mind = "01DAAQY88QZB19JQZ5PRJFR76Y"
 
     async def subscribe_context(self):
@@ -27,7 +26,6 @@ class NATSTransport(object):
         msg_data = json.loads(msg.data)
         context_id = msg_data["contextId"]
         context_instance_id = msg_data["instanceId"]
-        self.context_mind_map[context_id] = ""
         logger.info(
             "instance created",
             extra={"contextId": context_id, "instanceId": context_instance_id},
@@ -96,18 +94,24 @@ class NATSTransport(object):
 
     async def context_start_handler(self, msg):
         msg_data = json.loads(msg.data)
-        mind_id = msg_data["mindId"]
-        context_id = msg_data["contextId"]
+        try:
+            mind_id = msg_data["mindId"]
+            mind_id = str(mind_id).lower()
+            context_id = msg_data["contextId"]
 
-        # Maintain a mapping of context-mind to carry forward
-        self.context_mind_map.update({context_id: mind_id})
+            # Maintain a mapping of context-mind to carry forward
+            self.keyphrase_service.context_store.set_object(
+                key=context_id, object=mind_id
+            )
 
-        logger.info("Instance started", extra={"contextMind": self.context_mind_map})
+            logger.info(
+                "Instance started", extra={"contextId": context_id, "mindId": mind_id}
+            )
 
-        if msg_data["state"] == "started":
-            self.keyphrase_service.initialize_meeting_graph(req_data=msg_data)
-
-        pass
+            if msg_data["state"] == "started":
+                self.keyphrase_service.initialize_meeting_graph(req_data=msg_data)
+        except Exception as e:
+            logger.error(e)
 
     async def context_change_handler(self, msg):
         msg_data = json.loads(msg.data)
@@ -137,11 +141,12 @@ class NATSTransport(object):
             ) = self.keyphrase_service.populate_word_graph(request)
 
             try:
-                mind_id = self.context_mind_map[context_id]
-                if mind_id == self.se_mind:
-                    filter_by_graph = True
+                mind_id = self.keyphrase_service.context_store.get_object(context_id)
+                # if mind_id == self.se_mind:
+                filter_by_graph = True
             except Exception as e:
-                mind_id = ""
+                mind_id = self.se_mind.lower()
+
                 logger.warning("error setting mind id", extra={"warn": e})
 
             # Compute embeddings for segments and keyphrases
@@ -154,6 +159,7 @@ class NATSTransport(object):
                 context_graph=context_graph,
                 meeting_word_graph=meeting_word_graph,
                 filter_by_graph=filter_by_graph,
+                mind_id=mind_id,
             )
 
             end = timer()
@@ -197,12 +203,12 @@ class NATSTransport(object):
         filter_by_graph = False
 
         try:
-            mind_id = self.context_mind_map[context_id]
-            if mind_id == self.se_mind:
-                filter_by_graph = True
+            mind_id = self.keyphrase_service.context_store.get_object(context_id)
+            # if mind_id == self.se_mind:
+            filter_by_graph = True
 
         except Exception as e:
-            mind_id = ""
+            mind_id = self.se_mind.lower()
             logger.warning("error setting mind id", extra={"warn": e})
 
         if populate_graph:
@@ -212,6 +218,7 @@ class NATSTransport(object):
                 n_kw=limit,
                 validate=validation,
                 filter_by_graph=filter_by_graph,
+                mind_id=mind_id,
             )
         else:
             group_id = self.keyphrase_service.utils.hash_sha_object()
@@ -223,6 +230,7 @@ class NATSTransport(object):
                 populate_graph=populate_graph,
                 group_id=group_id,
                 filter_by_graph=filter_by_graph,
+                mind_id=mind_id,
             )
 
         end = timer()

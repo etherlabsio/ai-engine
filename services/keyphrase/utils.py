@@ -131,6 +131,7 @@ class KeyphraseUtils(object):
     def post_process_output(
         self,
         keyphrase_object,
+        mind_id: str,
         dict_key="descriptive",
         preserve_singlewords=False,
         filter_by_graph: bool = False,
@@ -169,7 +170,9 @@ class KeyphraseUtils(object):
                 # Filter entities by Entity graph
                 processed_entity_dict = keyphrase_object[i]["entities"]
                 processed_entities, dropped_entities = self.gfilter.filter_entities(
-                    phrase_dict=processed_entity_dict, segment_text_list=[segment_text]
+                    phrase_dict=processed_entity_dict,
+                    segment_text_list=[segment_text],
+                    mind_id=mind_id,
                 )
 
                 filtered_entities.extend(
@@ -230,7 +233,9 @@ class KeyphraseUtils(object):
                     processed_keyphrases,
                     dropped_keyphrases,
                 ) = self.gfilter.filter_keyphrases(
-                    phrase_dict=multiphrase_dict, segment_text_list=[segment_text]
+                    phrase_dict=multiphrase_dict,
+                    segment_text_list=[segment_text],
+                    mind_id=mind_id,
                 )
                 filtered_keyphrases.extend(
                     [
