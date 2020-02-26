@@ -11,6 +11,7 @@ class NATSTransport(object):
         self.nats_manager = nats_manager
         self.keyphrase_service = keyphrase_service
         self.se_mind = "01DAAQY88QZB19JQZ5PRJFR76Y"
+        self.customer_mind = "01E1V0BSBR82C3BVPZWJDVFB16"
 
     async def subscribe_context(self):
         context_created_topic = "context.instance.created"
@@ -142,8 +143,11 @@ class NATSTransport(object):
 
             try:
                 mind_id = self.keyphrase_service.context_store.get_object(context_id)
-                # if mind_id == self.se_mind:
-                filter_by_graph = True
+
+                if mind_id == self.customer_mind.lower():
+                    filter_by_graph = False
+                else:
+                    filter_by_graph = True
             except Exception as e:
                 mind_id = self.se_mind.lower()
 
@@ -204,8 +208,11 @@ class NATSTransport(object):
 
         try:
             mind_id = self.keyphrase_service.context_store.get_object(context_id)
-            # if mind_id == self.se_mind:
-            filter_by_graph = True
+
+            if mind_id == self.customer_mind.lower():
+                filter_by_graph = False
+            else:
+                filter_by_graph = True
 
         except Exception as e:
             mind_id = self.se_mind.lower()
