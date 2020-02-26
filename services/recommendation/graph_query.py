@@ -71,25 +71,22 @@ class GraphQuery(object):
         logger.info("Using v1 for querying")
         ref_user_query = """
         query contextUserInfo($c: string, $t: int) {
-          contextUserInfo(func: eq(xid, $c)) @cascade{
+          contextUserInfo(func: eq(xid, $c)) @cascade @normalize {
             attribute
             xid
-            associatedMind {
-              xid
-            }
-          hasMeeting (first: $t) {
+          hasMeeting(first: $t) {
             xid
             attribute
             hasSegment {
               attribute
               xid
-              text
+              text: text
+              startTime: startTime
               authoredBy {
-                attribute
-                xid
+                user_id: xid
               }
               hasKeywords {
-                values
+                value: originalForm
               }
             }
           }
@@ -126,7 +123,7 @@ class GraphQuery(object):
             channels: ~belongsTo @filter(eq(attribute, "channelId") AND NOT anyofterms(name, "test testing vtemp only")) {
             contexts: hasContext {
               context_id: xid
-                instances: hasMeeting (orderdesc: startTime, first: $t){
+                instances: hasMeeting (first: $t){
                  xid
                 segments: hasSegment {
                   segment_id: xid
@@ -134,10 +131,9 @@ class GraphQuery(object):
                   time: startTime
                   authors: authoredBy @filter(uid(user)){
                     user_id: xid
-                    user_name: name
                   }
                   keywords: hasKeywords {
-                    values: values
+                    value: value
                   }
                 }
               }
@@ -188,69 +184,45 @@ class QueryHandler(object):
 
     def format_reference_response(
         self, query_response: Dict, function_name: str = "contextUserInfo"
-    ) -> Dict:
+    ):
         user_dict = {}
 
-        for info in query_response[function_name]:
-            meeting_obj = info["hasMeeting"]
-            for m_info in meeting_obj:
-                segment_obj = m_info["hasSegment"]
-                for segment_info in segment_obj:
-                    segment_kw = []
-                    seg_ids = []
-                    seg_texts = []
-                    try:
-                        user_id = segment_info.get("authoredBy")["xid"]
-                        # user_name = segment_info.get("authoredBy")["name"]
+        try:
+            for info in query_response[function_name]:
+                segment_kw = []
+                seg_texts = []
 
-                        try:
-                            u_id = user_dict[user_id]
-                        except KeyError:
-                            # Intialize
-                            user_dict.update(
-                                {
-                                    user_id: {
-                                        # "name": user_name,
-                                        "keywords": None,
-                                        "text": None,
-                                        "segment_id": None,
-                                    }
-                                }
-                            )
+                text = info["text"]
+                keywords = info["value"]
+                user_id = info.get("authoredBy")["user_id"]
 
-                        keyword_object = segment_info["hasKeywords"]
-                        segment_kw.extend(
-                            list(process.dedupe(keyword_object["values"]))
-                        )
-                        seg_texts.append(segment_info["text"])
-                        seg_ids.append(segment_info["xid"])
+                try:
+                    u_id = user_dict[user_id]
+                except KeyError:
+                    # Intialize
+                    user_dict.update({user_id: {"keywords": None, "text": None,}})
 
-                        user_kw_list = user_dict[user_id].get("keywords")
-                        user_text_list = user_dict[user_id].get("text")
-                        user_id_list = user_dict[user_id].get("segment_id")
-                        if user_kw_list is not None:
-                            user_kw_list.extend(segment_kw)
-                            user_text_list.extend(seg_texts)
-                            user_id_list.extend(seg_ids)
-                            user_dict[user_id].update(
-                                {
-                                    "keywords": list(set(user_kw_list)),
-                                    "text": user_text_list,
-                                    "segment_id": user_id_list,
-                                }
-                            )
-                        else:
-                            user_dict[user_id].update(
-                                {
-                                    "keywords": segment_kw,
-                                    "text": seg_texts,
-                                    "segment_id": seg_ids,
-                                }
-                            )
-                    except Exception as e:
-                        logger.error("error formatting response", extra={"err": e})
-                        print(traceback.print_exc())
-                        continue
+                segment_kw.append(keywords)
+                seg_texts.append(text)
+
+                user_kw_list = user_dict[user_id].get("keywords")
+                user_text_list = user_dict[user_id].get("text")
+
+                if user_kw_list is not None:
+                    user_kw_list.extend(segment_kw)
+                    user_text_list.extend(seg_texts)
+                    user_dict[user_id].update(
+                        {
+                            "keywords": list(set(user_kw_list)),
+                            "text": list(set(user_text_list)),
+                        }
+                    )
+                else:
+                    user_dict[user_id].update(
+                        {"keywords": segment_kw, "text": seg_texts,}
+                    )
+        except Exception as e:
+            logger.error("Unable to format response", extra={"err": e})
 
         return user_dict
 
@@ -301,10 +273,11 @@ class QueryHandler(object):
                         )
 
                     try:
-                        keyword_values = keyword_object["values"]
+                        keyword_values = [kw["value"] for kw in keyword_object]
                     except KeyError:
+                        keyword_values = []
                         continue
-                    segment_kw.extend(list(process.dedupe(keyword_object["values"])))
+                    segment_kw.extend(list(process.dedupe(keyword_values)))
                     seg_texts.append(text)
                     seg_ids.append(segment_id)
 
@@ -458,9 +431,11 @@ if __name__ == "__main__":
     q = QueryHandler(dgraph_url="localhost:9080")
     dg = GraphQuery("localhost:9080")
     query, var = dg.form_user_contexts_query(
-        "01DBB3SN874B4V18DCP4ATMRXA", top_n_result=50
+        "01DBB3SN99AVJ8ZWJDQ57X9TGX", top_n_result=15
     )
     resp = dg.perform_query(query, var)
+    q.to_json(resp, "v2_normalized_response")
+
     user_info = q.format_user_contexts_reference_response(resp)
 
     print(user_info.keys(), len(user_info.keys()))
@@ -469,7 +444,6 @@ if __name__ == "__main__":
     for k, v in user_info.items():
         kw_list.extend(v["keywords"])
 
-    print(len(kw_list))
-    q.to_json(user_info, "new_user_format")
+    q.to_json(user_info, "v2_normalize")
 
-    q.form_reference_features(user_info, context_id="01DBB3SN874B4V18DCP4ATMRXA")
+    q.form_reference_features(user_info, context_id="01DBB3SN99AVJ8ZWJDQ57X9TGX")

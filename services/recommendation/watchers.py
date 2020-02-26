@@ -1,9 +1,6 @@
-import json
-import pickle
 import logging
 from typing import List, Dict, MutableMapping, Sequence, Tuple, Union
 import numpy as np
-import uuid
 from fuzzywuzzy import process
 import traceback
 
@@ -89,7 +86,7 @@ class RecWatchers(object):
         self,
         context_id: str,
         session_id: str,
-        top_n: int = 100,
+        top_n: int = 30,
         perform_query: bool = True,
         tag: str = "v1",
         query_by: str = "keywords",
@@ -236,7 +233,8 @@ class RecWatchers(object):
                     hash_session=hash_session_object,
                     tag=tag,
                 )
-                original_rec_users = hash_result
+
+            original_rec_users = self.utils.sort_dict_by_value(hash_result)
 
             if len(hash_result.keys()) == 0 or hash_result is None:
                 logger.info(
@@ -253,7 +251,7 @@ class RecWatchers(object):
 
             if check_relevancy:
                 relevant_recommendation = self.check_recommendation_relevancy(
-                    hash_result=hash_result, relevance_threshold=0.40
+                    hash_result=hash_result, relevance_threshold=0.55
                 )
                 if not relevant_recommendation:
                     logger.info("Low relevance score... No recommendations")
@@ -310,7 +308,7 @@ class RecWatchers(object):
                 top_related_words=top_related_words,
                 segment_user_ids=segment_user_ids,
                 n_kw=n_kw,
-                percentile_val=60,
+                percentile_val=75,
             )
 
             logger.info(
@@ -378,7 +376,7 @@ class RecWatchers(object):
             )
 
         similar_users_dict, cutoff_score = self._normalize_lsh_score(
-            top_similar_users, normalize_by="percentile", percentile_val=70
+            top_similar_users, normalize_by="percentile", percentile_val=75
         )
         filtered_similar_users_dict = self._threshold_user_info(
             similar_users_dict, cutoff_score
@@ -398,14 +396,8 @@ class RecWatchers(object):
 
         return filtered_similar_users_dict
 
-    def re_hash_users(self, input_list):
-        # self.featurize_reference_users()
-        hash_result = self.perform_hash_query(input_list=input_list)
-
-        return hash_result
-
     def check_recommendation_relevancy(
-        self, hash_result: HashResult, relevance_threshold: float = 0.40
+        self, hash_result: HashResult, relevance_threshold: float = 0.50
     ) -> bool:
         # Hash relevancy
         norm_hash_result, cut_off_score = self._normalize_lsh_score(hash_result)
@@ -417,6 +409,8 @@ class RecWatchers(object):
             extra={
                 "relevanceScore": user_hash_scores[0],
                 "relevanceThreshold": relevance_threshold,
+                "users": list(sorted_hash_result.keys()),
+                "scores": user_hash_scores,
             },
         )
 
@@ -443,7 +437,7 @@ class RecWatchers(object):
             return False
 
     def _normalize_lsh_score(
-        self, similar_users_dict: Dict, normalize_by="mean", percentile_val=60
+        self, similar_users_dict: Dict, normalize_by="mean", percentile_val=75
     ) -> [Dict, float]:
         cutoff_score = 0
         user_score_list = list(similar_users_dict.values())
@@ -471,7 +465,9 @@ class RecWatchers(object):
         self, similar_users_dict: Dict, cutoff_score: float
     ) -> Dict:
         filtered_similar_users = {
-            u: score for u, score in similar_users_dict.items() if score >= cutoff_score
+            u: score
+            for u, score in similar_users_dict.items()
+            if score >= cutoff_score and score > 0
         }
 
         return filtered_similar_users

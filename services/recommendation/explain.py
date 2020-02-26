@@ -88,7 +88,7 @@ class Explainability(object):
 
             input_kw_query_text = self._form_query_text(query_list=input_kw_query)
             top_words_dict = self.filter_related_words(
-                top_words, input_query_text=input_kw_query_text
+                top_words, input_query_text=input_kw_query_text, query_by=query_by
             )
 
             logger.debug(
@@ -131,21 +131,35 @@ class Explainability(object):
         # filtered_word.extend(single_phrases)
         return filtered_word
 
-    def filter_related_words(self, top_words: Dict, input_query_text: str) -> Dict:
+    def filter_related_words(
+        self, top_words: Dict, input_query_text: str, query_by="keywords"
+    ) -> Dict:
 
-        filtered_top_words = {u: self._filter_pos(w) for u, w in top_words.items()}
-        filtered_top_words = {
-            u: list(process.dedupe(w)) for u, w in filtered_top_words.items()
-        }
-        filtered_top_words = {
-            u: self._get_best_fuzzy_match(input_query_text, w)
-            for u, w in filtered_top_words.items()
-        }
+        if query_by == "text":
+            filtered_top_words = {
+                u: self._get_best_fuzzy_match(input_query_text, w)
+                for u, w in top_words.items()
+            }
 
-        top_user_words_dict = {
-            u: self.utils.sort_dict_by_value(word_dict)
-            for u, word_dict in filtered_top_words.items()
-        }
+            top_user_words_dict = {
+                u: self.utils.sort_dict_by_value(word_dict)
+                for u, word_dict in filtered_top_words.items()
+            }
+
+        else:
+            filtered_top_words = {u: self._filter_pos(w) for u, w in top_words.items()}
+            filtered_top_words = {
+                u: list(process.dedupe(w)) for u, w in filtered_top_words.items()
+            }
+            filtered_top_words = {
+                u: self._get_best_fuzzy_match(input_query_text, w)
+                for u, w in filtered_top_words.items()
+            }
+
+            top_user_words_dict = {
+                u: self.utils.sort_dict_by_value(word_dict)
+                for u, word_dict in filtered_top_words.items()
+            }
 
         return top_user_words_dict
 
