@@ -14,29 +14,56 @@ from .ranker import KeyphraseRanker
 from .s3io import S3IO
 from .word_graph import WordGraphBuilder
 from .queries import Queries
-from .objects import Score, Keyphrase, Entity, Phrase, Segment, Request, SummaryRequest
+from .graph_filtration import GraphFilter
+from .redis_store import RedisStore
+from .objects import (
+    Phrase,
+    PhraseType,
+    SegmentType,
+    Segment,
+    KeyphraseType,
+    Keyphrase,
+    EntityType,
+    Entity,
+    SummaryRequest,
+    ContextRequest,
+    Request,
+    Score,
+)
+
+
+MIND_STORE = "keyphrase/minds"
+CONTEXT_STORE = "keyphrase/contexts"
 
 logger = logging.getLogger(__name__)
-
-SegmentType = List[Segment]
-PhraseType = List[Phrase]
 
 
 class KeyphraseExtractor(object):
     def __init__(
         self,
         s3_client=None,
+        s3_mind_client=None,
         encoder_lambda_client=None,
         lambda_function=None,
         ner_lambda_function=None,
         nats_manager=None,
+        redis_host: str = "localhost",
+        active_env: str = "staging2",
     ):
         self.context_dir = "/context-instance-graphs/"
         self.feature_dir = "/sessions/"
+        self.mind_dir = active_env + "/minds/"
         self.s3_client = s3_client
-        self.utils = KeyphraseUtils()
+        self.s3_mind_client = s3_mind_client
+
+        self.mind_store = RedisStore(id=MIND_STORE, host=redis_host)
+        self.context_store = RedisStore(id=CONTEXT_STORE, host=redis_host)
+        self.graph_filter_object = GraphFilter(s3_client=self.s3_mind_client)
+        self.utils = KeyphraseUtils(
+            graph_filter_object=self.graph_filter_object, mind_store=self.mind_store
+        )
         self.io_util = S3IO(
-            s3_client=s3_client, graph_utils_obj=GraphUtils(), utils=KeyphraseUtils(),
+            s3_client=s3_client, graph_utils_obj=GraphUtils(), utils=self.utils,
         )
         self.query_client = Queries(nats_manager=nats_manager)
         self.ranker = KeyphraseRanker(
@@ -44,7 +71,7 @@ class KeyphraseExtractor(object):
             lambda_function=lambda_function,
             s3_io_util=self.io_util,
             context_dir=self.context_dir,
-            utils=KeyphraseUtils(),
+            utils=self.utils,
             query_client=self.query_client,
         )
 
@@ -70,25 +97,28 @@ class KeyphraseExtractor(object):
             "FW",
         ]
         self.meeting_keywords = []
-        self.phrase_schema = Phrase.schema()
 
-    def get_graph_id(self, req_data: Request) -> Text:
+    def get_graph_id(self, req_data: ContextRequest) -> Text:
         context_id = req_data.contextId
         instance_id = req_data.instanceId
         graph_id = context_id + ":" + instance_id
         return graph_id
 
-    def wake_up_lambda(self, req_data: Request):
+    def wake_up_lambda(self, req_data: ContextRequest):
         # Start the encoder lambda to avoid cold start problem
         logger.info("Invoking lambda to reduce cold-start ...")
         test_segment = ["Wake up Sesame!"]
         self.ranker.get_embeddings(input_list=test_segment, req_data=req_data)
         self.wg.call_custom_ner(input_segment="<IGN>")
 
-    def initialize_meeting_graph(self, req_data: Request):
+    def initialize_meeting_graph(
+        self, req_data: ContextRequest, store_redis: bool = True
+    ):
         graph_id = self.get_graph_id(req_data=req_data)
         context_id = req_data.contextId
         instance_id = req_data.instanceId
+        mind_id = req_data.mindId
+        mind_id = mind_id.lower()
 
         meeting_word_graph = nx.Graph(graphId=graph_id)
 
@@ -103,6 +133,28 @@ class KeyphraseExtractor(object):
             instance_id=instance_id,
             s3_dir=self.context_dir,
         )
+
+        if store_redis:
+            mind_filter_graph = nx.Graph()
+            try:
+                mind_graph_path = self.mind_dir + mind_id + "/kp_entity_graph.pkl"
+                mind_filter_graph = self.graph_filter_object.download_mind(
+                    graph_file_path=mind_graph_path
+                )
+                self.mind_store.set_object(key=mind_id, object=mind_filter_graph)
+
+                logger.info(
+                    "Loaded Entity-KP Filter graph",
+                    extra={
+                        "contextId": context_id,
+                        "instanceId": instance_id,
+                        "mindId": mind_id,
+                    },
+                )
+            except Exception as e:
+                logger.error(e)
+            finally:
+                mind_filter_graph.clear()
 
         # Start the encoder lambda to avoid cold start problem
         self.wake_up_lambda(req_data=req_data)
@@ -134,7 +186,6 @@ class KeyphraseExtractor(object):
         Populate instance information, add meeting word graph to context graph and upload the context graph
         Args:
             req_data:
-            context_graph:
             meeting_word_graph:
 
         Returns:
@@ -158,8 +209,10 @@ class KeyphraseExtractor(object):
         self,
         req_data: Request,
         segment_object: SegmentType,
+        mind_id: str,
         highlight: bool = False,
         group_id: str = None,
+        filter_by_graph: bool = False,
     ) -> Tuple[Request, nx.Graph]:
         meeting_word_graph = self.populate_word_graph(
             req_data=req_data, segment_object=segment_object
@@ -172,6 +225,8 @@ class KeyphraseExtractor(object):
             meeting_word_graph=meeting_word_graph,
             highlight=highlight,
             group_id=group_id,
+            filter_by_graph=filter_by_graph,
+            mind_id=mind_id,
         )
 
         return modified_request_obj, meeting_word_graph
@@ -224,10 +279,12 @@ class KeyphraseExtractor(object):
         self,
         req_data: Request,
         segment_object: SegmentType,
+        mind_id: str,
         meeting_word_graph: nx.Graph = None,
         default_form: Text = "descriptive",
         highlight: bool = False,
         group_id: str = None,
+        filter_by_graph: bool = False,
     ) -> Request:
         """
         Compute embedding vectors for segments and segment-keyphrases and store them as node attributes in the knowledge
@@ -249,7 +306,10 @@ class KeyphraseExtractor(object):
             meeting_word_graph = self._retrieve_word_graph(req_data=req_data)
 
         phrase_object_list = self.extract_keywords(
-            segment_object=segment_object, meeting_word_graph=meeting_word_graph,
+            segment_object=segment_object,
+            meeting_word_graph=meeting_word_graph,
+            filter_by_graph=filter_by_graph,
+            mind_id=mind_id,
         )
 
         # Get segment text
@@ -395,6 +455,7 @@ class KeyphraseExtractor(object):
         self,
         req_data: Request,
         segment_object: SegmentType,
+        mind_id: str,
         summary_object: SummaryRequest = None,
         meeting_word_graph: nx.Graph = None,
         n_kw: int = 10,
@@ -404,6 +465,7 @@ class KeyphraseExtractor(object):
         validate: bool = False,
         highlight: bool = False,
         group_id: str = None,
+        filter_by_graph: bool = False,
     ) -> Tuple[Dict, SummaryRequest]:
         start = timer()
 
@@ -411,7 +473,7 @@ class KeyphraseExtractor(object):
         instance_id = req_data.instanceId
 
         # Use startTime of the first segment as relative starting point
-        relative_time = self.utils.formatTime(
+        relative_time = self.utils.format_time(
             segment_object[0].startTime, datetime_object=True
         )
 
@@ -420,19 +482,23 @@ class KeyphraseExtractor(object):
                 # Get graph objects
                 meeting_word_graph = self._retrieve_word_graph(req_data=req_data)
 
-            logger.info("Adding segments before extracting keyphrases")
+            logger.info("Computing features before extracting keyphrases")
             # Repopulate the graphs
             modified_request_obj, meeting_word_graph = self.populate_and_embed_graph(
                 req_data=req_data,
                 segment_object=segment_object,
                 highlight=highlight,
                 group_id=group_id,
+                mind_id=mind_id,
+                filter_by_graph=filter_by_graph,
             )
 
             phrase_object_list = self.extract_keywords(
                 segment_object=segment_object,
                 meeting_word_graph=meeting_word_graph,
                 relative_time=relative_time,
+                filter_by_graph=filter_by_graph,
+                mind_id=mind_id,
                 highlight=highlight,
             )
 
@@ -515,7 +581,7 @@ class KeyphraseExtractor(object):
         validation_id = self.utils.hash_sha_object()
 
         # Convert Class object to python List[Dict]
-        validation_data = self.phrase_schema.dump(phrase_object, many=True)
+        validation_data = Phrase.get_dict(phrase_object)
         validation_file_name = self.utils.write_to_json(
             validation_data, file_name="keyphrase_validation_" + validation_id
         )
@@ -530,6 +596,7 @@ class KeyphraseExtractor(object):
         self,
         req_data: Request,
         segment_object: SegmentType,
+        mind_id: str,
         meeting_word_graph: nx.Graph = None,
         n_kw: int = 10,
         default_form: Text = "descriptive",
@@ -537,6 +604,7 @@ class KeyphraseExtractor(object):
         sort_by: Text = "loc",
         validate: bool = False,
         highlight: bool = False,
+        filter_by_graph: bool = False,
         **kwargs,
     ):
         start = timer()
@@ -546,7 +614,7 @@ class KeyphraseExtractor(object):
 
         group_id = kwargs.get("group_id")
 
-        relative_time = self.utils.formatTime(
+        relative_time = self.utils.format_time(
             req_data.relativeTime, datetime_object=True
         )
         try:
@@ -557,13 +625,19 @@ class KeyphraseExtractor(object):
             logger.info("Adding segments before extracting keyphrases")
             # Repopulate the graphs
             modified_request_obj, meeting_word_graph = self.populate_and_embed_graph(
-                req_data=req_data, segment_object=segment_object, **kwargs
+                req_data=req_data,
+                segment_object=segment_object,
+                mind_id=mind_id,
+                filter_by_graph=filter_by_graph,
+                **kwargs,
             )
 
             phrase_object_list = self.extract_keywords(
                 segment_object=segment_object,
                 meeting_word_graph=meeting_word_graph,
                 relative_time=relative_time,
+                filter_by_graph=filter_by_graph,
+                mind_id=mind_id,
             )
 
             try:
@@ -640,7 +714,7 @@ class KeyphraseExtractor(object):
         return result
 
     def parse_keyphrase_offset(
-        self, keyphrase_list: List[Text], phrase_object: List[Phrase]
+        self, keyphrase_list: List[Text], phrase_object: PhraseType
     ):
 
         keyphrase_offset_list = []
@@ -665,10 +739,11 @@ class KeyphraseExtractor(object):
         self,
         segment_object: SegmentType,
         meeting_word_graph: nx.Graph,
+        mind_id: str,
         relative_time: str = None,
         highlight: bool = False,
-        preserve_singlewords=False,
-    ):
+        filter_by_graph: bool = False,
+    ) -> PhraseType:
         """
         Search for keyphrases in an array of N segments and return them as one list of keyphrases
         Args:
@@ -698,7 +773,7 @@ class KeyphraseExtractor(object):
             if relative_time is not None:
                 # Set offset time for every keywords
                 start_time = segment_obj.startTime
-                start_time = self.utils.formatTime(start_time, datetime_object=True)
+                start_time = self.utils.format_time(start_time, datetime_object=True)
                 offset_time = float((start_time - relative_time).seconds)
             else:
                 offset_time = 0.0
@@ -761,7 +836,11 @@ class KeyphraseExtractor(object):
             )
 
             # Post-process phrases
-            phrase_obj = self.utils.post_process_output(phrase_object=phrase_obj)
+            phrase_obj = self.utils.post_process_output(
+                phrase_object=phrase_obj,
+                filter_by_graph=filter_by_graph,
+                mind_id=mind_id,
+            )
 
             phrase_obj_list.append(phrase_obj)
 
@@ -776,7 +855,7 @@ class KeyphraseExtractor(object):
         sort_by: str = "loc",
         remove_phrases: bool = True,
         phrase_threshold: int = 3,
-    ) -> Tuple[List[Text], PhraseType, List[Entity], List[Keyphrase]]:
+    ) -> Tuple[List[Text], PhraseType, EntityType, KeyphraseType]:
 
         for i, phrase_obj in enumerate(phrase_object):
             keyphrase_obj = [
@@ -901,7 +980,7 @@ class KeyphraseExtractor(object):
             ranked_keyphrase_object,
         )
 
-    def _dedupe_phrases(self, keyphrase_list):
+    def _dedupe_phrases(self, keyphrase_list: List[str]):
         """
         Remove any duplicate phrases arising due to difference in cases.
         Args:
@@ -910,7 +989,7 @@ class KeyphraseExtractor(object):
         Returns:
 
         """
-        deduped_keyphrase_list = list(process.dedupe(keyphrase_list, threshold=80))
+        deduped_keyphrase_list = list(process.dedupe(keyphrase_list, threshold=90))
 
         return deduped_keyphrase_list
 
@@ -929,32 +1008,22 @@ class KeyphraseExtractor(object):
 
         return result
 
-    def reset_keyphrase_graph(self, req_data: Request):
+    def reset_keyphrase_graph(self, req_data: ContextRequest):
         start = timer()
         context_id = req_data.contextId
         instance_id = req_data.instanceId
+        mind_id = req_data.mindId
+        mind_id = mind_id.lower()
 
-        # Download context graph from s3 and remove the word graph object upon reset
-
-        word_graph = self._retrieve_word_graph(req_data=req_data)
-        word_graph_id = word_graph.graph.get("graphId")
-
-        # Write it back to s3
-        self.io_util.upload_s3(
-            graph_obj=word_graph,
-            s3_dir=self.context_dir,
-            context_id=context_id,
-            instance_id=instance_id,
-        )
+        self.mind_store.delete_key(mind_id)
 
         end = timer()
         logger.info(
-            "Post-reset: Graph info",
+            "Post-reset; Cleared store: Graph info",
             extra={
-                "deletedGraphId": word_graph_id,
-                "nodes": word_graph.number_of_nodes(),
-                "edges": word_graph.number_of_edges(),
+                "contextId": context_id,
+                "instanceId": instance_id,
+                "mindId": mind_id,
                 "responseTime": end - start,
-                "instanceId": req_data.instanceId,
             },
         )

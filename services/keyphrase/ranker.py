@@ -6,7 +6,14 @@ import json
 from nltk.tokenize import sent_tokenize
 from typing import List
 
-from .objects import Phrase, Keyphrase, Request, GraphQueryRequest, GraphSegmentResponse
+from .objects import (
+    Phrase,
+    Keyphrase,
+    Request,
+    GraphQueryRequest,
+    GraphSegmentResponse,
+    ContextRequest,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -79,7 +86,7 @@ class KeyphraseRanker(object):
 
         return dist
 
-    def get_embeddings(self, input_list: List[str], req_data: Request = None):
+    def get_embeddings(self, input_list: List[str], req_data: ContextRequest = None):
 
         start = timer()
         if req_data is None:

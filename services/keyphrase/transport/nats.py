@@ -2,8 +2,9 @@ import json
 import logging
 from timeit import default_timer as timer
 import traceback
+from typing import Tuple, Dict
 
-from keyphrase.objects import Context, Segment, Request, SummaryRequest
+from ..objects import ContextRequest, Request, SummaryRequest
 
 logger = logging.getLogger(__name__)
 
@@ -12,9 +13,9 @@ class NATSTransport(object):
     def __init__(self, nats_manager, keyphrase_service):
         self.nats_manager = nats_manager
         self.keyphrase_service = keyphrase_service
-        self.request_schema = Request.schema()
-        self.segment_schema = Segment.schema()
-        self.context_schema = Context.schema()
+
+        self.se_mind = "01DAAQY88QZB19JQZ5PRJFR76Y"
+        self.customer_mind = "01E1V0BSBR82C3BVPZWJDVFB16"
 
     async def subscribe_context(self):
         context_created_topic = "context.instance.created"
@@ -28,8 +29,9 @@ class NATSTransport(object):
 
     async def context_created_handler(self, msg):
         msg_data = json.loads(msg.data)
-        context_id = msg_data["contextId"]
-        context_instance_id = msg_data["instanceId"]
+        request = ContextRequest.get_object(msg_data)
+        context_id = request.contextId
+        context_instance_id = request.instanceId
         logger.info(
             "instance created",
             extra={"contextId": context_id, "instanceId": context_instance_id},
@@ -97,15 +99,35 @@ class NATSTransport(object):
     # NATS context handlers
 
     async def context_start_handler(self, msg):
-        logger.info("Instance started")
+        try:
+            request = json.loads(msg.data)
+            request_object = ContextRequest.get_object(request)
 
-        request = json.loads(msg.data)
-        request_object = Request.get_object(request)
-        self.keyphrase_service.initialize_meeting_graph(req_data=request_object)
+            context_id = request_object.contextId
+            instance_id = request_object.instanceId
+            mind_id = request_object.mindId.lower()
+
+            logger.info(
+                "Instance started",
+                extra={
+                    "contextId": context_id,
+                    "mindId": mind_id,
+                    "instanceId": instance_id,
+                },
+            )
+
+            # Maintain a mapping of context-mind to carry forward
+            self.keyphrase_service.context_store.set_object(
+                key=context_id, object=mind_id
+            )
+            self.keyphrase_service.initialize_meeting_graph(req_data=request_object)
+
+        except Exception as e:
+            logger.error(e)
 
     async def context_change_handler(self, msg):
         request = json.loads(msg.data)
-        request_object = Request.get_object(request)
+        request_object = ContextRequest.get_object(request)
 
         # Update contextId when change is notified
         context_id = request_object.contextId
@@ -117,20 +139,35 @@ class NATSTransport(object):
 
     # Topic Handler functions
 
+    async def set_mind(self, context_id) -> Tuple[bool, str]:
+        filter_by_graph = False
+        try:
+            mind_id = self.keyphrase_service.context_store.get_object(context_id)
+
+            if mind_id == self.customer_mind.lower():
+                filter_by_graph = False
+            else:
+                filter_by_graph = True
+
+        except Exception as e:
+            mind_id = self.se_mind.lower()
+            logger.warning(
+                "error setting mind id", extra={"warn": e, "mindId": mind_id}
+            )
+
+        return filter_by_graph, mind_id
+
     async def populate_graph(self, msg):
         start = timer()
         request = json.loads(msg.data)
         try:
             request_object = Request.get_object(request)
-            populate_graph = request_object.populateGraph
-
-            if populate_graph is True:
-                highlight = False
-            else:
-                highlight = True
-
+            highlight = request_object.highlight
             segment_object = request_object.segments
 
+            filter_by_graph, mind_id = await self.set_mind(request_object.contextId)
+
+            # Compute embeddings for segments and keyphrases
             (
                 modified_request_obj,
                 meeting_word_graph,
@@ -138,6 +175,8 @@ class NATSTransport(object):
                 req_data=request_object,
                 segment_object=segment_object,
                 highlight=highlight,
+                filter_by_graph=filter_by_graph,
+                mind_id=mind_id,
             )
 
             # Forward the modified Request-Segment object to graph-service
@@ -148,25 +187,28 @@ class NATSTransport(object):
 
             end = timer()
             logger.info(
-                "Populated to dgraph and written to s3",
+                "Written segments to s3 and sent to dgraph",
                 extra={
                     "graphId": meeting_word_graph.graph.get("graphId"),
                     "nodes": meeting_word_graph.number_of_nodes(),
                     "edges": meeting_word_graph.number_of_edges(),
                     "instanceId": request_object.instanceId,
+                    "mindId": mind_id,
                     "responseTime": end - start,
                 },
             )
         except Exception as e:
             end = timer()
+            request_object = Request.get_object(request)
             logger.error(
-                "Error populating to dgraph",
+                "Error populating segments",
                 extra={
                     "err": e,
                     "responseTime": end - start,
-                    # "instanceId": request_object.instanceId,
+                    "instanceId": request_object.instanceId,
                 },
             )
+            traceback.print_exc()
 
     async def extract_segment_keyphrases(self, msg):
         start = timer()
@@ -174,11 +216,10 @@ class NATSTransport(object):
 
         request_object = Request.get_object(request)
         segment_object = request_object.segments
-
         summary_object = SummaryRequest.get_object(request)
 
         validation = request_object.validate
-        populate_graph = request_object.populateGraph
+        highlight = request_object.highlight
 
         segment_ids = [seg_obj.id for seg_obj in segment_object]
         context_info = request_object.contextId + ":" + request_object.instanceId
@@ -186,10 +227,10 @@ class NATSTransport(object):
         limit = request_object.limit
         group_id = None
 
-        highlight = False
-        if populate_graph is not True:
-            highlight = True
+        if highlight:
             group_id = self.keyphrase_service.utils.hash_sha_object()
+
+        filter_by_graph, mind_id = await self.set_mind(request_object.contextId)
 
         output, summary_request_object = await self.keyphrase_service.get_keyphrases(
             req_data=request_object,
@@ -199,23 +240,25 @@ class NATSTransport(object):
             validate=validation,
             group_id=group_id,
             highlight=highlight,
+            filter_by_graph=filter_by_graph,
+            mind_id=mind_id,
         )
-
-        end = timer()
 
         if highlight:
             # Forward the modified Request-Segment-Keyphrase object to graph-service
             summary_request_dict = SummaryRequest.get_dict(summary_request_object)
-
             await self.populate_summary_info(summary_req_data=summary_request_dict)
 
+        end = timer()
+        if highlight:
             logger.info(
                 "Publishing summary keyphrases",
                 extra={
                     "graphId": context_info,
-                    "topicKeyphraseList": output,
+                    "summaryKeyphraseList": output,
                     "instanceId": request_object.instanceId,
                     "numOfSegments": len(segment_object),
+                    "mindId": mind_id,
                     "limit": limit,
                     "responseTime": end - start,
                     "segmentsReceived": segment_ids,
@@ -230,12 +273,14 @@ class NATSTransport(object):
                     "chapterKeyphraseList": output,
                     "instanceId": request_object.instanceId,
                     "numOfSegments": len(segment_object),
+                    "mindId": mind_id,
                     "limit": limit,
                     "responseTime": end - start,
                     "segmentsReceived": segment_ids,
                     "dynamicThreshold": len(output["keyphrases"]),
                 },
             )
+
         await self.nats_manager.conn.publish(msg.reply, json.dumps(output).encode())
 
     async def extract_instance_keyphrases(self, msg):
@@ -250,16 +295,8 @@ class NATSTransport(object):
         )
         end = timer()
 
-        deadline_time = end - start
-        if deadline_time > 15:
-            timeout_msg = "-Context deadline is exceeding: {}; {}".format(
-                deadline_time, 15
-            )
-        else:
-            timeout_msg = ""
-
         logger.info(
-            "Publishing instance keyphrases" + timeout_msg,
+            "Publishing instance keyphrases",
             extra={
                 "graphId": context_info,
                 "instanceList": output,
@@ -286,16 +323,8 @@ class NATSTransport(object):
         )
         end = timer()
 
-        deadline_time = end - start
-        if deadline_time > 15:
-            timeout_msg = "-Context deadline is exceeding: {}; {}".format(
-                deadline_time, 15
-            )
-        else:
-            timeout_msg = ""
-
         logger.info(
-            "Publishing chapter keyphrases with offset" + timeout_msg,
+            "Publishing chapter keyphrases with offset",
             extra={
                 "graphId": context_info,
                 "chapterOffsetList": output,
@@ -315,13 +344,13 @@ class NATSTransport(object):
         logger.info("Resetting keyphrases graph")
         self.keyphrase_service.reset_keyphrase_graph(request_object)
 
-    async def populate_segment_keyphrase_info(self, modified_req_data: dict):
+    async def populate_segment_keyphrase_info(self, modified_req_data: Dict):
         eg_segment_topic = "ether_graph_service.add_segments"
         ether_graph_request = json.dumps(modified_req_data).encode()
 
         await self.nats_manager.conn.publish(eg_segment_topic, ether_graph_request)
 
-    async def populate_summary_info(self, summary_req_data: dict):
+    async def populate_summary_info(self, summary_req_data: Dict):
         eg_segment_topic = "ether_graph_service.populate_summary"
         ether_graph_request = json.dumps(summary_req_data).encode()
 
