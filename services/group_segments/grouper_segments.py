@@ -179,7 +179,7 @@ class community_detection:
         for nodea, nodeb, weight in graph_data:
             if weight["weight"] > outlier_score[nodea]["outlier"] or (((self.segments_order[graph_list[nodeb][-1]] - self.segments_order[graph_list[nodea][-1]]) in [0])):
                 pass
-            elif (self.segments_order[graph_list[nodeb][-1]] - self.segments_order[graph_list[nodea][-1]]) in [2, -1, 1, 2] and weight["weight"] >= outlier_score[nodea]["avg+pstd"] :
+            elif (self.segments_order[graph_list[nodeb][-1]] - self.segments_order[graph_list[nodea][-1]]) in [2, -1, 1, 2] and weight["weight"] >= outlier_score[nodea]["q3"] :
                 pass
             else:
                 meeting_graph.remove_edge(nodea, nodeb)
@@ -755,7 +755,7 @@ class community_detection:
     def rank_groups(self, group ):
         # download all the required artifacts for group ranking.
         entity_dict_full = load_entity_features(self.mind_id)
-        noun_graph, kp_entity_graph, entity_community_map, entity_community_rank = load_entity_graph(self.mind_id)
+        kp_entity_graph, entity_community_map, entity_community_rank = load_entity_graph(self.mind_id)
         common_entities = entity_dict_full.keys() & entity_community_map.keys()
         ent_fv = {}
         for ent in common_entities:
@@ -790,15 +790,6 @@ class community_detection:
             filtered_kps = list(set(filtered_kps))
             group_filtered_kps[groupid] = filtered_kps
             #candidate_sents = tp.preprocess(seg_text, stop_words=False)
-            filtered_sents = []
-            para_feats = []
-            for seg, segid in seg_text_info:
-                for sent, fv in self.segid_index[segid]:
-                    if any(kp in sent for kp in filtered_kps):
-                        filtered_sents.append(sent)
-                        para_feats.append(fv)
-            para_feats = np.mean(para_feats, axis=0)
-
             uncased_nodes = [ele.lower() for ele in kp_entity_graph]
             uncased_node_dict = dict(zip(list(kp_entity_graph),uncased_nodes))
             noun_list = [ele.split(' ') for ele in filtered_kps]
@@ -813,22 +804,77 @@ class community_detection:
             kp_ent_map = []
             for noun in noun_node_list:
                 kp_Map_list.extend([ele for ele in list(kp_entity_graph[noun])
-                                    if kp_entity_graph[noun][ele]['edge_type']=='token_kp_map'])
+                                    if kp_entity_graph[noun][ele]['edge_type']=='kp_to_tok'])
             group_kp_map[groupid] = kp_Map_list
             for kp in list(set(kp_Map_list)):
                 kp_ent_map.extend([ele for ele in list(kp_entity_graph[kp]) if kp_entity_graph.nodes[ele]['node_type']=='entity'])
 
             kp_ent_map = list(set(kp_ent_map+ent_node_list))
             kp_ent_map = list(set(kp_ent_map)&set(ent_fv))
-            dist_list = []
-            for entity in kp_ent_map:
-                dist_list.append((entity, cosine(ent_fv[entity],para_feats)))
-            group_ent[groupid] = sorted(dist_list, key=lambda kv:kv[1], reverse=True)[:10]
+            sent_list = []
+            sent_fv = []
+            for seg, segid in seg_text_info:
+                for sent, fv in self.segid_index[segid]:
+                    if any(kp in sent for kp in filtered_kps):
+                        sent_list.append(sent)
+                        sent_fv.append(fv)
+            G = nx.Graph()
+            G.add_nodes_from(range(len(sent_fv)))
+            node_list = range(len(sent_fv))
+            for index1, nodea in enumerate(range(len(sent_fv))):
+                for index2, nodeb in enumerate(range(len(sent_fv))):
+                    if index2 >= index1:
+                        c_score = cosine(sent_fv[nodea], sent_fv[nodeb])
+                        #if c_score>= outlier_score:
+                        G.add_edge(nodea, nodeb, weight = c_score)
+                closest_connection_n = sorted(dict(G[nodea]).items(), key=lambda kv:kv[1]["weight"], reverse=True)
+                weights_n = list(map(lambda kv: (kv[1]["weight"]).tolist(), closest_connection_n))
+                q3 = np.percentile(weights_n, 75)
+                iqr = np.subtract(*np.percentile(weights_n, [75, 25]))
+                outlier_score = q3 + (1 * iqr)
+                for nodeb, param in dict(G[nodea]).items():
+                    if param['weight']>=q3:
+                        pass
+                    else:
+                        G.remove_edge(nodea, nodeb)
+
+            comm_temp = community.best_partition(G, resolution=1)
+
+            prev = 0
+            comm_map = {}
+            for ent, cls in sorted(comm_temp.items(),key=lambda kv:kv[1]):
+                if prev!=cls:
+                    prev = cls
+                if cls in comm_map.keys():
+                    comm_map[cls].append(ent)
+                else:
+                    comm_map[cls] = [ent]
+
+            agg_fv = {}
+            if True in [True if len(s_list)>1 else False for s_list in comm_map.values() ]:
+                threshold = 1
+            else:
+                threshold = 0
+            for comm, s_list in comm_map.items():
+                if len(s_list)>threshold:
+                    temp_fv = [sent_fv[s] for s in s_list]
+                    agg_fv[comm] = np.mean(temp_fv, axis=0)
+
+            dist_list = {}
+            for pos, fv in agg_fv.items():
+                temp_list = []
+                for entity in ent_fv.keys():
+                    if entity in kp_ent_map:
+                        temp_list.append((entity, cosine(ent_fv[entity], fv)))
+                dist_list[pos] = sorted(temp_list, key=lambda kv:kv[1], reverse=True)[:10]
+
+            group_ent[groupid] = [e for e_list in dist_list.values() for e in e_list]
 
         group_ent_score = {}
         for groupid, groupobj in group.items():
             group_ent_score[groupid] = [entity_community_map[ent] for ent in list(map(lambda kv:kv[0], group_ent[groupid]))]
             group_ent_score[groupid] = [entity_community_rank[com] for com in group_ent_score[groupid] if com in entity_community_rank.keys()]
+            print (groupobj, "\n\n", group_ent_score[groupid])
 
         rank_index = 0
         group_rank = {}
@@ -841,7 +887,7 @@ class community_detection:
             else:
                 count_a = Counter(group_s).most_common()
                 for i, count in count_a:
-                    if count>1 :
+                    if count>2 :
                         rank.append(i)
                 if rank == []:
                     rank = 10**6

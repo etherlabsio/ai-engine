@@ -15,11 +15,6 @@ def load_entity_features(mind_id):
 def load_entity_graph(mind_id):
     bucket = os.getenv("BUCKET_NAME", "io.etherlabs.artifacts")
 
-    noun_path = os.getenv("ACTIVE_ENV") + "/minds/" + mind_id + "/noun_graph.pkl"
-    noun_dl_path = os.path.join(os.sep, "tmp", "noun_graph.pkl")
-    s3.Bucket(bucket).download_file(noun_path, noun_dl_path)
-    noun_graph = pickle.load(open(noun_dl_path, "rb"))
-
     kp_entity_path = os.getenv("ACTIVE_ENV") + "/minds/" + mind_id + "/kp_entity_graph.pkl"
     kp_entity_dl_path = os.path.join(os.sep, "tmp", "kp_entity_graph.pkl")
     s3.Bucket(bucket).download_file(kp_entity_path, kp_entity_dl_path)
@@ -35,4 +30,4 @@ def load_entity_graph(mind_id):
     s3.Bucket(bucket).download_file(comm_rank_path, comm_rank_dl_path)
     entity_community_rank = pickle.load(open(comm_rank_dl_path, "rb"))
 
-    return noun_graph, kp_entity_graph, entity_community_map, entity_community_rank
+    return kp_entity_graph, entity_community_map, entity_community_rank
