@@ -166,6 +166,7 @@ class NATSTransport(object):
             segment_object = request_object.segments
 
             filter_by_graph, mind_id = await self.set_mind(request_object.contextId)
+            session_id = request_object.instanceId + ":" + mind_id
 
             # Compute embeddings for segments and keyphrases
             (
@@ -176,7 +177,7 @@ class NATSTransport(object):
                 segment_object=segment_object,
                 highlight=highlight,
                 filter_by_graph=filter_by_graph,
-                mind_id=mind_id,
+                session_id=session_id,
             )
 
             # Forward the modified Request-Segment object to graph-service
@@ -193,6 +194,7 @@ class NATSTransport(object):
                     "nodes": meeting_word_graph.number_of_nodes(),
                     "edges": meeting_word_graph.number_of_edges(),
                     "instanceId": request_object.instanceId,
+                    "sessionId": session_id,
                     "mindId": mind_id,
                     "responseTime": end - start,
                 },
@@ -231,6 +233,7 @@ class NATSTransport(object):
             group_id = self.keyphrase_service.utils.hash_sha_object()
 
         filter_by_graph, mind_id = await self.set_mind(request_object.contextId)
+        session_id = request_object.instanceId + ":" + mind_id
 
         output, summary_request_object = await self.keyphrase_service.get_keyphrases(
             req_data=request_object,
@@ -241,7 +244,7 @@ class NATSTransport(object):
             group_id=group_id,
             highlight=highlight,
             filter_by_graph=filter_by_graph,
-            mind_id=mind_id,
+            session_id=session_id,
         )
 
         if highlight:
@@ -259,6 +262,7 @@ class NATSTransport(object):
                     "instanceId": request_object.instanceId,
                     "numOfSegments": len(segment_object),
                     "mindId": mind_id,
+                    "sessionId": session_id,
                     "limit": limit,
                     "responseTime": end - start,
                     "segmentsReceived": segment_ids,
@@ -274,6 +278,7 @@ class NATSTransport(object):
                     "instanceId": request_object.instanceId,
                     "numOfSegments": len(segment_object),
                     "mindId": mind_id,
+                    "sessionId": session_id,
                     "limit": limit,
                     "responseTime": end - start,
                     "segmentsReceived": segment_ids,
@@ -340,8 +345,8 @@ class NATSTransport(object):
 
     async def reset_keyphrases(self, msg):
         request = json.loads(msg.data)
-        request_object = Request.get_object(request)
-        logger.info("Resetting keyphrases graph")
+        request_object = ContextRequest.get_object(request)
+        logger.info("Resetting keyphrase graph")
         self.keyphrase_service.reset_keyphrase_graph(request_object)
 
     async def populate_segment_keyphrase_info(self, modified_req_data: Dict):

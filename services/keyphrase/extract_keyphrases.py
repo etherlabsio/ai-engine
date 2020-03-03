@@ -60,7 +60,9 @@ class KeyphraseExtractor(object):
         self.context_store = RedisStore(id=CONTEXT_STORE, host=redis_host)
         self.graph_filter_object = GraphFilter(s3_client=self.s3_mind_client)
         self.utils = KeyphraseUtils(
-            graph_filter_object=self.graph_filter_object, mind_store=self.mind_store
+            graph_filter_object=self.graph_filter_object,
+            mind_store=self.mind_store,
+            mind_dir=self.mind_dir,
         )
         self.io_util = S3IO(
             s3_client=s3_client, graph_utils_obj=GraphUtils(), utils=self.utils,
@@ -96,7 +98,6 @@ class KeyphraseExtractor(object):
             "NNPS",
             "FW",
         ]
-        self.meeting_keywords = []
 
     def get_graph_id(self, req_data: ContextRequest) -> Text:
         context_id = req_data.contextId
@@ -119,6 +120,7 @@ class KeyphraseExtractor(object):
         instance_id = req_data.instanceId
         mind_id = req_data.mindId
         mind_id = mind_id.lower()
+        session_id = instance_id + ":" + mind_id
 
         meeting_word_graph = nx.Graph(graphId=graph_id)
 
@@ -141,7 +143,7 @@ class KeyphraseExtractor(object):
                 mind_filter_graph = self.graph_filter_object.download_mind(
                     graph_file_path=mind_graph_path
                 )
-                self.mind_store.set_object(key=mind_id, object=mind_filter_graph)
+                self.mind_store.set_object(key=session_id, object=mind_filter_graph)
 
                 logger.info(
                     "Loaded Entity-KP Filter graph",
@@ -149,6 +151,7 @@ class KeyphraseExtractor(object):
                         "contextId": context_id,
                         "instanceId": instance_id,
                         "mindId": mind_id,
+                        "sessionId": session_id,
                     },
                 )
             except Exception as e:
@@ -209,7 +212,7 @@ class KeyphraseExtractor(object):
         self,
         req_data: Request,
         segment_object: SegmentType,
-        mind_id: str,
+        session_id: str,
         highlight: bool = False,
         group_id: str = None,
         filter_by_graph: bool = False,
@@ -226,7 +229,7 @@ class KeyphraseExtractor(object):
             highlight=highlight,
             group_id=group_id,
             filter_by_graph=filter_by_graph,
-            mind_id=mind_id,
+            session_id=session_id,
         )
 
         return modified_request_obj, meeting_word_graph
@@ -279,7 +282,7 @@ class KeyphraseExtractor(object):
         self,
         req_data: Request,
         segment_object: SegmentType,
-        mind_id: str,
+        session_id: str,
         meeting_word_graph: nx.Graph = None,
         default_form: Text = "descriptive",
         highlight: bool = False,
@@ -309,7 +312,7 @@ class KeyphraseExtractor(object):
             segment_object=segment_object,
             meeting_word_graph=meeting_word_graph,
             filter_by_graph=filter_by_graph,
-            mind_id=mind_id,
+            session_id=session_id,
         )
 
         # Get segment text
@@ -455,7 +458,7 @@ class KeyphraseExtractor(object):
         self,
         req_data: Request,
         segment_object: SegmentType,
-        mind_id: str,
+        session_id: str,
         summary_object: SummaryRequest = None,
         meeting_word_graph: nx.Graph = None,
         n_kw: int = 10,
@@ -489,7 +492,7 @@ class KeyphraseExtractor(object):
                 segment_object=segment_object,
                 highlight=highlight,
                 group_id=group_id,
-                mind_id=mind_id,
+                session_id=session_id,
                 filter_by_graph=filter_by_graph,
             )
 
@@ -498,7 +501,7 @@ class KeyphraseExtractor(object):
                 meeting_word_graph=meeting_word_graph,
                 relative_time=relative_time,
                 filter_by_graph=filter_by_graph,
-                mind_id=mind_id,
+                session_id=session_id,
                 highlight=highlight,
             )
 
@@ -596,7 +599,7 @@ class KeyphraseExtractor(object):
         self,
         req_data: Request,
         segment_object: SegmentType,
-        mind_id: str,
+        session_id: str,
         meeting_word_graph: nx.Graph = None,
         n_kw: int = 10,
         default_form: Text = "descriptive",
@@ -627,7 +630,7 @@ class KeyphraseExtractor(object):
             modified_request_obj, meeting_word_graph = self.populate_and_embed_graph(
                 req_data=req_data,
                 segment_object=segment_object,
-                mind_id=mind_id,
+                session_id=session_id,
                 filter_by_graph=filter_by_graph,
                 **kwargs,
             )
@@ -637,7 +640,7 @@ class KeyphraseExtractor(object):
                 meeting_word_graph=meeting_word_graph,
                 relative_time=relative_time,
                 filter_by_graph=filter_by_graph,
-                mind_id=mind_id,
+                session_id=session_id,
             )
 
             try:
@@ -739,7 +742,7 @@ class KeyphraseExtractor(object):
         self,
         segment_object: SegmentType,
         meeting_word_graph: nx.Graph,
-        mind_id: str,
+        session_id: str,
         relative_time: str = None,
         highlight: bool = False,
         filter_by_graph: bool = False,
@@ -839,7 +842,7 @@ class KeyphraseExtractor(object):
             phrase_obj = self.utils.post_process_output(
                 phrase_object=phrase_obj,
                 filter_by_graph=filter_by_graph,
-                mind_id=mind_id,
+                session_id=session_id,
             )
 
             phrase_obj_list.append(phrase_obj)
@@ -1014,16 +1017,18 @@ class KeyphraseExtractor(object):
         instance_id = req_data.instanceId
         mind_id = req_data.mindId
         mind_id = mind_id.lower()
+        session_id = instance_id + ":" + mind_id
 
-        self.mind_store.delete_key(mind_id)
+        self.mind_store.delete_key(key=session_id)
 
         end = timer()
         logger.info(
-            "Post-reset; Cleared store: Graph info",
+            "Post-reset; Cleared Store; Graph info",
             extra={
                 "contextId": context_id,
                 "instanceId": instance_id,
                 "mindId": mind_id,
+                "sessionId": session_id,
                 "responseTime": end - start,
             },
         )

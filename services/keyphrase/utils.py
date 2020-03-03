@@ -15,9 +15,10 @@ logger = logging.getLogger(__name__)
 
 
 class KeyphraseUtils(object):
-    def __init__(self, graph_filter_object=None, mind_store=None):
+    def __init__(self, mind_dir: str, graph_filter_object=None, mind_store=None):
         self.gfilter = graph_filter_object
         self.mind_store = mind_store
+        self.mind_dir = mind_dir
 
     def hash_phrase(self, phrase: str) -> str:
         hash_object = hashlib.md5(phrase.encode())
@@ -131,7 +132,7 @@ class KeyphraseUtils(object):
 
     def post_process_output(
         self,
-        mind_id: str,
+        session_id: str,
         phrase_object: Phrase,
         preserve_singlewords=False,
         dict_key="descriptive",
@@ -163,18 +164,27 @@ class KeyphraseUtils(object):
             phrase_object.keyphrases.extend(singlephrase_object_list)
 
         if filter_by_graph:
-            phrase_object = self._graph_filtration(phrase_object, mind_id)
+            phrase_object = self._graph_filtration(phrase_object, session_id=session_id)
 
         return phrase_object
 
-    def _graph_filtration(self, phrase_object: Phrase, mind_id: str,) -> Phrase:
+    def _graph_filtration(self, phrase_object: Phrase, session_id: str,) -> Phrase:
         filtered_entities = []
         final_dropped_entities = []
         filtered_keyphrases = []
         final_dropped_keyphrases = []
 
         # Filter entities by Entity graph
-        entity_graph = self.mind_store.get_object(key=mind_id)
+        entity_graph = self.mind_store.get_object(key=session_id)
+        if entity_graph is None:
+            mind_id = session_id.split(":")[-1]
+            mind_graph_path = self.mind_dir + mind_id + "/kp_entity_graph.pkl"
+            mind_filter_graph = self.gfilter.download_mind(
+                graph_file_path=mind_graph_path
+            )
+            self.mind_store.set_object(key=session_id, object=mind_filter_graph)
+            entity_graph = self.mind_store.get_object(key=session_id)
+            mind_filter_graph.clear()
 
         segment_text = phrase_object.originalText
         entity_object = phrase_object.entities
