@@ -1,6 +1,5 @@
 from datetime import datetime
 import iso8601
-import itertools
 import json
 from collections import OrderedDict
 import hashlib
@@ -8,15 +7,18 @@ from typing import List, Dict, Tuple, Union
 import numpy as np
 from io import BytesIO
 import uuid
+import logging
 
-from .objects import Phrase, Keyphrase, Entity, Segment
+from .objects import Phrase, PhraseType, KeyphraseType, EntityType, SegmentType
 
-SegmentType = List[Segment]
+logger = logging.getLogger(__name__)
 
 
 class KeyphraseUtils(object):
-    def __init__(self):
-        pass
+    def __init__(self, mind_dir: str, graph_filter_object=None, mind_store=None):
+        self.gfilter = graph_filter_object
+        self.mind_store = mind_store
+        self.mind_dir = mind_dir
 
     def hash_phrase(self, phrase: str) -> str:
         hash_object = hashlib.md5(phrase.encode())
@@ -53,9 +55,9 @@ class KeyphraseUtils(object):
 
         return npz_file
 
-    def formatTime(self, tz_time, datetime_object=False):
-        isoTime = iso8601.parse_date(tz_time)
-        ts = isoTime.timestamp()
+    def format_time(self, tz_time, datetime_object=False):
+        iso_time = iso8601.parse_date(tz_time)
+        ts = iso_time.timestamp()
         ts = datetime.utcfromtimestamp(ts).strftime("%Y-%m-%d %H:%M:%S:%f")
 
         if datetime_object:
@@ -129,7 +131,12 @@ class KeyphraseUtils(object):
         return segment_list
 
     def post_process_output(
-        self, phrase_object: Phrase, preserve_singlewords=False,
+        self,
+        session_id: str,
+        phrase_object: Phrase,
+        preserve_singlewords=False,
+        dict_key="descriptive",
+        filter_by_graph: bool = False,
     ) -> Phrase:
 
         # Post-process entities
@@ -156,11 +163,89 @@ class KeyphraseUtils(object):
         if preserve_singlewords:
             phrase_object.keyphrases.extend(singlephrase_object_list)
 
+        if filter_by_graph:
+            phrase_object = self._graph_filtration(phrase_object, session_id=session_id)
+
+        return phrase_object
+
+    def _graph_filtration(self, phrase_object: Phrase, session_id: str,) -> Phrase:
+        filtered_entities = []
+        final_dropped_entities = []
+        filtered_keyphrases = []
+        final_dropped_keyphrases = []
+
+        # Filter entities by Entity graph
+        entity_graph = self.mind_store.get_object(key=session_id)
+        if entity_graph is None:
+            mind_id = session_id.split(":")[-1]
+            mind_graph_path = self.mind_dir + mind_id + "/kp_entity_graph.pkl"
+            mind_filter_graph = self.gfilter.download_mind(
+                graph_file_path=mind_graph_path
+            )
+            self.mind_store.set_object(key=session_id, object=mind_filter_graph)
+            entity_graph = self.mind_store.get_object(key=session_id)
+            mind_filter_graph.clear()
+
+        segment_text = phrase_object.originalText
+        entity_object = phrase_object.entities
+        keyphrase_object = phrase_object.keyphrases
+
+        keyphrases = [kp.originalForm for kp in keyphrase_object]
+        entity_phrases = [entity.originalForm for entity in entity_object]
+
+        processed_entities, dropped_entities = self.gfilter.filter_entities(
+            phrase=entity_phrases,
+            segment_text_list=[segment_text],
+            kp_graph=entity_graph,
+        )
+        processed_keyphrases, dropped_keyphrases = self.gfilter.filter_keyphrases(
+            phrase=keyphrases, segment_text_list=[segment_text], kp_graph=entity_graph
+        )
+
+        filtered_entities.extend([ent for ent in processed_entities])
+        final_dropped_entities.extend([ent for ent in dropped_entities])
+        filtered_keyphrases.extend([kp for kp in processed_keyphrases])
+        final_dropped_keyphrases.extend([kp for kp in dropped_keyphrases])
+
+        try:
+            for phrase in entity_object:
+                if (
+                    phrase.originalForm in dropped_entities
+                    or phrase.value in dropped_entities
+                ):
+                    phrase.to_remove = True
+
+            for phrase in keyphrase_object:
+                if (
+                    phrase.originalForm in dropped_keyphrases
+                    or phrase.value in dropped_keyphrases
+                ):
+                    phrase.to_remove = True
+
+        except Exception as e:
+            logger.warning(
+                "Unable to post-process keyphrases and entities", extra={"warn": e}
+            )
+
+        finally:
+            entity_graph.clear()
+
+        logger.debug(
+            "Processed keyphrases & entities by ENT-KP Graph",
+            extra={
+                "filteredKeyphrases": filtered_keyphrases,
+                "droppedKeyphrases": final_dropped_keyphrases,
+                "filteredEntities": filtered_entities,
+                "droppedEntities": final_dropped_entities,
+            },
+        )
+
         return phrase_object
 
     def post_process_entities(
-        self, entity_list: List[Entity], keyphrase_list: List[Keyphrase]
-    ) -> List[Entity]:
+        self, entity_list: EntityType, keyphrase_list: KeyphraseType
+    ) -> EntityType:
+
         processed_entities = []
 
         # Remove duplicates from the single phrases which are occurring in multi-keyphrases
@@ -204,8 +289,8 @@ class KeyphraseUtils(object):
 
     def limit_phrase_list(
         self,
-        entities_object: List[Entity],
-        keyphrase_object: List[Keyphrase],
+        entities_object: EntityType,
+        keyphrase_object: KeyphraseType,
         phrase_limit: int = 10,
         entities_limit: int = 5,
         entity_quality_score: int = 0,
@@ -215,8 +300,8 @@ class KeyphraseUtils(object):
         sort_by: str = "loc",
         final_sort: bool = False,
     ) -> Union[
-        Tuple[Dict[str, float], List[Entity], List[Keyphrase]],
-        Tuple[List[Entity], List[Keyphrase]],
+        Tuple[Dict[str, float], EntityType, KeyphraseType],
+        Tuple[EntityType, KeyphraseType],
     ]:
 
         if remove_phrases:
@@ -231,9 +316,14 @@ class KeyphraseUtils(object):
                     entity_score = norm_boosted_score
 
                 # Check for relevance scores if the entity type is other than Organization or Product
-                if preference_value > 2:
-                    if entity_score <= entity_quality_score:
+                if preference_value > 2 and preference_value != 5:
+                    if (
+                        len(entities_object) >= 2
+                        and entity_score <= entity_quality_score
+                    ):
                         entity_obj.to_remove = True
+                    else:
+                        continue
                 else:
                     if entity_score > 0 and entity_obj.related_to_keyphrase is not True:
                         entity_obj.to_remove = False
@@ -288,11 +378,11 @@ class KeyphraseUtils(object):
 
     def _sort_phrase_dict(
         self,
-        keyphrase_object: List[Keyphrase],
-        entities_object: List[Entity],
+        keyphrase_object: KeyphraseType,
+        entities_object: EntityType,
         final_sort,
         rank_by="boosted_sim",
-    ) -> Tuple[List[Entity], List[Keyphrase]]:
+    ) -> Tuple[EntityType, KeyphraseType]:
 
         # Sort by rank/scores
         ranked_keyphrase_object = sorted(
@@ -323,11 +413,11 @@ class KeyphraseUtils(object):
 
     def _slice_phrase_dict(
         self,
-        entities_object: List[Entity],
-        keyphrase_object: List[Keyphrase],
+        entities_object: EntityType,
+        keyphrase_object: KeyphraseType,
         phrase_limit=10,
         entities_limit=5,
-    ):
+    ) -> Tuple[EntityType, KeyphraseType]:
 
         word_limit = phrase_limit - entities_limit
 

@@ -4,9 +4,16 @@ from scipy.spatial.distance import cosine
 import numpy as np
 import json
 from nltk.tokenize import sent_tokenize
-from typing import List
+from typing import List, Union
 
-from .objects import Phrase, Keyphrase, Request, GraphQueryRequest, GraphSegmentResponse
+from .objects import (
+    Phrase,
+    Keyphrase,
+    Request,
+    GraphQueryRequest,
+    GraphSegmentResponse,
+    ContextRequest,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -79,21 +86,37 @@ class KeyphraseRanker(object):
 
         return dist
 
-    def get_embeddings(self, input_list: List[str], req_data: Request = None):
+    def get_embeddings(
+        self,
+        input_list: List[str],
+        req_data: Union[Request, ContextRequest] = None,
+        invocation_type="RequestResponse",
+    ):
 
         start = timer()
         if req_data is None:
             lambda_payload = {"body": {"text_input": input_list}}
         else:
-            lambda_payload = {
-                "body": {"request": Request.to_dict(req_data), "text_input": input_list}
-            }
+            try:
+                lambda_payload = {
+                    "body": {
+                        "request": Request.to_dict(req_data),
+                        "text_input": input_list,
+                    }
+                }
+            except Exception:
+                lambda_payload = {
+                    "body": {
+                        "request": ContextRequest.to_dict(req_data),
+                        "text_input": input_list,
+                    }
+                }
 
         try:
             logger.info("Invoking lambda function")
             invoke_response = self.encoder_lambda_client.invoke(
                 FunctionName=self.lambda_function,
-                InvocationType="RequestResponse",
+                InvocationType=invocation_type,
                 Payload=json.dumps(lambda_payload),
             )
 
@@ -277,7 +300,7 @@ class KeyphraseRanker(object):
 
                 norm_boosted_score = (
                     boosted_score * kp_quality_score * segment_sentence_len
-                ) / (total_keyphrase_quality_score)
+                ) / total_keyphrase_quality_score
 
                 keyphrase_score.norm_boosted_sim = norm_boosted_score
 
@@ -287,7 +310,7 @@ class KeyphraseRanker(object):
 
                 norm_boosted_score = (
                     boosted_score * ent_quality_score * segment_sentence_len
-                ) / (total_entities_quality_score)
+                ) / total_entities_quality_score
 
                 entity_score.norm_boosted_sim = norm_boosted_score
 

@@ -13,7 +13,8 @@ class ContextRequest(ObjectConversions):
     unknown_fields: CatchAll
     contextId: str
     instanceId: str
-    mindId: str = field(default=None)
+    mindId: str = field(default="")
+    at: str = field(default="")
 
     def __post_init__(self):
         self.instanceId = str(uuid.UUID(self.instanceId))
@@ -57,15 +58,19 @@ class SegmentRequest(ObjectConversions):
 # Request objects from Keyphrase-service
 @dataclass_json(undefined=Undefined.INCLUDE)
 @dataclass
-class SessionRequest(ContextRequest):
+class SessionRequest(ObjectConversions):
     unknown_fields: CatchAll
+    contextId: str
+    instanceId: str
     segments: List[SegmentRequest] = field(default_factory=list)
 
 
 @dataclass_json(undefined=Undefined.INCLUDE)
 @dataclass
-class SummaryRequest(ContextRequest):
+class SummaryRequest(ObjectConversions):
     unknown_fields: CatchAll
+    contextId: str
+    instanceId: str
     limit: int = field(init=False, default=10)
     populateGraph: bool = field(init=False, default=True)
     validate: bool = field(init=False, default=False)

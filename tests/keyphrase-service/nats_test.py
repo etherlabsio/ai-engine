@@ -18,9 +18,8 @@ async def publish_keyphrase():
     topic = "keyphrase_service.extract_keyphrases"
     await nc.connect(servers=[nats_url])
     test_json = read_json(single_json_file)
-    topic, resp = replace_ids(
-        test_json["contextId"], test_json["instanceId"], topic, resp={}
-    )
+    test_json["populateGraph"] = False
+    topic, resp = replace_ids(topic=topic, resp={},)
     msg = await nc.request(topic, json.dumps(test_json).encode(), timeout=TIMEOUT)
     data = msg.data.decode()
     print("Received a message: {data}".format(data=data))
@@ -31,9 +30,7 @@ async def publish_chapter_keyphrase():
     topic = "keyphrase_service.extract_keyphrases"
     await nc.connect(servers=[nats_url])
     test_json = read_json(multi_json_file)
-    topic, resp = replace_ids(
-        test_json["contextId"], test_json["instanceId"], topic, resp={}
-    )
+    topic, resp = replace_ids(topic=topic, resp={},)
     msg = await nc.request(topic, json.dumps(test_json).encode(), timeout=TIMEOUT)
     data = msg.data.decode()
     print("Received a message: {data}".format(data=data))
@@ -83,9 +80,7 @@ async def populate_graph():
     await nc.connect(servers=[nats_url])
     # test_json = read_json(multi_json_file)
     test_json = read_json(meeting_json_file)
-    topic, resp = replace_ids(
-        test_json["contextId"], test_json["instanceId"], topic, resp={}
-    )
+    topic, resp = replace_ids(topic=topic, resp={},)
 
     json_dict = deepcopy(test_json)
     segment_object = test_json["segments"]
@@ -103,9 +98,9 @@ async def create_context():
     nc = NATS()
     topic = "context.instance.created"
     await nc.connect(servers=[nats_url])
-    resp = {"contextId": "*", "instanceId": "*", "state": "created"}
+    resp = {"contextId": "*", "instanceId": "*", "mindId": "*", "state": "created"}
 
-    topic, resp = replace_ids(topic=topic, resp=resp)
+    topic, resp = replace_ids(mind_id=True, topic=topic, resp=resp)
     await nc.publish(topic, json.dumps(resp).encode())
     pass
 
@@ -114,8 +109,8 @@ async def start_context():
     nc = NATS()
     topic = "context.instance.started"
     await nc.connect(servers=[nats_url])
-    resp = {"instanceId": "*", "state": "started", "contextId": "*", "mindId": "76Y"}
-    topic, resp = replace_ids(topic=topic, resp=resp)
+    resp = {"instanceId": "*", "state": "started", "contextId": "*", "mindId": "*"}
+    topic, resp = replace_ids(mind_id=True, topic=topic, resp=resp)
     await nc.publish(topic, json.dumps(resp).encode())
     pass
 
@@ -124,8 +119,8 @@ async def end_context():
     nc = NATS()
     topic = "context.instance.ended"
     await nc.connect(servers=[nats_url])
-    resp = {"instanceId": "*", "state": "ended"}
-    topic, resp = replace_ids(topic=topic, resp=resp)
+    resp = {"instanceId": "*", "state": "ended", "mindId": "*"}
+    topic, resp = replace_ids(mind_id=True, topic=topic, resp=resp)
     await nc.publish(topic, json.dumps(resp).encode())
     await nc.flush()
     await nc.close()
@@ -282,14 +277,22 @@ def post_process_desc():
     logger.info(processed_keyphrase)
 
 
-def replace_ids(context_id=None, instance_id=None, topic=None, resp=dict()):
+def replace_ids(
+    context_id=True, instance_id=True, mind_id=False, topic=None, resp=dict()
+):
 
-    if context_id is None and instance_id is None:
+    if context_id:
         context_id = "6baa3490"
-        instance_id = "d052f2e7-3c79-45e4-aee5-9af0f7c2053e"
+    if instance_id:
+        instance_id = "b5d4f2e7-3c79-45e4-aee5-9af0f7c2053e"
+    if mind_id:
+        mind_id = "01DAAQY88QZB19JQZ5PRJFR76Y"
+    else:
+        mind_id = None
 
     resp["instanceId"] = instance_id
     resp["contextId"] = context_id
+    resp["mindId"] = mind_id
 
     if "*" in topic:
         formatted_topic = topic.replace("*", instance_id)
@@ -356,8 +359,6 @@ if __name__ == "__main__":
     elif args.topics == "start":
         loop.run_until_complete(start_context())
     elif args.topics == "populate":
-        # t1 = loop.run_until_complete(create_context())
-        # loop.run_until_complete(start_context())
         loop.run_until_complete(populate_graph())
     elif args.topics == "pub_chapter":
         loop.run_until_complete(publish_chapter_keyphrase())
