@@ -29,9 +29,14 @@ if __name__ == "__main__":
     # Load ENV variables
     nats_url = getenv("NATS_URL", "nats://localhost:4222")
     bucket_store = getenv("STORAGE_BUCKET", "io.etherlabs.staging2.contexts")
+    mind_store = getenv("MIND_STORAGE_BUCKET", "io.etherlabs.artifacts")
+    redis_host = getenv(
+        "REDIS_ENDPOINT", "ether-api-redis-master.production.internal.etherlabs.io"
+    )
     encoder_lambda_function = getenv("FUNCTION_NAME", "sentence-encoder-lambda")
     ner_lambda_function = getenv("NER_FUNCTION_NAME", "ner")
     aws_region = getenv("AWS_DEFAULT_REGION", "us-east-1")
+    active_env = bucket_store.split(".")[-2]
 
     # Initialize Boto session for aws services
     aws_config = Config(
@@ -41,6 +46,7 @@ if __name__ == "__main__":
         region_name=aws_region,
     )
     s3_client = S3Manager(bucket_name=bucket_store)
+    s3_mind_client = S3Manager(bucket_name=mind_store)
     lambda_client = client("lambda", config=aws_config)
 
     # Initialize event loop and transport layers
@@ -54,12 +60,14 @@ if __name__ == "__main__":
     # Initialize keyphrase-service client
     keyphrase_extractor = KeyphraseExtractor(
         s3_client=s3_client,
+        s3_mind_client=s3_mind_client,
         encoder_lambda_client=lambda_client,
         lambda_function=encoder_lambda_function,
         ner_lambda_function=ner_lambda_function,
         nats_manager=nats_manager,
+        redis_host=redis_host,
+        active_env=active_env,
     )
-    logger.debug("download complete")
 
     nats_transport = NATSTransport(
         nats_manager=nats_manager, keyphrase_service=keyphrase_extractor

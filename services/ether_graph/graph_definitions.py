@@ -238,6 +238,7 @@ class Mind(DgraphAttributes):
 @dataclass
 class ContextSession(DgraphAttributes):
     instanceId: str = field(default=None, metadata=config(field_name="xid"))
+    startTime: str = field(default=None)
     attribute: str = "instanceId"
 
     hasSegment: List[TranscriptionSegment] = field(default_factory=list)

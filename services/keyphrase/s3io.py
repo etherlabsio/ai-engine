@@ -55,8 +55,8 @@ class S3IO(object):
             "Downloaded graph object from s3",
             extra={
                 "graphId": graph_obj.graph.get("graphId"),
-                "kgNodes": graph_obj.number_of_nodes(),
-                "kgEdges": graph_obj.number_of_edges(),
+                "nodes": graph_obj.number_of_nodes(),
+                "edges": graph_obj.number_of_edges(),
                 "responseTime": end - start,
             },
         )

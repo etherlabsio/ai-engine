@@ -3,9 +3,9 @@ import logging
 import traceback
 import json
 from timeit import default_timer as timer
-from typing import Tuple, List, Text, Dict, Union
+from typing import Tuple, Text, List, Dict, Union
 
-from .objects import Entity, Score, Keyphrase
+from .objects import Score, Keyphrase, KeyphraseType, Entity, EntityType
 
 logger = logging.getLogger(__name__)
 
@@ -64,6 +64,7 @@ class WordGraphBuilder(object):
     def get_custom_keyphrases(
         self,
         graph,
+        text=None,
         pos_tuple=None,
         original_pos_list=None,
         window=4,
@@ -76,6 +77,7 @@ class WordGraphBuilder(object):
 
         keyphrases = self.gr.get_keyphrases(
             graph_obj=graph,
+            text=text,
             input_pos_text=pos_tuple,
             original_tokens=original_pos_list,
             window=window,
@@ -88,7 +90,7 @@ class WordGraphBuilder(object):
 
         return keyphrases
 
-    def get_custom_entities(self, input_segment: Text) -> List[Entity]:
+    def get_custom_entities(self, input_segment: Text) -> EntityType:
         entity_list = []
         entity_preference_map = {
             "MISC": 1,
@@ -174,7 +176,7 @@ class WordGraphBuilder(object):
 
     def get_segment_keyphrases(
         self, segment_text: str, word_graph: nx.Graph
-    ) -> List[Keyphrase]:
+    ) -> KeyphraseType:
 
         keyphrase_list = []
         try:
@@ -184,12 +186,12 @@ class WordGraphBuilder(object):
 
             descriptive_kp = self.get_custom_keyphrases(
                 graph=word_graph,
+                text=segment_text,
                 pos_tuple=pos_tuple,
                 descriptive=True,
-                post_process_descriptive=True,
             )
             non_descriptive_kp = self.get_custom_keyphrases(
-                graph=word_graph, pos_tuple=pos_tuple
+                graph=word_graph, text=segment_text, pos_tuple=pos_tuple
             )
 
             descriptive_kp_obj = [
@@ -207,10 +209,10 @@ class WordGraphBuilder(object):
             keyphrase_list.extend(descriptive_kp_obj)
             keyphrase_list.extend(non_descriptive_kp_obj)
 
-        except Exception:
+        except Exception as e:
             logger.error(
-                "error retrieving descriptive phrases",
-                extra={"err": traceback.print_exc()},
+                "error retrieving descriptive phrases", extra={"err": e},
             )
+            print(traceback.print_exc())
 
         return keyphrase_list

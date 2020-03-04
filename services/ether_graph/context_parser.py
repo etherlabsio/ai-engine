@@ -93,9 +93,10 @@ class ContextSessionParser(object):
         context_id = req_data.contextId
         instance_id = req_data.instanceId
         mind_id = req_data.mindId
+        start_ts = req_data.at
 
         mind_node = Mind(mindId=mind_id)
-        instance_node = ContextSession(instanceId=instance_id)
+        instance_node = ContextSession(instanceId=instance_id, startTime=start_ts)
         context_node = Context(contextId=context_id)
 
         mind_node = self.gh.query_transform_node(node_obj=mind_node)
@@ -193,6 +194,8 @@ class ContextSessionParser(object):
         summary_node.hasKeywords = summary_keyphrases
         summary_node.hasEntities = summary_entities
         summary_node.hasUser = group_user_nodes
+
+        summary_node = self.gh.query_transform_node(summary_node)
 
         for i, segment in enumerate(segment_object):
             provider_node = self._parse_provider_info(segment)
