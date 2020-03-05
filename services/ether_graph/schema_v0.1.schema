@@ -1,0 +1,121 @@
+# EtherGraph Schema v0.1 
+# Generated schema for Dgraph v1.1.0 
+
+type Context {
+	xid       : string
+	attribute : string
+	associatedMind: Mind
+	hasMeeting: [ContextSession]
+	hasMember : [User]
+}
+
+type ContextSession {
+	xid       : string
+	attribute : string
+	startTime : string
+	hasSegment: [TranscriptionSegment]
+	hasMarker : [Marker]
+}
+
+type TranscriptionSegment {
+	xid       : string
+	attribute : string
+	originalText: string
+	languageCode: string
+	startTime : string
+	endTime   : string
+	duration  : int
+	analyzedText: string
+	embedding_vector_uri: string
+	embedding_model: string
+	embedding_vector_group_uri: string
+	groupId   : string
+	highlight : bool
+	authoredBy: User
+	providedBy: TranscriptionProvider
+	hasSource : Source
+	hasKeywords: [Keyphrase]
+	hasEntities: [Entity]
+	belongsTo : SummaryGroup
+}
+
+type TranscriptionProvider {
+	xid       : string
+	attribute : string
+	name      : string
+}
+
+type Keyphrase {
+	xid       : string
+	attribute : string
+	originalForm: string
+	type      : string
+	value     : string
+}
+
+type Entity {
+	xid       : string
+	attribute : string
+	originalForm: string
+	value     : string
+	label     : string
+	related_to_keyphrase: bool
+}
+
+type Mind {
+	xid       : string
+	attribute : string
+	name      : string
+	type      : string
+}
+
+type User {
+	xid       : string
+	attribute : string
+	email     : string
+	name      : string
+	deleted   : bool
+	createdAt : string
+	deletedAt : string
+	updatedAt : string
+	userEntities: [Entity]
+	groupedWith: [User]
+}
+
+type Source {
+	xid       : string
+	attribute : string
+	type      : string
+}
+
+type SummaryGroup {
+	xid       : string
+	attribute : string
+	groupId   : string
+	hasKeywords: [Keyphrase]
+	hasEntities: [Entity]
+	hasUser   : [User]
+}
+
+type Customer {
+	xid       : string
+	attribute : string
+	hasUser   : [User]
+}
+
+type Workspace {
+	xid       : string
+	attribute : string
+	name      : string
+	belongsTo : Customer
+	hasMember : [User]
+}
+
+type Channel {
+	xid       : string
+	attribute : string
+	name      : string
+	belongsTo : Workspace
+	hasContext: Context
+	hasMember : [User]
+}

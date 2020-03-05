@@ -114,7 +114,7 @@ class User(DgraphAttributes):
     updatedAt: str = field(init=False, default=None)
 
     userEntities: List[Entity] = field(init=False, default_factory=list)
-    groupedWith: Optional["User"] = field(init=False, default_factory=list)
+    groupedWith: Optional[List["User"]] = field(init=False, default_factory=list)
 
     attribute: str = field(default="userId")
 
@@ -262,5 +262,52 @@ class Context(DgraphAttributes):
 
     def __post_init__(self):
         self.xid = self.contextId
+        self.uid = "_:" + self.xid
+        self.dgraphType = self.get_class_name()
+
+
+@dataclass_json(undefined=Undefined.EXCLUDE)
+@dataclass
+class Customer(DgraphAttributes):
+    customerId: str = field(default="", metadata=config(field_name="xid"))
+    attribute: str = "customerId"
+
+    hasUser: List[User] = field(default_factory=list)
+
+    def __post_init__(self):
+        self.xid = self.customerId
+        self.uid = "_:" + self.xid
+        self.dgraphType = self.get_class_name()
+
+
+@dataclass_json(undefined=Undefined.EXCLUDE)
+@dataclass
+class Workspace(DgraphAttributes):
+    workspaceId: str = field(default="", metadata=config(field_name="xid"))
+    attribute: str = "workspaceId"
+    name: str = ""
+
+    belongsTo: Customer = None
+    hasMember: List[User] = field(default_factory=list)
+
+    def __post_init__(self):
+        self.xid = self.workspaceId
+        self.uid = "_:" + self.xid
+        self.dgraphType = self.get_class_name()
+
+
+@dataclass_json(undefined=Undefined.EXCLUDE)
+@dataclass
+class Channel(DgraphAttributes):
+    channelId: str = field(default="", metadata=config(field_name="xid"))
+    attribute: str = "channelId"
+    name: str = ""
+
+    belongsTo: Workspace = None
+    hasContext: Context = None
+    hasMember: List[User] = field(default_factory=list)
+
+    def __post_init__(self):
+        self.xid = self.channelId
         self.uid = "_:" + self.xid
         self.dgraphType = self.get_class_name()
