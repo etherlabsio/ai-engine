@@ -1,9 +1,8 @@
-from dataclasses import dataclass, field, fields, is_dataclass
+from dataclasses import dataclass, field, fields
 from dataclasses_json import dataclass_json
-from typing import List, get_type_hints
-import typing
-import datetime
-import json
+from typing import List, Dict
+
+from meta_config import MetaConfig
 
 from graph_definitions import (
     Context,
@@ -19,31 +18,11 @@ from graph_definitions import (
     Customer,
     Workspace,
     Channel,
+    IndexRules,
 )
 
-dgraph_types = {str: "string", bool: "bool", int: "int", datetime.datetime: "dateTime"}
 
-ignore_attrs = [
-    "uid",
-    "dgraphType",
-    "instanceId",
-    "contextId",
-    "mindId",
-    "spokenBy",
-    "id",
-    "recordingId",
-    "transcriber",
-    "customerId",
-    "workspaceId",
-    "channelId",
-]
-
-
-def make_object_container():
-    return [f.type for f in fields(ObjectContainer)]
-
-
-@dataclass
+@dataclass(init=False)
 class ObjectContainer:
     context: Context
     context_session: ContextSession
@@ -59,111 +38,112 @@ class ObjectContainer:
     workspace: Workspace
     channel: Channel
 
+    @staticmethod
+    def make_object_container():
+        return [f.type for f in fields(ObjectContainer)]
+
+    @staticmethod
+    def make_index_container():
+        return [IndexRules]
+
 
 @dataclass_json
 @dataclass
-class SchemaGenerator:
-    version: str
-    dgraph_version: str = field(default="1.1.0")
-    objects: List = field(default_factory=make_object_container)
-    schema_string: str = field(default="")
+class TypeGenerator:
+    objects: List = field(default_factory=ObjectContainer.make_object_container)
+    typedef_string: str = field(default="")
 
     def __post_init__(self):
-        self.schema_string = self.form_schema_string()
+        self.typedef_string = self.form_typedef_string()
 
-    def get_type_annotations(self, class_object):
-        if is_dataclass(class_object):
-            result = []
-            for f in fields(class_object):
-                if f.name not in ignore_attrs:
-                    type_name, dest_node = self._format_types(f.type)
-                    result.append((f.name, type_name, dest_node))
-                else:
-                    continue
+    def form_typedef_string(self):
+        schema_predicates_iter = []
+        field_object = [(fields(cls), cls) for cls in self.objects]
 
-            return result
-        else:
-            raise TypeError(
-                f"get_type_annotations() should be called on dataclass instances; {class_object}"
-            )
+        for f, cls in field_object:
+            anns = MetaConfig.get_type_annotations(class_fields=f)
 
-    def _format_types(self, attr_type):
-        if attr_type in dgraph_types.keys():
-            type_name = dgraph_types[attr_type]
-            dest_node = None
+            class_predicates_iter = [
+                f"\t{attr:10}: {type_name}" for attr, type_name in anns
+            ]
+            class_predicates_str = "\n".join(class_predicates_iter)
 
-            return type_name, dest_node
+            class_def_str = f"type {cls.__name__} {{\n{class_predicates_str}\n}}"
+            schema_predicates_iter.append(class_def_str)
 
-        # Check if destination node is an instance of typing.Typing
-        elif type(attr_type) is typing._GenericAlias:
+        typedef_str = "\n\n".join(schema_predicates_iter)
+        return typedef_str
 
-            dest_class_instance = attr_type.__args__[0]
-            if is_dataclass(dest_class_instance):
-                # Handle direct types and aliases from typing.Typing
-                type_name = attr_type._name
-                dest_node = attr_type.__args__[0].__name__
+    def __repr__(self):
+        return f"{self.__class__.__name__}({self.typedef_string})"
 
-            else:
-                # Handle ForwardRefs in typing
-                type_name = dest_class_instance._name
-                forward_node_class = dest_class_instance.__args__[0]
-                dest_node = forward_node_class.__forward_arg__
+    def __str__(self):
+        return f"{self.typedef_string}"
 
-            # print(attr_type, type_name, dest_node)
-            return type_name, dest_node
 
-        elif is_dataclass(attr_type):
-            type_name = None
-            dest_node = attr_type.__name__
+@dataclass_json
+@dataclass
+class IndexGenerator(TypeGenerator):
+    index_object: List = field(default_factory=ObjectContainer.make_index_container)
+    index_string: str = field(default="\n\n# Defining indices\n\n")
 
-            return type_name, dest_node
-        else:
-            return None, None
+    def __post_init__(self):
+        index_field_object = [f for cls in self.index_object for f in fields(cls)]
+        self.predicate_container = MetaConfig.make_predicate_container(
+            index_field_object
+        )
 
-    def _get_type_name(self, attr_type: typing._GenericAlias):
-        if isinstance(attr_type.__args__, typing.Tuple):
-            type_name = attr_type.__args__[0]._name
-        else:
-            type_name = attr_type._name
+        self.index_string = self.form_index_string()
 
-        return type_name
+    def form_index_string(self):
+        # Iterator to store the indices for every relations and nodes defined
+        relations_index_iter = []
 
-    def _get_type_args(self, attr_type: typing._GenericAlias):
-        if isinstance(attr_type.__args__, typing.Tuple):
-            fn_args = attr_type.__args__[0].__args__[0]
-        else:
-            fn_args = attr_type.__args__[0]
+        for predicate, meta in self.predicate_container.items():
+            # Iterator to store each predicate's index rule
+            predicate_index_iter = []
 
-        return fn_args
+            relation = meta.get("dg_field")
+            index_type = meta.get("index_type")
+            directive = meta.get("directive")
 
-    def form_schema_string(self):
-        cls_repr_list = []
-        for c in self.objects:
-            repr_str_iter = []
+            formatted_relation = MetaConfig._format_types(relation, indexing=True)
+            relation_index_str = MetaConfig._format_index_string(index_type, directive)
 
-            anns = self.get_type_annotations(c)
-            for attr, type_name, dest_node in anns:
+            index_str = f"{predicate}: {formatted_relation} {relation_index_str} ."
+            predicate_index_iter.append(index_str)
 
-                if dest_node is not None and type_name is not None:
-                    class_schema_string = f"\t{attr:10}: [{dest_node}]"
-                elif dest_node is not None:
-                    class_schema_string = f"\t{attr:10}: {dest_node}"
-                else:
-                    class_schema_string = f"\t{attr:10}: {type_name}"
+            predicate_index_str = "\n".join(predicate_index_iter)
+            relations_index_iter.append(predicate_index_str)
 
-                repr_str_iter.append(class_schema_string)
+        index_string = self.index_string + "\n".join(relations_index_iter)
+        return index_string
 
-            cls_repr_str = "\n".join(repr_str_iter)
-            cls_repr = f"type {c.__name__} {{\n{cls_repr_str}\n}}"
-            cls_repr_list.append(cls_repr)
+    def __repr__(self):
+        return f"{self.__class__.__name__}({self.index_string})"
 
+    def __str__(self):
+        return f"{self.index_string}"
+
+
+@dataclass
+class SchemaGenerator(IndexGenerator):
+    version: str = "0.1"
+    dgraph_version: str = field(default="1.1.0")
+
+    typedef_gen: TypeGenerator = field(default_factory=TypeGenerator)
+    index_gen: IndexGenerator = field(default_factory=IndexGenerator)
+    schema_string: str = ""
+
+    def __post_init__(self):
         version_str = (
             f"# EtherGraph Schema v{self.version} \n"
             f"# Generated schema for Dgraph v{self.dgraph_version} \n\n"
         )
-        schema_string = "\n\n".join(cls_repr_list)
-        schema_string = version_str + schema_string
-        return schema_string
+
+        self.schema_string = (
+            version_str + self.typedef_gen.typedef_string + self.index_gen.index_string
+        )
 
     def __repr__(self):
         return f"{self.__class__.__name__}({self.schema_string})"
@@ -178,5 +158,5 @@ class SchemaGenerator:
 
 
 if __name__ == "__main__":
-    s = SchemaGenerator(version="0.1")
+    s = SchemaGenerator()
     s.to_file()
