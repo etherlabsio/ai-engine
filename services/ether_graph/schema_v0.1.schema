@@ -12,7 +12,7 @@ type Context {
 type ContextSession {
 	xid       : string
 	attribute : string
-	startTime : string
+	startTime : dateTime
 	hasSegment: [TranscriptionSegment]
 	hasMarker : [Marker]
 }
@@ -20,10 +20,8 @@ type ContextSession {
 type TranscriptionSegment {
 	xid       : string
 	attribute : string
-	originalText: string
-	languageCode: string
-	startTime : string
-	endTime   : string
+	startTime : dateTime
+	endTime   : dateTime
 	duration  : int
 	analyzedText: string
 	embedding_vector_uri: string
@@ -37,6 +35,8 @@ type TranscriptionSegment {
 	hasKeywords: [Keyphrase]
 	hasEntities: [Entity]
 	belongsTo : SummaryGroup
+	text      : string
+	language  : string
 }
 
 type TranscriptionProvider {
@@ -75,9 +75,9 @@ type User {
 	email     : string
 	name      : string
 	deleted   : bool
-	createdAt : string
-	deletedAt : string
-	updatedAt : string
+	createdAt : dateTime
+	deletedAt : dateTime
+	updatedAt : dateTime
 	userEntities: [Entity]
 	groupedWith: [User]
 }
@@ -91,7 +91,6 @@ type Source {
 type SummaryGroup {
 	xid       : string
 	attribute : string
-	groupId   : string
 	hasKeywords: [Keyphrase]
 	hasEntities: [Entity]
 	hasUser   : [User]
@@ -119,3 +118,35 @@ type Channel {
 	hasContext: Context
 	hasMember : [User]
 }
+
+# Defining indices
+
+xid: string @index(exact) @upsert .
+attribute: string @index(hash)  .
+name: string @index(term)  .
+email: string @index(exact)  .
+value: string @index(term, fulltext)  .
+originalForm: string @index(term, fulltext)  .
+label: string @index(exact)  .
+text: string @index(fulltext)  .
+embedding_vector_uri: string  .
+embedding_vector_group_uri: string  .
+description: string @index(term, fulltext)  .
+type: string @index(term)  .
+startTime: dateTime @index(month)  .
+associatedMind: uid @reverse .
+hasMeeting: [uid] @reverse .
+hasSegment: [uid] @reverse .
+hasKeywords: [uid] @reverse .
+hasEntities: [uid] @reverse .
+authoredBy: uid @reverse .
+providedBy: uid  .
+hasSource: uid  .
+belongsTo: [uid] @reverse .
+hasMember: [uid] @reverse .
+hasContext: uid @reverse .
+hasMarker: [uid] @reverse .
+hasUser: [uid] @reverse .
+createdBy: uid @reverse .
+groupedWith: [uid]  .
+userEntities: [uid]  .

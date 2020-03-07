@@ -1,21 +1,29 @@
-from dataclasses import dataclass, asdict, field
+from dataclasses import dataclass, field
 from dataclasses_json import (
     dataclass_json,
     Undefined,
-    CatchAll,
     DataClassJsonMixin,
-    config,
 )
-from typing import List, Dict, Tuple, Text, Any, Mapping, Union, Optional
+from typing import List, Dict, Any, Mapping, Union, Optional
 import uuid
 from datetime import datetime
 import hashlib
+
+from meta_config import dgconfig
 
 
 def hash_sha_object(data: str) -> str:
     hash_object = hashlib.sha1(data.encode())
     hash_str = hash_object.hexdigest()
     return hash_str
+
+
+@dataclass(init=False)
+class ArgHolder:
+    kwargs: Mapping[Any, Any]
+
+    def __init__(self, **kwargs):
+        self.kwargs = kwargs
 
 
 class ObjectConversions(DataClassJsonMixin):
@@ -53,21 +61,13 @@ class DgraphTypeLister(ObjectConversions):
 @dataclass_json
 @dataclass
 class DgraphAttributes(DgraphTypeLister):
-    dgraphType: str = field(default="", metadata=config(field_name="dgraph.type"))
+    dgraphType: str = field(default="", metadata=dgconfig(field_name="dgraph.type"))
     xid: str = field(default="")
-    uid: str = field(default="")
+    uid: str = field(default="", metadata=dgconfig(ignore_schema=True))
     attribute: str = field(default="")
 
     def __post_init__(self):
         self.uid = "_:" + self.xid
-
-
-@dataclass(init=False)
-class ArgHolder:
-    kwargs: Mapping[Any, Any]
-
-    def __init__(self, **kwargs):
-        self.kwargs = kwargs
 
 
 @dataclass_json(undefined=Undefined.EXCLUDE)
@@ -91,7 +91,9 @@ class Entity(DgraphAttributes):
     originalForm: str = field(default="")
     value: str = field(init=False, compare=True, default=None)
     label: str = field(compare=False, default=False)
-    related_to_keyphrase: bool = field(init=False, default=False, compare=False)
+    related_to_keyphrase: bool = field(
+        init=False, default=False, compare=False, metadata=dgconfig(index=False)
+    )
     attribute: str = field(default="entities")
 
     def __post_init__(self):
@@ -105,13 +107,19 @@ class Entity(DgraphAttributes):
 @dataclass
 class User(DgraphAttributes):
 
-    spokenBy: str = field(default=None, metadata=config(field_name="xid"))
+    spokenBy: str = field(default=None, metadata=dgconfig(field_name="xid"))
     email: str = field(init=False, default=None)
     name: str = field(init=False, default=None)
     deleted: bool = field(init=False, default=False)
-    createdAt: str = field(init=False, default=None)
-    deletedAt: str = field(init=False, default=None)
-    updatedAt: str = field(init=False, default=None)
+    createdAt: str = field(
+        init=False, default=None, metadata=dgconfig(dg_field=datetime)
+    )
+    deletedAt: str = field(
+        init=False, default=None, metadata=dgconfig(dg_field=datetime)
+    )
+    updatedAt: str = field(
+        init=False, default=None, metadata=dgconfig(dg_field=datetime)
+    )
 
     userEntities: List[Entity] = field(init=False, default_factory=list)
     groupedWith: Optional[List["User"]] = field(init=False, default_factory=list)
@@ -127,7 +135,7 @@ class User(DgraphAttributes):
 @dataclass_json(undefined=Undefined.EXCLUDE)
 @dataclass
 class TranscriptionProvider(DgraphAttributes):
-    transcriber: str = field(default="", metadata=config(field_name="xid"))
+    transcriber: str = field(default="", metadata=dgconfig(field_name="xid"))
     name: str = field(init=False, default=None)
 
     attribute: str = field(default="segmentProvider")
@@ -142,7 +150,7 @@ class TranscriptionProvider(DgraphAttributes):
 @dataclass_json(undefined=Undefined.EXCLUDE)
 @dataclass
 class Source(DgraphAttributes):
-    recordingId: str = field(default=None, metadata=config(field_name="xid"))
+    recordingId: str = field(default=None, metadata=dgconfig(field_name="xid"))
     type: str = field(default="recording")
     attribute: str = field(default="sourceId")
 
@@ -155,7 +163,7 @@ class Source(DgraphAttributes):
 @dataclass_json(undefined=Undefined.EXCLUDE)
 @dataclass
 class SummaryGroup(DgraphAttributes):
-    groupId: str = field(default="", metadata=config(field_name="xid"))
+    groupId: str = field(default="", metadata=dgconfig(field_name="xid"))
     hasKeywords: List[Keyphrase] = field(default_factory=list)
     hasEntities: List[Entity] = field(default_factory=list)
     hasUser: List[User] = field(default_factory=list)
@@ -171,18 +179,18 @@ class SummaryGroup(DgraphAttributes):
 @dataclass_json(undefined=Undefined.EXCLUDE)
 @dataclass
 class TranscriptionSegment(DgraphAttributes):
-    id: str = field(default="", metadata=config(field_name="xid"))
-    originalText: str = field(default="", metadata=config(field_name="text"))
-    languageCode: str = field(default="", metadata=config(field_name="language"))
-    startTime: str = None
-    endTime: str = None
-    duration: int = None
+    id: str = field(default="", metadata=dgconfig(field_name="xid"))
+    originalText: str = field(default="", metadata=dgconfig(field_name="text"))
+    languageCode: str = field(default="", metadata=dgconfig(field_name="language"))
+    startTime: str = field(default=None, metadata=dgconfig(dg_field=datetime))
+    endTime: str = field(default=None, metadata=dgconfig(dg_field=datetime))
+    duration: int = field(default=None)
 
-    analyzedText: str = ""
-    embedding_vector_uri: str = ""
-    embedding_model: str = ""
-    embedding_vector_group_uri: str = ""
-    groupId: str = None
+    analyzedText: str = field(default="")
+    embedding_vector_uri: str = field(default="")
+    embedding_model: str = field(default="")
+    embedding_vector_group_uri: str = field(default="")
+    groupId: str = field(default=None)
     highlight: bool = field(default=False)
 
     authoredBy: User = field(default=None)
@@ -193,11 +201,15 @@ class TranscriptionSegment(DgraphAttributes):
     belongsTo: SummaryGroup = field(default=None)
 
     attribute: str = field(default="segmentId")
+    text: str = field(default=None)
+    language: str = field(default=None)
 
     def __post_init__(self):
         self.xid = self.id
         self.uid = "_:" + self.xid
         self.dgraphType = self.get_class_name()
+        self.text = self.originalText
+        self.language = self.languageCode
 
 
 @dataclass_json(undefined=Undefined.EXCLUDE)
@@ -206,12 +218,11 @@ class Marker(DgraphAttributes):
     xid: str
     type: str
     description: str
-    createdAt: datetime
     isSuggested: bool
 
     createdBy: User
-
-    attribute: str = "markerId"
+    createdAt: str = field(metadata=dgconfig(dg_field=datetime))
+    attribute: str = field(default="markerId")
 
     def __post_init__(self):
         self.xid = str(uuid.UUID(self.xid))
@@ -222,11 +233,11 @@ class Marker(DgraphAttributes):
 @dataclass_json(undefined=Undefined.EXCLUDE)
 @dataclass
 class Mind(DgraphAttributes):
-    mindId: str = field(default="", metadata=config(field_name="xid"))
-    name: str = ""
-    type: str = ""
+    mindId: str = field(default="", metadata=dgconfig(field_name="xid"))
+    name: str = field(default="")
+    type: str = field(default="")
 
-    attribute: str = "mindId"
+    attribute: str = field(default="mindId")
 
     def __post_init__(self):
         self.xid = self.mindId
@@ -237,9 +248,9 @@ class Mind(DgraphAttributes):
 @dataclass_json(undefined=Undefined.EXCLUDE)
 @dataclass
 class ContextSession(DgraphAttributes):
-    instanceId: str = field(default=None, metadata=config(field_name="xid"))
-    startTime: str = field(default=None)
-    attribute: str = "instanceId"
+    instanceId: str = field(default=None, metadata=dgconfig(field_name="xid"))
+    startTime: str = field(default=None, metadata=dgconfig(dg_field=datetime))
+    attribute: str = field(default="instanceId")
 
     hasSegment: List[TranscriptionSegment] = field(default_factory=list)
     hasMarker: List[Marker] = field(init=False, default_factory=list)
@@ -253,10 +264,10 @@ class ContextSession(DgraphAttributes):
 @dataclass_json(undefined=Undefined.EXCLUDE)
 @dataclass
 class Context(DgraphAttributes):
-    contextId: str = field(default="", metadata=config(field_name="xid"))
-    attribute: str = "contextId"
+    contextId: str = field(default="", metadata=dgconfig(field_name="xid"))
+    attribute: str = field(default="contextId")
 
-    associatedMind: Mind = None
+    associatedMind: Mind = field(default=None)
     hasMeeting: List[ContextSession] = field(default_factory=list)
     hasMember: List[User] = field(default_factory=list)
 
@@ -269,8 +280,8 @@ class Context(DgraphAttributes):
 @dataclass_json(undefined=Undefined.EXCLUDE)
 @dataclass
 class Customer(DgraphAttributes):
-    customerId: str = field(default="", metadata=config(field_name="xid"))
-    attribute: str = "customerId"
+    customerId: str = field(default="", metadata=dgconfig(field_name="xid"))
+    attribute: str = field(default="customerId")
 
     hasUser: List[User] = field(default_factory=list)
 
@@ -283,11 +294,11 @@ class Customer(DgraphAttributes):
 @dataclass_json(undefined=Undefined.EXCLUDE)
 @dataclass
 class Workspace(DgraphAttributes):
-    workspaceId: str = field(default="", metadata=config(field_name="xid"))
-    attribute: str = "workspaceId"
-    name: str = ""
+    workspaceId: str = field(default="", metadata=dgconfig(field_name="xid"))
+    attribute: str = field(default="workspaceId")
+    name: str = field(default="")
 
-    belongsTo: Customer = None
+    belongsTo: Customer = field(default=None)
     hasMember: List[User] = field(default_factory=list)
 
     def __post_init__(self):
@@ -299,15 +310,56 @@ class Workspace(DgraphAttributes):
 @dataclass_json(undefined=Undefined.EXCLUDE)
 @dataclass
 class Channel(DgraphAttributes):
-    channelId: str = field(default="", metadata=config(field_name="xid"))
-    attribute: str = "channelId"
-    name: str = ""
+    channelId: str = field(default="", metadata=dgconfig(field_name="xid"))
+    attribute: str = field(default="channelId")
+    name: str = field(default="")
 
-    belongsTo: Workspace = None
-    hasContext: Context = None
+    belongsTo: Workspace = field(default=None)
+    hasContext: Context = field(default=None)
     hasMember: List[User] = field(default_factory=list)
 
     def __post_init__(self):
         self.xid = self.channelId
         self.uid = "_:" + self.xid
         self.dgraphType = self.get_class_name()
+
+
+@dataclass_json
+@dataclass
+class IndexRules:
+    xid: str = field(metadata=dgconfig(index_type=["exact"], directive=["@upsert"]))
+    attribute: str = field(metadata=dgconfig(index_type=["hash"]))
+    name: str = field(metadata=dgconfig(index_type=["term"]))
+    email: str = field(metadata=dgconfig(index_type=["exact"]))
+    value: str = field(metadata=dgconfig(index_type=["term, fulltext"]))
+    originalForm: str = field(metadata=dgconfig(index_type=["term, fulltext"]))
+    label: str = field(metadata=dgconfig(index_type=["exact"]))
+    text: str = field(metadata=dgconfig(index_type=["fulltext"]))
+    embedding_vector_uri: str = field(metadata=dgconfig())
+    embedding_vector_group_uri: str = field(metadata=dgconfig())
+    description: str = field(metadata=dgconfig(index_type=["term, fulltext"]))
+    type: str = field(metadata=dgconfig(index_type=["term"]))
+    startTime: datetime = field(metadata=dgconfig(index_type=["month"]))
+    updatedAt: datetime = field(metadata=dgconfig(index=False))
+
+    # UID type relations
+    associatedMind: Mind = field(metadata=dgconfig(directive=["@reverse"]))
+    hasMeeting: List[ContextSession] = field(metadata=dgconfig(directive=["@reverse"]))
+    hasSegment: List[TranscriptionSegment] = field(
+        metadata=dgconfig(directive=["@reverse"])
+    )
+    hasKeywords: List[Keyphrase] = field(metadata=dgconfig(directive=["@reverse"]))
+    hasEntities: List[Entity] = field(metadata=dgconfig(directive=["@reverse"]))
+    authoredBy: User = field(metadata=dgconfig(directive=["@reverse"]))
+    providedBy: TranscriptionProvider = field(metadata=dgconfig())
+    hasSource: Source = field(metadata=dgconfig())
+    belongsTo: Union[SummaryGroup, Workspace, Customer] = field(
+        metadata=dgconfig(directive=["@reverse"])
+    )
+    hasMember: List[User] = field(metadata=dgconfig(directive=["@reverse"]))
+    hasContext: Context = field(metadata=dgconfig(directive=["@reverse"]))
+    hasMarker: List[Marker] = field(metadata=dgconfig(directive=["@reverse"]))
+    hasUser: List[User] = field(metadata=dgconfig(directive=["@reverse"]))
+    createdBy: User = field(metadata=dgconfig(directive=["@reverse"]))
+    groupedWith: List[User] = field(metadata=dgconfig())
+    userEntities: List[Entity] = field(metadata=dgconfig())
