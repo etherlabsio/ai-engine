@@ -1,6 +1,7 @@
 from dataclasses import dataclass, field, fields
 from dataclasses_json import dataclass_json
-from typing import List, Dict
+from typing import List, Dict, Callable, Any, TextIO, ContextManager, IO, AnyStr
+from io import StringIO, BytesIO
 
 from meta_config import MetaConfig
 
@@ -20,6 +21,53 @@ from graph_definitions import (
     Channel,
     IndexRules,
 )
+
+
+class IOHandler(ContextManager):
+    """
+    Custom Context manager for IO operations. More methods can be added for custom use-cases.
+    """
+
+    def __init__(self, file_path, mode="r"):
+        self.__path = file_path
+        self.__mode = mode
+        self.__file_object = None
+
+    def __enter__(self) -> TextIO:
+        if self.__file_object is not None:
+            raise RuntimeError(
+                f"{self.__class__.__name__} is already open. It is not re-entrant"
+            )
+
+        self.__file_object = open(self.__path, self.__mode)
+        return self.__file_object
+
+    def __exit__(self, type, val, tb):
+        self.__file_object.close()
+
+
+class Store:
+    """
+    A base storage class, providing some default behaviors that all other
+    storage systems can inherit or override, as necessary.
+
+    # The public methods shouldn't be overridden by subclasses unless required.
+    # Ideally, subclasses should add/override private methods as per the sepcs of the specific storage api
+    """
+
+    def write(self, content, name):
+        if isinstance(content, BytesIO) or isinstance(content, StringIO):
+            content = content.getvalue()
+        return self._write(content, name)
+
+    def _write(self, content, name: str, mode="w"):
+        return content
+
+
+class FileStore(Store):
+    def _write(self, content, name, mode="w"):
+        with IOHandler(name, mode) as f:
+            f.write(content)
 
 
 @dataclass(init=False)
@@ -133,30 +181,33 @@ class SchemaGenerator(IndexGenerator):
 
     typedef_gen: TypeGenerator = field(default_factory=TypeGenerator)
     index_gen: IndexGenerator = field(default_factory=IndexGenerator)
-    schema_string: str = ""
+    schema_string: StringIO = field(default_factory=StringIO)
 
     def __post_init__(self):
-        version_str = (
+        self.version_str = (
             f"# EtherGraph Schema v{self.version} \n"
             f"# Generated schema for Dgraph v{self.dgraph_version} \n\n"
         )
 
-        self.schema_string = (
-            version_str + self.typedef_gen.typedef_string + self.index_gen.index_string
+    def generate(self, io_handler: Any = None, f_name=None):
+        self.schema_string.write(
+            self.version_str
+            + self.typedef_gen.typedef_string
+            + self.index_gen.index_string
         )
 
+        if io_handler is not None:
+            f_name = f"schema_v{self.version}.schema" if f_name is None else f_name
+            io_handler.write(content=self.schema_string, name=f_name)
+
     def __repr__(self):
-        return f"{self.__class__.__name__}({self.schema_string})"
+        return f"{self.__class__.__name__}({self.schema_string.getvalue()})"
 
     def __str__(self):
-        return f"{self.schema_string}"
-
-    def to_file(self, file_format: str = "schema"):
-        f_name = f"schema_v{self.version}.{file_format}"
-        with open(f_name, "w") as f_:
-            f_.write(self.schema_string)
+        return f"{self.schema_string.getvalue()}"
 
 
 if __name__ == "__main__":
+    ls = FileStore()
     s = SchemaGenerator()
-    s.to_file()
+    s.generate(ls)
