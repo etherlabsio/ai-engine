@@ -1,11 +1,50 @@
 from dataclasses_json import config
-from dataclasses import is_dataclass, Field
-from typing import List, Dict, Any, Generic
+from dataclasses import is_dataclass, Field, dataclass, field
+from typing import List, Dict, Any, Generic, Tuple, Union, Mapping
 from datetime import datetime
 import typing
 from copy import deepcopy
 
+FieldsObject = List[Field]
 
+
+@dataclass
+class EdgeMeta:
+    name: str = None
+    link: Union[str, Any] = None
+    link_name: str = None
+
+    ignore_schema: bool = False
+    index: bool = True
+    index_type: List = None
+    dg_field: str = None
+    directive: List = None
+    field_name: str = None
+
+
+@dataclass
+class TypeDefContainer:
+    class_attributes: List[EdgeMeta] = field(default_factory=list)
+    typedef_container: Dict[str, List[EdgeMeta]] = field(default_factory=dict)
+
+    def make_typedef_container(self, class_fields: List[Tuple[FieldsObject, Any]]):
+        for fs, cls_object in class_fields:
+            self.class_attributes = MetaConfig.get_type_annotations(fs)
+            self.typedef_container[cls_object.__name__] = self.class_attributes
+
+        return self.typedef_container
+
+
+@dataclass
+class IndexContainer:
+    index_container: Dict[str, Any] = field(default_factory=dict)
+
+    def make_predicate_container(self, class_fields: FieldsObject):
+        self.index_container = MetaConfig.get_index_annotations(class_fields)
+        return self.index_container
+
+
+@dataclass
 class MetaConfig:
     @staticmethod
     def get_dataclass_metadata(field_name: str = None) -> Dict[str, dict]:
@@ -33,8 +72,8 @@ class MetaConfig:
         return inferred_type
 
     @staticmethod
-    def get_type_annotations(class_fields: List[Field]):
-        result = []
+    def get_type_annotations(class_fields: FieldsObject) -> List[EdgeMeta]:
+        annotations = []
 
         for f in class_fields:
             class_name = f.name
@@ -46,15 +85,17 @@ class MetaConfig:
                 dtype = f.type
 
             if not ignore_schema:
-                type_name = MetaConfig._format_types(dtype)
+                type_obj, type_name = MetaConfig.format_types(dtype)
 
-                result.append((class_name, type_name))
+                annotations.append(
+                    EdgeMeta(name=class_name, link=type_obj, link_name=type_name)
+                )
 
-        return result
+        return annotations
 
     @staticmethod
-    def make_predicate_container(class_fields: List[Field]):
-        predicate_container = {}
+    def get_index_annotations(class_fields: FieldsObject):
+        annotations = {}
 
         for f in class_fields:
             class_name = f.name
@@ -68,40 +109,48 @@ class MetaConfig:
                 predicate_meta["dg_field"] = dtype
 
             if index:
-                predicate_container.update({class_name: predicate_meta})
-
-        return predicate_container
+                annotations.update({class_name: EdgeMeta(**predicate_meta)})
+        return annotations
 
     @staticmethod
-    def _format_types(relation, indexing: bool = False):
+    def format_types(relation, indexing: bool = False):
         # Check if destination node is an instance of typing.Typing
         if type(relation) is typing._GenericAlias:
             dest_class_instance = relation.__args__[0]
-            dest_predicate_name = MetaConfig._get_predicate_class_name(
+            (
+                dest_predicate_obj,
+                dest_predicate_name,
+            ) = MetaConfig._get_predicate_class_name(
                 relation, predicate=dest_class_instance, indexing=indexing
             )
+            type_obj = [dest_predicate_obj]
             type_name = [dest_predicate_name]
 
         elif is_dataclass(relation):
-            dest_node = MetaConfig._get_predicate_class_name(
+            dest_node, dest_node_name = MetaConfig._get_predicate_class_name(
                 relation, predicate=None, indexing=indexing
             )
-            type_name = dest_node
+            type_obj = dest_node
+            type_name = dest_node_name
 
         else:
+            type_obj = relation
             type_name = MetaConfig.infer_dgraph_type(relation)
 
         type_name = MetaConfig._format_str(type_name)
-        return type_name
+        return type_obj, type_name
 
     @staticmethod
-    def _get_predicate_class_name(relation, predicate, indexing: bool = False) -> str:
+    def _get_predicate_class_name(
+        relation, predicate, indexing: bool = False
+    ) -> Tuple[Any, str]:
         if predicate is None:
-            dest_node = relation.__name__
+            dest_node = relation
 
         elif is_dataclass(predicate):
             # Handle direct types and aliases from typing.Typing
-            dest_node = relation.__args__[0].__name__
+            dest_node = relation.__args__[0]
+
         else:
             # Handle ForwardRefs in typing
             forward_node_class = predicate.__args__[0]
@@ -110,8 +159,12 @@ class MetaConfig:
         if indexing:
             dest_node = "uid"
 
-        dest_node = MetaConfig._format_str(dest_node)
-        return dest_node
+        dest_node_name = dest_node
+        if not isinstance(dest_node, str):
+            dest_node_name = dest_node.__name__
+
+        dest_node_name = MetaConfig._format_str(dest_node_name)
+        return dest_node, dest_node_name
 
     @staticmethod
     def _format_str(st: Any) -> str:
