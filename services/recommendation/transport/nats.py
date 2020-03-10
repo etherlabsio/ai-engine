@@ -4,6 +4,7 @@ from timeit import default_timer as timer
 import traceback
 import uuid
 from typing import List, Dict, Mapping
+from nats.aio.errors import ErrTimeout
 
 logger = logging.getLogger(__name__)
 
@@ -105,7 +106,7 @@ class NATSTransport(object):
             kwargs = {
                 "perform_query": True,
                 "tag": "v1",
-                "top_n": 100,
+                "top_n": 30,
                 "query_by": "keywords",
             }
 
@@ -216,6 +217,8 @@ class NATSTransport(object):
                 input_kw_query=keyphrase_list,
                 segment_user_ids=segment_user_ids,
                 tag=tag,
+                check_relevancy=True,
+                query_by="keywords",
             )
             rec_users = list(rec_users_dict.keys())
             watcher_response = {
@@ -270,10 +273,14 @@ class NATSTransport(object):
         topic = "ether.meeting.attendees"
         request_obj = {"meetingID": instance_id}
 
-        msg = await self.nats_manager.conn.request(
-            topic, json.dumps(request_obj).encode(), timeout=20
-        )
-        resp = json.loads(msg.data.decode())
+        try:
+            msg = await self.nats_manager.conn.request(
+                topic, json.dumps(request_obj).encode(), timeout=20
+            )
+            resp = json.loads(msg.data.decode())
+        except ErrTimeout as e:
+            logger.warning(e)
+            resp = json.loads('{"attendees": null}')
 
         logger.debug("Response received", extra={"attendeesResp": resp})
 
