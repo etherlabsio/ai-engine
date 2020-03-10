@@ -23,9 +23,9 @@ python_library(
 )
 
 python_library(
-    name='distilbert_pos_tagger-libs',
+    name='distil_bilstm_pos_tagger-libs',
     dependencies=[
-        'pkg/distilbert_pos_tagger:distilbert_pos_tagger'
+        'pkg/distil_bilstm_pos_tagger:distil_bilstm_pos_tagger'
     ]
 )
 
@@ -88,12 +88,12 @@ python_library(
 )
 
 python_library(
-    name='distilbert_pos_tagger-pkg',
+    name='distil_bilstm_pos_tagger-pkg',
     dependencies=[
-        'pkg/distilbert_pos_tagger:distilbert_pos_tagger'
+        'pkg/distil_bilstm_pos_tagger:distil_bilstm_pos_tagger'
     ],
     provides=setup_py(
-        name='distilbert_pos_tagger',
+        name='distil_bilstm_pos_tagger',
         version='0.1',
         description='Package to perform Pos tagging',
         author='Shubham',

@@ -1,9 +1,12 @@
 import string
 import itertools
 import nltk
-from distilbert_pos_tagger import DistilBertPosTagger as dbpt
+#from distilbert_pos_tagger import DistilBertPosTagger as dbpt
+#dbtag = dbpt()
 
-dbtag = dbpt()
+from distil_bilstm_pos_tagger import DistilBiLstmPosTagger as dblpt
+dbltag = dblpt()
+
 
 #def replaceContractions()
 
@@ -176,7 +179,8 @@ class CandidateKPExtractor(object):
         #tagged_sents = nltk.pos_tag_sents(
         #    nltk.word_tokenize(sent) for sent in nltk.sent_tokenize(text)
         #)
-        tagged_sents = [dbtag.get_sent_pos_tags(t) for t in nltk.sent_tokenize(text) ]
+        #tagged_sents = [dbtag.get_sent_pos_tags(t) for t in nltk.sent_tokenize(text) ]
+        tagged_sents = [dbltag.get_sent_pos_tags(t) for t in nltk.sent_tokenize(text) ]
         all_chunks = list(
             itertools.chain.from_iterable(
                 nltk.chunk.tree2conlltags(chunker.parse(tagged_sent))
