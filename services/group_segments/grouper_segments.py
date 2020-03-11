@@ -25,6 +25,7 @@ from group_segments.summarise import ClusterFeatures
 from group_segments.extract_topic import get_topics
 from group_segments.filter_groups import CandidateKPExtractor
 from group_segments.artifacts_downloader import load_entity_features, load_entity_graph
+from group_segments.artifacts_uploader import upload_mind_artifacts
 logger = logging.getLogger()
 
 
@@ -754,18 +755,19 @@ class community_detection:
 
     def rank_groups(self, group ):
         # download all the required artifacts for group ranking.
-        entity_dict_full = load_entity_features(self.mind_id)
-        kp_entity_graph, entity_community_map, entity_community_rank = load_entity_graph(self.mind_id)
+        entity_dict_full = load_entity_features(self.mind_id, self.context_id)
+        kp_entity_graph, entity_community_map, label_dict,  gc, lc = load_entity_graph(self.mind_id, self.context_id)
         common_entities = entity_dict_full.keys() & entity_community_map.keys()
         ent_fv = {}
         for ent in common_entities:
-            if True not in np.isnan([entity_dict_full[ent]]):
-                ent_fv[ent] = entity_dict_full[ent]
+            ent_fv[ent] = entity_dict_full[ent]
 
         group_ent = {}
         group_kp = {}
         group_kp_map = {}
         group_filtered_kps = {}
+        uncased_nodes = [ele.lower() for ele in kp_entity_graph]
+        uncased_node_dict = dict(zip(list(kp_entity_graph),uncased_nodes))
         for groupid, groupobj in group.items():
             seg_text_info = [(segobj[0][0], segobj[-1]) for segobj in groupobj.values()]
             seg_text = " ".join([segobj[0][0] for segobj in groupobj.values()])
@@ -790,8 +792,6 @@ class community_detection:
             filtered_kps = list(set(filtered_kps))
             group_filtered_kps[groupid] = filtered_kps
             #candidate_sents = tp.preprocess(seg_text, stop_words=False)
-            uncased_nodes = [ele.lower() for ele in kp_entity_graph]
-            uncased_node_dict = dict(zip(list(kp_entity_graph),uncased_nodes))
             noun_list = [ele.split(' ') for ele in filtered_kps]
             noun_list = sum(noun_list, [])
             noun_list = list(set(noun_list)&set([uncased_node_dict[ele] for ele in uncased_node_dict]))
@@ -808,6 +808,11 @@ class community_detection:
             group_kp_map[groupid] = kp_Map_list
             for kp in list(set(kp_Map_list)):
                 kp_ent_map.extend([ele for ele in list(kp_entity_graph[kp]) if kp_entity_graph.nodes[ele]['node_type']=='entity'])
+
+            kp_ent_map_intrm = deepcopy(kp_ent_map)
+            for ent in kp_ent_map_intrm:
+                if kp_entity_graph.nodes[ent]['is_ether_node']==True:
+                    kp_ent_map.append("<ETHER>-"+ent)
 
             kp_ent_map = list(set(kp_ent_map+ent_node_list))
             kp_ent_map = list(set(kp_ent_map)&set(ent_fv))
@@ -870,40 +875,99 @@ class community_detection:
 
             group_ent[groupid] = [e for e_list in dist_list.values() for e in e_list]
 
-        group_ent_score = {}
+        group_ent_mapping = {}
         for groupid, groupobj in group.items():
-            group_ent_score[groupid] = [entity_community_map[ent] for ent in list(map(lambda kv:kv[0], group_ent[groupid]))]
-            group_ent_score[groupid] = [entity_community_rank[com] for com in group_ent_score[groupid] if com in entity_community_rank.keys()]
-            print (groupobj, "\n\n", group_ent_score[groupid])
+            group_ent_mapping[groupid] = [entity_community_map[ent] for ent in list(map(lambda kv:kv[0], group_ent[groupid]))]
 
-        rank_index = 0
-        group_rank = {}
-        group_rank_detail = {}
-        for groupid, group_s in group_ent_score.items():
-            rank = []
-            if len(set(group_s)) == len(group_s):
-                rank = 10**6
-                group_rank_detail[groupid] = rank
+        group_ent_map_filtered_intrm = {}
+        group_ent_map_filtered = {}
+        for groupid, ent_map in group_ent_mapping.items():
+            filtered_ent_map = []
+            if len(set(ent_map)) == len(ent_map):
+                group_ent_map_filtered[groupid] = []
             else:
-                count_a = Counter(group_s).most_common()
+                count_a = Counter(ent_map).most_common()
                 for i, count in count_a:
                     if count>2 :
-                        rank.append(i)
-                if rank == []:
-                    rank = 10**6
-                group_rank_detail[groupid] = rank
-                rank = np.mean(rank)
+                        filtered_ent_map.append((i, count))
 
-            group_rank[groupid] = rank
+                group_ent_map_filtered[groupid] = filtered_ent_map
 
-        group_rel_rank = {}
-        for groupid, rank in sorted(group_rank.items(), key = lambda kv: kv[1]):
-            group_rel_rank[groupid] = rank_index
-            rank_index += 1
+        group_ent_map_rank_lc = {}
+        group_ent_map_rank_gc = {}
+        for groupid, ent_map_list in group_ent_map_filtered.items():
+            group_ent_map_rank_intrm_lc = []
+            group_ent_map_rank_intrm_gc = []
 
+            for ent_map, count in ent_map_list:
+                if ent_map in lc.keys() and sum(lc[ent_map])!=0:
+                    group_ent_map_rank_intrm_lc.append(sum(lc[ent_map]))
+                else:
+                    if ent_map in gc.keys():
+                        group_ent_map_rank_intrm_gc.append(gc[ent_map])
+                    else:
+                        group_ent_map_rank_intrm_gc.append(0)
+            if group_ent_map_rank_intrm_lc!=[]:
+                group_ent_map_rank_lc[groupid] = sum(group_ent_map_rank_intrm_lc)
+            else:
+                group_ent_map_rank_gc[groupid] = sum(group_ent_map_rank_intrm_gc)
+
+        updated_lc_list = []
+        updated_comm_list = []
+        for groupid, ent_map_list in group_ent_map_filtered.items():
+            for ent_map, count in ent_map_list:
+                if ent_map in lc.keys():
+                    if len(lc[ent_map])!=5:
+                        if ent_map not in updated_comm_list:
+                            lc[ent_map].append(count)
+                        else:
+                            lc[ent_map].append(lc[ent_map].pop()+count)
+                    else:
+                        if ent_map not in updated_comm_list:
+                            del lc[ent_map][0]
+                            lc[ent_map].append(count)
+                        else:
+                            lc[ent_map].append(lc[ent_map].pop()+count)
+
+                    updated_lc_list.append(ent_map)
+                else:
+                    lc[ent_map] = [count]
+                    updated_lc_list.append(ent_map)
+
+                if ent_map in gc.keys():
+                    gc[ent_map] +=count
+                else:
+                    gc[ent_map] = count
+                updated_comm_list.append(ent_map)
+
+        lc_copy = deepcopy(list(lc.items()))
+        for ent, freq in lc_copy:
+            if ent not in updated_lc_list:
+                if sum(lc[ent]) == 0:
+                    del lc[ent]
+                else:
+                    if len(lc[ent])!=5:
+                        lc[ent].append(0)
+                    else:
+                        del lc[ent][0]
+                        lc[ent].append(0)
+
+        rank_index = 0
         ranked_groups = {}
-        for groupid, rank in list(sorted(group_rel_rank.items(), key=lambda kv:kv[1], reverse=False))[:5]:
+        for groupid, group_s in sorted(group_ent_map_rank_lc.items(), key=lambda kv:kv[1], reverse=True):
             ranked_groups[groupid] = group[groupid]
+            rank_index +=1
+            if rank_index==5:
+                break
+
+        if rank_index!=5:
+            for groupid, group_s in sorted(group_ent_map_rank_gc.items(), key=lambda kv:kv[1], reverse=True):
+                ranked_groups[groupid] = group[groupid]
+                rank_index +=1
+                if rank_index==5:
+                    break
+
+        upload_mind_artifacts(self.mind_id, self.context_id, gc, lc)
         return ranked_groups
 
     def itr_communities(self):
