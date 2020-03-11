@@ -203,7 +203,7 @@ class ActionItemDetector:
                         if check==True:
                             break
                         elif ((i.lower() in replace_contractions(sent).lower()) and (omit_fixed_list[0] not in replace_contractions(sent).lower())):
-                            print('sent',sent)
+                            
                             check =True
                             action_item_subjects.append(sent)
                             action_item_sentences.append(sent)
@@ -213,9 +213,9 @@ class ActionItemDetector:
                     continue
 
 
-                elif len(sent.split(" ")) > 2:
+                if len(sent.split(" ")) > 2:
                     # if (sent[-1]!="?" and sent[-2]!="?"):
-                    sent_ai_prob = self.get_ai_probability(sent)
+                    #sent_ai_prob = self.get_ai_probability(sent)
                     
                     if (
                         sent_ai_prob >= ai_confidence_threshold
@@ -237,6 +237,7 @@ class ActionItemDetector:
                             ai_subject = ai_subject[0].upper() + ai_subject[1:]
                         action_item_subjects.append(ai_subject)
                         action_item_sentences.append(sent)
+                        bypass_list.append(False)
         return action_item_subjects, action_item_sentences,bypass_list
 
     def get_quest_sentences(self, transcript_text):
