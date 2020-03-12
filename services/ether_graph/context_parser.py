@@ -21,6 +21,7 @@ from service_definitions import (
     SegmentRequest,
     SummaryRequest,
 )
+from schema_generator import SchemaGenerator
 from graph_handler import GraphHandler
 
 
@@ -33,7 +34,10 @@ TranscriptionSegmentObject = List[TranscriptionSegment]
 
 class GraphPopulator(object):
     def __init__(self, dgraph_url=None):
-        self.gh = GraphHandler(dgraph_url=dgraph_url)
+        self.schema_generator = SchemaGenerator()
+        self.gh = GraphHandler(
+            dgraph_url=dgraph_url, schema_generator_object=self.schema_generator
+        )
         self.parser = ContextSessionParser(graph_handler_object=self.gh)
 
     async def populate_context_info(self, req_data: ContextRequest):
@@ -103,8 +107,8 @@ class ContextSessionParser(object):
         instance_node = self.gh.query_transform_node(node_obj=instance_node)
         context_node = self.gh.query_transform_node(node_obj=context_node)
 
+        instance_node.associatedMind = mind_node
         context_node.hasMeeting = instance_node
-        context_node.associatedMind = mind_node
 
         return context_node
 
