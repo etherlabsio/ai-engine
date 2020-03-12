@@ -192,52 +192,43 @@ class ActionItemDetector:
             transcript_text = re.sub("[a-z][.?][A-Z]", self.matcher, transcript_text)
             sent_list = sent_tokenize(transcript_text)
             for sent in sent_list:
-
-                check = False
-                if(len(sent.split(" ")) > 2):
+                if len(sent.split(" ")) > 2:
                     sent_ai_prob = self.get_ai_probability(sent)
-                else:
-                    continue
-                if(sent_ai_prob>=0.5):
-                    for i in contracted_fixed_list:
-                        if check==True:
-                            break
-                        elif ((i.lower() in replace_contractions(sent).lower()) and (omit_fixed_list[0] not in replace_contractions(sent).lower())):
-                            
-                            check =True
+                    omit_check = any([(i.lower() in replace_contractions(sent).lower()) for i in omit_fixed_list ])
+                    fixed_check  = any([(i.lower() in replace_contractions(sent).lower()) for i in contracted_fixed_list ])
+                    
+                    if (fixed_check and not omit_check) :
+                        if(sent_ai_prob>=0.5):
                             action_item_subjects.append(sent)
                             action_item_sentences.append(sent)
                             bypass_list.append(True)
-                
-                elif check==True:
-                    continue
-
-
-                if len(sent.split(" ")) > 2:
-                    # if (sent[-1]!="?" and sent[-2]!="?"):
-                    #sent_ai_prob = self.get_ai_probability(sent)
-                    
-                    if (
-                        sent_ai_prob >= ai_confidence_threshold
-                        and self.post_process_ai_check(sent)[0]
-                    ):
-                        
-                        curr_ai_subjects = self.post_process_ai_check(sent)[1]
-                        sent = replace_contractions(sent)
-                        if len(curr_ai_subjects) > 1:
-                            # merge action items
-                            start_idx = sent.lower().find(curr_ai_subjects[0].lower())
-                            end_idx = sent.lower().find(
-                                curr_ai_subjects[-1].lower()
-                            ) + len(curr_ai_subjects[-1].lower())
-                            ai_subject = sent[start_idx:end_idx]
                         else:
-                            ai_subject = curr_ai_subjects[0]
-                        if len(ai_subject) > 0:
-                            ai_subject = ai_subject[0].upper() + ai_subject[1:]
-                        action_item_subjects.append(ai_subject)
-                        action_item_sentences.append(sent)
-                        bypass_list.append(False)
+                            pass
+                    else:
+                        # if (sent[-1]!="?" and sent[-2]!="?"):
+                        #sent_ai_prob = self.get_ai_probability(sent)
+                        
+                        if (
+                            sent_ai_prob >= ai_confidence_threshold
+                            and self.post_process_ai_check(sent)[0]
+                        ):
+                            
+                            curr_ai_subjects = self.post_process_ai_check(sent)[1]
+                            sent = replace_contractions(sent)
+                            if len(curr_ai_subjects) > 1:
+                                # merge action items
+                                start_idx = sent.lower().find(curr_ai_subjects[0].lower())
+                                end_idx = sent.lower().find(
+                                    curr_ai_subjects[-1].lower()
+                                ) + len(curr_ai_subjects[-1].lower())
+                                ai_subject = sent[start_idx:end_idx]
+                            else:
+                                ai_subject = curr_ai_subjects[0]
+                            if len(ai_subject) > 0:
+                                ai_subject = ai_subject[0].upper() + ai_subject[1:]
+                            action_item_subjects.append(ai_subject)
+                            action_item_sentences.append(sent)
+                            bypass_list.append(False)
         return action_item_subjects, action_item_sentences,bypass_list
 
     def get_quest_sentences(self, transcript_text):
