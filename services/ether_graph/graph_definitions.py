@@ -234,8 +234,8 @@ class Marker(DgraphAttributes):
 @dataclass
 class Mind(DgraphAttributes):
     mindId: str = field(default="", metadata=dgconfig(field_name="xid"))
-    name: str = field(default="")
-    type: str = field(default="")
+    name: str = field(default=None, init=False)
+    type: str = field(default=None, init=False)
 
     attribute: str = field(default="mindId")
 
@@ -252,6 +252,7 @@ class ContextSession(DgraphAttributes):
     startTime: str = field(default=None, metadata=dgconfig(dg_field=datetime))
     attribute: str = field(default="instanceId")
 
+    associatedMind: Mind = field(default=None)
     hasSegment: List[TranscriptionSegment] = field(default_factory=list)
     hasMarker: List[Marker] = field(init=False, default_factory=list)
 
@@ -267,7 +268,6 @@ class Context(DgraphAttributes):
     contextId: str = field(default="", metadata=dgconfig(field_name="xid"))
     attribute: str = field(default="contextId")
 
-    associatedMind: Mind = field(default=None)
     hasMeeting: List[ContextSession] = field(default_factory=list)
     hasMember: List[User] = field(default_factory=list)
 
@@ -341,6 +341,7 @@ class IndexRules:
     type: str = field(metadata=dgconfig(index_type=["term"]))
     startTime: datetime = field(metadata=dgconfig(index_type=["month"]))
     updatedAt: datetime = field(metadata=dgconfig(index=False))
+    highlight: bool = field(metadata=dgconfig(index=True, index_type=["bool"]))
 
     # UID type relations
     associatedMind: Mind = field(metadata=dgconfig(directive=["@reverse"]))

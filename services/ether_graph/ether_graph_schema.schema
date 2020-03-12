@@ -1,10 +1,9 @@
-# EtherGraph Schema v0.1 
+# EtherGraph Schema v0.2 
 # Generated schema for Dgraph v1.1.0 
 
 type Context {
 	xid       : string
 	attribute : string
-	associatedMind: Mind
 	hasMeeting: [ContextSession]
 	hasMember : [User]
 }
@@ -13,6 +12,7 @@ type ContextSession {
 	xid       : string
 	attribute : string
 	startTime : dateTime
+	associatedMind: Mind
 	hasSegment: [TranscriptionSegment]
 	hasMarker : [Marker]
 }
@@ -134,6 +134,7 @@ embedding_vector_group_uri: string  .
 description: string @index(term, fulltext)  .
 type: string @index(term)  .
 startTime: dateTime @index(month)  .
+highlight: bool @index(bool)  .
 associatedMind: uid @reverse .
 hasMeeting: [uid] @reverse .
 hasSegment: [uid] @reverse .
