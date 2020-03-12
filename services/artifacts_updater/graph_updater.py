@@ -201,7 +201,6 @@ def update_kp_nodes(ent_kp_graph, ent_sent_dict, node_list, kp_sent_dict):
 
 def update_edges(ent_kp_graph, node_list, all_sent_dict):
     node_type_map = {"entity":"ent","key_phrase":"kp"}
-    print(all_sent_dict)
     for a, node_a in enumerate(node_list):
         for b, node_b in enumerate(node_list):
             if b>a:
@@ -315,7 +314,6 @@ def get_most_similar_entities(fv_new, fv):
     placement = {}
     for ent, fv_ent in fv_new.items():
         most_similar = [(e, cosine(fv_ent, fv_old_ent)) for e, fv_old_ent in fv.items()]
-        print (fv_ent.shape)
         most_similar = list(sorted(most_similar, key=lambda kv:kv[1], reverse=True))[:10]
         ent_list = list(map(lambda kv:kv[0], most_similar))
         placement[ent] = ent_list
@@ -336,7 +334,6 @@ def update_communitiy_artifacts(agreed_communities, com_map, gc, lc):
     updated_comm_list = []
     for new_ent, comm in agreed_communities.items():
         if comm!=-1:
-            print (new_ent)
             com_map[new_ent] = comm
             if comm in gc.keys():
                 gc[comm] += 1
