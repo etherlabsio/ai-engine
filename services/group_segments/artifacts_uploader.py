@@ -31,7 +31,6 @@ def upload_graph(mind_id, context_id, kp_entity_graph):
 
     return
 
-
 def upload_all_mind_artifacts(entity_community_map, gc, lc, entity_dict, mind_id, context_id):
     upload_mind_artifacts(mind_id, context_id, gc, lc)
 
@@ -40,7 +39,7 @@ def upload_all_mind_artifacts(entity_community_map, gc, lc, entity_dict, mind_id
     serialized_com = pickle.dumps(entity_community_map)
     res = s3c.upload_object(serialized_com, com_map_path)
 
-    ent_path = os.getenv("ACTIVE_ENV") + "/contexts/" + context_id + "/" + mind_id + "/entity_dict.pkl"
+    ent_path = os.getenv("ACTIVE_ENV") + "/contexts/" + context_id + "/" + mind_id + "/entity.pkl"
     serialized_ent = pickle.dumps(entity_dict)
     res = s3c.upload_object(serialized_ent, ent_path)
 

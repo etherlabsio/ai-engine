@@ -58,7 +58,6 @@ def form_sentence_graph(master_paragraphs, master_ids, multi_label_dict):
             else:
                 process_ctr+=1
 
-
         meet_id = master_ids[meeting_ctr]
         for p_no, para in enumerate(paragraph_sets):
             sent_list = nltk.sent_tokenize(para)
