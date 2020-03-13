@@ -28,10 +28,10 @@ if __name__ == "__main__":
 
     # Load ENV variables
     nats_url = getenv("NATS_URL", "nats://localhost:4222")
-    bucket_store = getenv("STORAGE_BUCKET", "io.etherlabs.staging2.contexts")
+    bucket_store = getenv("STORAGE_BUCKET", "io.etherlabs.dev.contexts")
     mind_store = getenv("MIND_STORAGE_BUCKET", "io.etherlabs.artifacts")
     redis_host = getenv(
-        "REDIS_ENDPOINT", "ether-api-redis-master.production.internal.etherlabs.io"
+        "REDIS_ENDPOINT", "ether-api-redis-master.dev.internal.etherlabs.io"
     )
     encoder_lambda_function = getenv("FUNCTION_NAME", "sentence-encoder-lambda")
     ner_lambda_function = getenv("NER_FUNCTION_NAME", "ner")

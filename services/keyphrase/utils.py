@@ -164,7 +164,12 @@ class KeyphraseUtils(object):
             phrase_object.keyphrases.extend(singlephrase_object_list)
 
         if filter_by_graph:
-            phrase_object = self._graph_filtration(phrase_object, session_id=session_id)
+            try:
+                phrase_object = self._graph_filtration(
+                    phrase_object, session_id=session_id
+                )
+            except Exception:
+                phrase_object = phrase_object
 
         return phrase_object
 
@@ -179,12 +184,35 @@ class KeyphraseUtils(object):
         if entity_graph is None:
             mind_id = session_id.split(":")[-1]
             mind_graph_path = self.mind_dir + mind_id + "/kp_entity_graph.pkl"
-            mind_filter_graph = self.gfilter.download_mind(
-                graph_file_path=mind_graph_path
-            )
-            self.mind_store.set_object(key=session_id, object=mind_filter_graph)
-            entity_graph = self.mind_store.get_object(key=session_id)
-            mind_filter_graph.clear()
+            try:
+                mind_filter_graph = self.gfilter.download_mind(
+                    graph_file_path=mind_graph_path
+                )
+                try:
+                    self.mind_store.set_object(key=session_id, object=mind_filter_graph)
+                    entity_graph = self.mind_store.get_object(key=session_id)
+                    mind_filter_graph.clear()
+
+                except Exception as e:
+                    logger.warning(
+                        "Unable to set the entity graph to redis ... Retrying",
+                        extra={"warn": e},
+                    )
+                    try:
+                        self.mind_store.delete_key(key=session_id)
+                        self.mind_store.set_object(
+                            key=session_id, object=mind_filter_graph
+                        )
+                        entity_graph = self.mind_store.get_object(key=session_id)
+                    except Exception as e:
+                        logger.error(
+                            "Error while setting entity graph object", extra={"err": e}
+                        )
+                        raise
+
+            except Exception as e:
+                logger.warning("Unable to download entity graph", extra={"warn": e})
+                raise
 
         segment_text = phrase_object.originalText
         entity_object = phrase_object.entities
@@ -267,12 +295,12 @@ class KeyphraseUtils(object):
         # Remove same word occurrences in a multi-keyphrase
         for multi_key_obj in multi_phrases:
             kw_m = multi_key_obj.originalForm.split()
+            original_kw_m_len = len(kw_m)
             unique_kp_list = list(dict.fromkeys(kw_m))
-            multi_keyphrase = " ".join(unique_kp_list)
+            unique_kp_len = len(unique_kp_list)
 
-            if len(multi_keyphrase) > 0:
-                multi_key_obj.originalForm = multi_keyphrase
-                processed_entities.append(multi_key_obj)
+            if original_kw_m_len != unique_kp_len:
+                multi_key_obj.to_remove = True
 
         # Remove the entities which already occur in keyphrases
         processed_entities.extend(single_phrase)

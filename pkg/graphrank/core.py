@@ -595,7 +595,11 @@ class GraphRank(object):
             kw_m = multi_key.split()
             unique_kp_list = list(dict.fromkeys(kw_m))
             multi_keyphrase = " ".join(unique_kp_list)
-            processed_keyphrases.append((multi_keyphrase, multi_score))
+
+            if len(kw_m) != len(unique_kp_list):
+                continue
+            else:
+                processed_keyphrases.append((multi_keyphrase, multi_score))
 
         # Remove duplicates from the single phrases which are occurring in multi-keyphrases
         single_phrase = [
