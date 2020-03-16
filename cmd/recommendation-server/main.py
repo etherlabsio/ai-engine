@@ -32,6 +32,7 @@ if __name__ == "__main__":
     dgraph_url = getenv(
         "DGRAPH_ENDPOINT", "dgraph-0.staging2.internal.etherlabs.io:9080"
     )
+    redis_host = getenv("REDIS_ENDPOINT", "localhost")
     active_env = None
     encoder_lambda_function = getenv("FUNCTION_NAME", "sentence-encoder-lambda")
     ner_lambda_function = getenv("NER_FUNCTION_NAME", "ner")
@@ -79,8 +80,7 @@ if __name__ == "__main__":
         s3_client=s3_client,
         web_hook_url=web_hook_url,
         active_env_ab_test=active_env,
-        num_buckets=200,
-        hash_size=16,
+        redis_host=redis_host,
     )
 
     nats_transport = NATSTransport(
@@ -90,6 +90,7 @@ if __name__ == "__main__":
     def shutdown():
         logger.info("received interrupt; shutting down")
         loop.create_task(nats_manager.close())
+        loop.create_task(rec_object.clear_redis_db())
 
     loop.run_until_complete(nats_manager.connect())
     loop.run_until_complete(nats_transport.subscribe_context())

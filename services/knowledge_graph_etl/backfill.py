@@ -1,4 +1,7 @@
 import networkx as nx
+import ciso8601
+import datetime
+import math
 
 # import pandas as pd
 import json as js
@@ -8,9 +11,7 @@ import logging
 import uuid
 
 user_metadata = os.getenv("USER_META", "ws-ch-relations-staging2.csv")
-workspace_metadata = os.getenv(
-    "WORKSPACE_META", "user_context_associations_s2"
-)
+workspace_metadata = os.getenv("WORKSPACE_META", "user_context_associations_s2")
 
 
 logger = logging.getLogger(__name__)
@@ -47,23 +48,14 @@ class BackFillCleanupJob(object):
         self.mind_label = {"attribute": "mindId", "name": ""}
         self.customer_label = {"attribute": "customerId"}
         self.mind_dict = {
-            "01DAAPWR6W051Q9WWQY99JSGFY": {
-                "name": "generic",
-                "type": "domain",
-            },
+            "01DAAPWR6W051Q9WWQY99JSGFY": {"name": "generic", "type": "domain"},
             "01DAAQY88QZB19JQZ5PRJFR76Y": {
                 "name": "Software Engineering",
                 "type": "domain",
             },
             "01DAAQYN9GBEBC92AYWNXEDP0C": {"name": "HR", "type": "domain"},
-            "01DAATANXNRQA35E6004HB7MBN": {
-                "name": "Marketing",
-                "type": "domain",
-            },
-            "01DAATBC3AK1QWC5NYC5AHV2XZ": {
-                "name": "Product",
-                "type": "domain",
-            },
+            "01DAATANXNRQA35E6004HB7MBN": {"name": "Marketing", "type": "domain"},
+            "01DAATBC3AK1QWC5NYC5AHV2XZ": {"name": "Product", "type": "domain"},
             "01DADP74WFV607KNPCB6VVXGTG": {"name": "AI", "type": "domain"},
             "01DAAYHEKY5F4E02QVRJPTFTXV": {
                 "name": "Ether Engineering",
@@ -78,7 +70,13 @@ class BackFillCleanupJob(object):
         self.workspace_user_rel = {"relation": "hasMember"}
         self.context_mind_rel = {"relation": "associatedMind"}
 
-        return
+        self.tz_attributes = [
+            "createdAt",
+            "deletedAt",
+            "updatedAt",
+            "startTime",
+            "endTime",
+        ]
 
     def format_old_labels(self, g: nx.DiGraph):
         old_label_name = "label"
@@ -158,9 +156,9 @@ class BackFillCleanupJob(object):
                     g.nodes[n]["avatars.image192"] = g.nodes[n]["avatars"].pop(
                         "image192", ""
                     )
-                    g.nodes[n]["avatars.imageOriginal"] = g.nodes[n][
-                        "avatars"
-                    ].pop("imageOriginal", "")
+                    g.nodes[n]["avatars.imageOriginal"] = g.nodes[n]["avatars"].pop(
+                        "imageOriginal", ""
+                    )
                     try:
                         del g.nodes[n]["avatars"]
                     except Exception:
@@ -169,8 +167,10 @@ class BackFillCleanupJob(object):
         # Remove mindId with "undefinedMind" value
         try:
             g.remove_node("undefinedMind")
+            logger.warning("undefinedMind present")
         except Exception:
-            logger.warning("No undefinedMind present")
+            pass
+            # logger.warning("No undefinedMind present")
 
         return g
 
@@ -179,10 +179,7 @@ class BackFillCleanupJob(object):
             context_graph = nx.DiGraph(type="meta")
 
         user_node_list = self._prepare_user_nodes()
-        (
-            user_workspace_edge_list,
-            user_context_edge_list,
-        ) = self._prepare_user_edges()
+        (user_workspace_edge_list, user_context_edge_list,) = self._prepare_user_edges()
 
         N, E = self._prepare_workspace_nodes()
         workspace_node_list = N[0]
@@ -216,10 +213,7 @@ class BackFillCleanupJob(object):
         user_node_list = []
         for i in range(len(self.user_meta_df)):
             uinfo_attr = js.loads(self.user_meta_df["user_attributes"][i])
-            u_attr = {
-                x: uinfo_attr.pop(x, None)
-                for x in self.user_attribute_namespace
-            }
+            u_attr = {x: uinfo_attr.pop(x, None) for x in self.user_attribute_namespace}
             u_attr.update(self.user_label)
             user_id = self.user_meta_df["user_id"][i]
             user_node_list.append((user_id, u_attr))
@@ -242,9 +236,7 @@ class BackFillCleanupJob(object):
             user_workspace_edge_list.append(
                 (workspace_id, user_id, self.workspace_user_rel)
             )
-            user_context_edge_list.append(
-                (user_id, context_id, self.user_context_rel)
-            )
+            user_context_edge_list.append((user_id, context_id, self.user_context_rel))
 
         return user_workspace_edge_list, user_context_edge_list
 
@@ -305,9 +297,7 @@ class BackFillCleanupJob(object):
             workspace_customer_edge_list.append(
                 (workspace_id, customer_id, self.workspace_customer_rel)
             )
-            context_mind_edge_list.append(
-                (context_id, mind_id, self.context_mind_rel)
-            )
+            context_mind_edge_list.append((context_id, mind_id, self.context_mind_rel))
 
             N = (
                 workspace_node_list,
@@ -335,13 +325,11 @@ class BackFillCleanupJob(object):
 
         """
         graph = BackFillCleanupJob.reformat_deprecated_attributes(g=graph)
-        graph = BackFillCleanupJob.remove_word_graph_object(
-            context_graph=graph
-        )
+        graph = BackFillCleanupJob.remove_word_graph_object(context_graph=graph)
         graph = BackFillCleanupJob.remove_embedded_nodes(context_graph=graph)
-        graph = BackFillCleanupJob.remove_embedded_segments(
-            context_graph=graph
-        )
+        graph = BackFillCleanupJob.remove_embedded_segments(context_graph=graph)
+        graph = self.reformat_datetime(context_graph=graph)
+        graph = self.handle_nonetype_values(graph)
 
         return graph
 
@@ -406,10 +394,45 @@ class BackFillCleanupJob(object):
 
         return context_graph
 
+    def reformat_datetime(self, context_graph):
+        """
+        Query and remove embeddings from segments
+        Args:
+            context_graph:
+
+        Returns:
+
+        """
+
+        for node, n_attr in context_graph.nodes.data():
+            for k, v in n_attr.items():
+                if k in self.tz_attributes:
+                    try:
+                        t = context_graph.nodes[node][k]
+
+                        if t is None:
+                            context_graph.nodes[node][k] = t
+                        else:
+                            ts = ciso8601.parse_datetime(t)
+                            ts_iso = ts.isoformat()
+                            context_graph.nodes[node][k] = ts_iso
+                    except Exception as e:
+                        logger.warning(e)
+                        continue
+
+        return context_graph
+
     def handle_nonetype_values(self, g: nx.DiGraph):
 
         # Remove null or None values in attributes
         for n, attr in g.nodes.data():
             for k, v in attr.items():
                 if v == "":
-                    g.nodes[n][k] = "None"
+                    g.nodes[n][k] = None
+                elif v in ["nan", "NaN"]:
+                    print(k, v)
+                    nan_bool = math.isnan(v)
+                    if nan_bool:
+                        g.nodes[n][k] = None
+
+        return g

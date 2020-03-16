@@ -1,51 +1,14 @@
-import os
 import re
-
 import torch
 import torch.nn as nn
-from bert_utils.modeling_bert import BertPreTrainedModel, BertModel
 from bert_utils.tokenization_bert import BertTokenizer
 import nltk
 from nltk.tokenize import sent_tokenize
-
+import tldextract
 
 nltk.data.path.append("/tmp/nltk_data")
 nltk.download("punkt", download_dir="/tmp/nltk_data")
 nltk.download("averaged_perceptron_tagger", download_dir="/tmp/nltk_data")
-
-
-class BertForTokenClassification_custom(BertPreTrainedModel):
-    def __init__(self, config):
-        super(BertForTokenClassification_custom, self).__init__(config)
-        self.num_labels = config.num_labels
-        self.bert = BertModel(config)
-        self.dropout = nn.Dropout(config.hidden_dropout_prob)
-        self.classifier = nn.Linear(config.hidden_size, config.num_labels)
-
-        self.apply(self.init_weights)
-
-    def forward(
-        self,
-        input_ids,
-        token_type_ids=None,
-        attention_mask=None,
-        labels=None,
-        position_ids=None,
-        head_mask=None,
-    ):
-        outputs = self.bert(
-            input_ids,
-            position_ids=position_ids,
-            token_type_ids=token_type_ids,
-            attention_mask=attention_mask,
-            head_mask=head_mask,
-        )
-        sequence_output = outputs[0]
-        sequence_output = self.dropout(sequence_output)
-        logits = self.classifier(sequence_output)
-
-        outputs = (logits,)
-        return outputs  # (scores)
 
 
 class BERT_NER:
@@ -75,7 +38,7 @@ class BERT_NER:
         self.model = model
         self.tokenizer = BertTokenizer("vocab.txt")
         self.sm = nn.Softmax(dim=1)
-        self.conf = 0.994
+        self.conf = 0.995
         self.contractions = {
             "[sep]": "separator",
             "[cls]": "classify",
@@ -158,15 +121,21 @@ class BERT_NER:
             "hi",
             "hey",
             "welcome",
+            "bye",
+            "goodbye",
+            "i",
+            "aha",
+            "ugh",
+            "ah",
             "oh",
             "uh",
             "um",
             "huh",
+            "like",
             "right",
             "yeah",
             "okay",
-            "i",
-            "of",
+            "s",
             "ourselves",
             "hers",
             "between",
@@ -192,6 +161,7 @@ class BERT_NER:
             "yours",
             "such",
             "into",
+            "of",
             "most",
             "itself",
             "other",
@@ -276,33 +246,59 @@ class BERT_NER:
             "after",
             "few",
             "whom",
+            "t",
             "being",
             "if",
             "theirs",
             "my",
             "against",
+            "a",
             "by",
             "doing",
+            "it",
             "how",
             "further",
             "was",
             "here",
             "than",
         }
+        self.url_regex = r"""(?i)\b((?:https?:(?:(/| (forward )?slash ){1,3}|[a-z0-9%])|([a-z0-9\-]+|([.]| dot ))([.]| dot )(?:com|org|edu|gov|mil|aero|asia|biz|cat|coop|info|int|jobs|mobi|museum|name|post|pro|tel|travel|xxx|ac|ad|ae|af|ag|ai|al|am|an|ao|aq|ar|as|at|au|aw|ax|az|ba|bb|bd|be|bf|bg|bh|bi|bj|bm|bn|bo|br|bs|bt|bv|bw|by|bz|ca|cc|cd|cf|cg|ch|ci|ck|cl|cm|cn|co|cr|cs|cu|cv|cx|cy|cz|dd|de|dj|dk|dm|do|dz|ec|ee|eg|eh|er|es|et|eu|fi|fj|fk|fm|fo|fr|ga|gb|gd|ge|gf|gg|gh|gi|gl|gm|gn|gp|gq|gr|gs|gt|gu|gw|gy|hk|hm|hn|hr|ht|hu|id|ie|il|im|in|io|iq|ir|is|it|je|jm|jo|jp|ke|kg|kh|ki|km|kn|kp|kr|kw|ky|kz|la|lb|lc|li|lk|lr|ls|lt|lu|lv|ly|ma|mc|md|me|mg|mh|mk|ml|mm|mn|mo|mp|mq|mr|ms|mt|mu|mv|mw|mx|my|mz|na|nc|ne|nf|ng|ni|nl|no|np|nr|nu|nz|om|pa|pe|pf|pg|ph|pk|pl|pm|pn|pr|ps|pt|pw|py|qa|re|ro|rs|ru|rw|sa|sb|sc|sd|se|sg|sh|si|sj|Ja|sk|sl|sm|sn|so|sr|ss|st|su|sv|sx|sy|sz|tc|td|tf|tg|th|tj|tk|tl|tm|tn|to|tp|tr|tt|tv|tw|tz|ua|ug|uk|us|uy|uz|va|vc|ve|vg|vi|vn|vu|wf|ws|ye|yt|yu|za|zm|zw)/)(?:[^\s()<>{}\[\]]+|\([^\s()]*?\([^\s()]+\)[^\s()]*?\)|\([^\s]+?\))+(?:\([^\s()]*?\([^\s()]+\)[^\s()]*?\)|\([^\s]+?\)|[^\s`!()\[\]{};:'".,<>?«»“”‘’])|(?:(?<!@)[a-z0-9]+(?:([\-]|([.]| dot ))[a-z0-9]+)*([.]| dot )(?:com|org|edu|gov|mil|aero|asia|biz|cat|coop|info|int|jobs|mobi|museum|name|post|pro|tel|travel|xxx|ac|ad|ae|af|ag|ai|al|am|an|ao|aq|ar|as|at|au|aw|ax|az|ba|bb|bd|be|bf|bg|bh|bi|bj|bm|bn|bo|br|bs|bt|bv|bw|by|bz|ca|cc|cd|cf|cg|ch|ci|ck|cl|cm|cn|co|cr|cs|cu|cv|cx|cy|cz|dd|de|dj|dk|dm|do|dz|ec|ee|eg|eh|er|es|et|eu|fi|fj|fk|fm|fo|fr|ga|gb|gd|ge|gf|gg|gh|gi|gl|gm|gn|gp|gq|gr|gs|gt|gu|gw|gy|hk|hm|hn|hr|ht|hu|id|ie|il|im|in|io|iq|ir|is|it|je|jm|jo|jp|ke|kg|kh|ki|km|kn|kp|kr|kw|ky|kz|la|lb|lc|li|lk|lr|ls|lt|lu|lv|ly|ma|mc|md|me|mg|mh|mk|ml|mm|mn|mo|mp|mq|mr|ms|mt|mu|mv|mw|mx|my|mz|na|nc|ne|nf|ng|ni|nl|no|np|nr|nu|nz|om|pa|pe|pf|pg|ph|pk|pl|pm|pn|pr|ps|pt|pw|py|qa|re|ro|rs|ru|rw|sa|sb|sc|sd|se|sg|sh|si|sj|Ja|sk|sl|sm|sn|so|sr|ss|st|su|sv|sx|sy|sz|tc|td|tf|tg|th|tj|tk|tl|tm|tn|to|tp|tr|tt|tv|tw|tz|ua|ug|uk|us|uy|uz|va|vc|ve|vg|vi|vn|vu|wf|ws|ye|yt|yu|za|zm|zw)\b(/| (forward )?slash )?(?!@)))"""
+
+    def clean_url(self, url):
+        url = url.replace(" dot ", ".")
+        url = url.replace(" forward slash ", "/")
+        url = url.replace(" slash ", "/")
+        return url
+
+    def get_domain_name_from_url(self, url):
+        return tldextract.extract(url).domain
 
     def replace_contractions(self, text):
+        # Handle acronyms
         text = re.sub(
-            " (\w{1} \w{1}) (\w{1} )*",
+            " (\w{1} \w{1}) (\w{1}[ .])*",
             lambda x: " " + x.group(0).replace(" ", "").upper() + " ",
             text,
         )
         text = re.sub(
             "[A-Z]\. ", lambda mobj: mobj.group(0)[0] + mobj.group(0)[1], text
         )
-        text = re.sub("\.(\w{2,})", lambda mobj: " " + mobj.group(1), text)
+        text = re.sub(
+            "([A-Z])\.(\w{2,})", lambda mobj: mobj.group(1) + ". " + mobj.group(2), text
+        )
+        # Handle contractions
         for word in text.split(" "):
-            if self.contractions.get(word.casefold()):
-                text = text.replace(word, self.contractions[word.casefold()])
+            if self.contractions.get(word.lower()):
+                text = text.replace(word, self.contractions[word.lower()])
+
+            if "." in word.strip("."):
+                if not re.match(self.url_regex, word) and any(
+                    [len(ini) > 1 for ini in word.split(".")]
+                ):
+                    text = text.replace(word, word.replace(".", " "))
+
+        # Handle URLs with words
+        text = re.sub(self.url_regex, lambda m: self.clean_url(m.group(0)), text)
         return text
 
     def get_entities(self, text):
@@ -315,7 +311,7 @@ class BERT_NER:
             text += "."
         text = self.replace_contractions(text) + " "
         for sent in sent_tokenize(text):
-            if len(sent.split()) > 2:
+            if len(sent.split()) > 3:
                 (sent_ent, sent_score, sent_labels,) = self.get_entities_from_sentence(
                     sent
                 )
@@ -336,8 +332,8 @@ class BERT_NER:
             filter(
                 lambda word: word not in ["", None],
                 re.split(
-                    "[\s]|([?,!/()]+)|\.(\w{2,}[*]*\w{2,})|(\w{2,}[*]*\w{2,})(\.)",
-                    clean_text,
+                    "[\s]|([?,!/()]+)|(\.)([A-Z][a-z]+)|(\w{2,}[*]*\.?\w{2,})(\.)\s",
+                    clean_text + " ",
                 ),
             )
         )
@@ -345,18 +341,16 @@ class BERT_NER:
         input_ids, token_to_word = self.prepare_input_for_model(pos_text)
 
         entities = self.extract_entities(input_ids, token_to_word)
-        sent_entity_list, sent_scores, sent_labels = self.concat_entities(
-            clean_text, entities
-        )
+        sent_entity_list, sent_scores, sent_labels = self.concat_entities(entities)
         if len(sent_entity_list) > 0:
             sent_entity_list = self.capitalize_entities(sent_entity_list)
             sent_labels = self.prioritize_labels(sent_labels)
         return sent_entity_list, sent_scores, sent_labels
 
     def prioritize_labels(self, sent_labels):
-        preference_labels = ["ORG", "MISC", "PER", "LOC", "O"]
+        preference_labels = ["MISC", "ORG", "PER", "LOC", "O"]
         sent_labels = [
-            sorted(label_list, key=lambda l: preference_labels.index(l))[0]
+            min(label_list, key=lambda l: preference_labels.index(l))
             for label_list in sent_labels
         ]
         return sent_labels
@@ -364,7 +358,10 @@ class BERT_NER:
     def capitalize_entities(self, entity_list):
         def capitalize_entity(ent):
             if "." in ent:
-                ent = ent.title()
+                if re.match(self.url_regex, ent):
+                    ent = self.get_domain_name_from_url(ent).capitalize()
+                else:
+                    ent = ent.title()
                 return ent
             if ent.lower() in self.stop_words:
                 ent = ent.lower()
@@ -393,8 +390,9 @@ class BERT_NER:
             toks = self.tokenizer.encode(word)
             # removing characters that usually do not appear within text
             clean_word = re.sub(r"[^a-zA-Z0-9_\'*-.]+", "", word).strip(" .,'\"")
-            token_to_word.extend([(w_index, clean_word, tag)] * len(toks))
-            input_ids.extend(toks)
+            if clean_word != "":
+                token_to_word.extend([(w_index, clean_word, tag)] * len(toks))
+                input_ids.extend(toks)
         return input_ids, token_to_word
 
     def extract_entities(self, input_ids, token_to_word):
@@ -434,13 +432,11 @@ class BERT_NER:
     def tokenize(self, text):
         return self.tokenizer.tokenize(text)
 
-    def concat_entities(self, text, entities):
+    def concat_entities(self, entities):
         sent_entity_list = []
         sent_scores = []
         sent_labels = []
         seen = []
-        # handling acronym followed by capitalized entitity
-        text = re.sub("\.(\w{2,})", lambda mobj: " " + mobj.group(1), text).lower()
         # remove consecutive duplicate entities from list(tuple(word, score, pos_tag, label))
         grouped_scores = {}
         grouped_labels = {}
@@ -479,14 +475,17 @@ class BERT_NER:
             if len(word_fragments) == 1:
                 if label[0] == "O" and (grouped_words[i][1][0] not in {"N", "F"}):
                     continue
-                word_fragments = [" ".join(word_fragments).split("'")[0]]
+            if "'" in word_fragments[-1]:
+                word_fragments[-1] = word_fragments[-1].split("'")[0]
 
             # r - stripping stop_words
             while word_fragments and word_fragments[-1].lower() in self.stop_words:
                 word_fragments.pop(-1)
 
             if word_fragments:
-                clean_entities = [" ".join(word_fragments)]
+                clean_entities = [
+                    " ".join(word_fragments).strip(".").replace(" . ", ".")
+                ]
                 sent_entity_list += clean_entities
 
                 sent_scores += [score / (k - i)]

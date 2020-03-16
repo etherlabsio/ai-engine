@@ -1,28 +1,25 @@
 {
-    "contextId":"6baa3490",
-    "instanceId":"d052f2e7-3c79-45e4-aee5-9af0f7c2053e",
-    "relativeTime": "2019-01-29T06:03:39.783385299Z",
-    "limit": 10,
-    "populateGraph": true,
-    "segments": [
-        {
-            "id": "0f1aa05f2e944142a18974369bb9b789",
-            "originalText": "would we want to live I want to live my great web workers emerging mobile applications just mobile cloud gaming or augmented reality requires strict Clayton latency constraints as well as high compute power survey of the latency of games is reported that less than 50 milliseconds of network latency is preferred for time-critical games, which is hard to achieve the traditional cloud system where Computing Services location data centers for from Thanks.",
-            "confidence": 0.86578494,
-            "startTime": "2019-01-29T06:03:02Z",
-            "endTime": "2019-01-29T06:03:14Z",
-            "duration": 12,
-            "recordingId": "9789538caa6d4857a7d6bf47584aafd8",
-            "spokenBy": "394d6dd0-7dbe-4d77-92c6-2af7f8314329",
-            "languageCode": "en-US",
-            "transcriber": "google_speech_api",
-            "status": "completed",
-            "transcriptId": "e62bba58-b959-4aab-af7e-a75737fd736c",
-            "createdAt": "2019-01-29T06:03:18.049750006Z",
-            "updatedAt": "2019-01-29T06:03:39.783385299Z",
-            "deletedAt": null,
-            "deleted": false,
-            "tenantId": "932daeaf-6ae7-44ed-8d8d-f0b6feedc3aa"
-        }
-        ]
-        }
+  "contextId": "6baa3490",
+  "instanceId": "b5d4f2e7-3c79-45e4-aee5-9af0f7c2053e",
+  "limit": 6,
+  "populateGraph": true,
+  "segments": [
+    {
+      "transcriber": "google_speech_api",
+      "confidence": 0.82295096,
+      "spokenBy": "b782dae506de4b7abc7d789a1ad005e5",
+      "languageCode": "en-US",
+      "originalText": "Hey, I'm Kyle and welcome s dashboard screen. We're gonna current current deployment a ton of services from this twenty three terabyte server in an upcoming video, but before we get started we have to go over Doc. Thank you to emails emails com sponsoring this episode. You can get ten percent off your own custom domain name at hover dot com forward slash tech squid. What is doctors is mainly a software development platform and kind of a visualization technology that makes it easy for us to develop and to deploy apps inside of neatly packaged virtual environments meaning apps run the same no matter where they are or what machine they are running on Docker containers can be deployed to just about any machine without any compatibility issues. So your software stays system Agnostic making software simpler to use less work to develop and easier to maintain and deploy these containers running on your computer or server act like little micro each with very specific jobs each with their own operating system their own isolated CPU processes memory and network resources and because of this they can be easily added removed stopped and started again without affecting each other or the host machine containers usually run one specific task such as a database or a Node application and then their network together and potentially scale a developer will usually start by accessing the docker hub an online cloud repository of containers and pull one containing a pre configured environment for their specific programming language such as Ruby or with all the files and frameworks needed to started home users can experience doctors as well using containers for popular apps like plex media server next cloud and many other open source apps and tools many of which we will be installing in upcoming video is a form of virtualization, but unlike virtual machines the resources are shared directly with the host this allows you to run many containers where you may only be able to run a few virtual machines you see a virtual machine has to quarantine off a set amount of resources hard drive space memory and processing power emulate hardware and then boot an entire operating system, then the VM communicates with the host computer via a translator application running on the.",
+      "duration": 9,
+      "createdAt": "2019-09-05T21:13:12.10566238Z",
+      "deleted": false,
+      "transcriptId": "1cbf4fee-bf9c-4bb3-9be8-6bf97594d943",
+      "startTime": "2019-09-05T21:13:02Z",
+      "id": "354aa314d75142b791f178dacbe3a063",
+      "endTime": "2019-09-05T21:13:11Z",
+      "recordingId": "d1ad0c48a9af44119b0ea6b9c2aeec67",
+      "status": "completed",
+      "updatedAt": "2019-09-05T21:13:32.910095339Z"
+    }
+  ]
+}

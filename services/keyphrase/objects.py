@@ -93,11 +93,12 @@ class Phrase(ObjectConversions):
 
 @dataclass_json(undefined=Undefined.INCLUDE)
 @dataclass
-class Context(ObjectConversions):
+class ContextRequest(ObjectConversions):
     unknown_fields: CatchAll
     contextId: str
     instanceId: str
-    mindId: str = field(default=None)
+    state: str
+    mindId: str = field(default="")
 
     def __post_init__(self):
         self.instanceId = str(uuid.UUID(self.instanceId))
@@ -125,7 +126,7 @@ class Segment(ObjectConversions):
     embedding_vector_group_uri: str = ""
     embedding_model: str = ""
     text: str = ""
-    groupId: str = field(default=None)
+    groupId: Optional[str] = field(default=None)
     highlight: bool = False
 
     keyphrases: List[Keyphrase] = field(default_factory=list)
@@ -140,13 +141,22 @@ class Segment(ObjectConversions):
 
 @dataclass_json(undefined=Undefined.INCLUDE)
 @dataclass
-class Request(Context):
+class Request(ObjectConversions):
     unknown_fields: CatchAll
+    contextId: str
+    instanceId: str
     limit: int = field(init=False, default=10)
     populateGraph: bool = field(default=True)
+    highlight: bool = field(default=False)
     validate: bool = field(init=False, default=False)
     relativeTime: str = field(init=False, default="")
     segments: List[Segment] = field(default_factory=list)
+
+    def __post_init__(self):
+        if self.populateGraph is True:
+            self.highlight = False
+        else:
+            self.highlight = True
 
 
 @dataclass_json(undefined=Undefined.INCLUDE)
@@ -179,3 +189,9 @@ class GraphResponse:
 @dataclass
 class GraphSegmentResponse(ObjectConversions):
     q: List[GraphResponse] = field(default_factory=list)
+
+
+SegmentType = List[Segment]
+KeyphraseType = List[Keyphrase]
+EntityType = List[Entity]
+PhraseType = List[Phrase]

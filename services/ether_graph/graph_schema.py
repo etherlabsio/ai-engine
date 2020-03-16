@@ -55,6 +55,7 @@ type User {
 type ContextSession {
     xid: string
     attribute: string
+    startTime: dateTime
     hasSegment: [TranscriptionSegment]
     hasMarker: [Marker]
 }
@@ -156,6 +157,7 @@ description: string @index(term, fulltext) .
 type: string @index(term) .
 groupedWith: [uid] .
 userEntities: [uid] .
+startTime: dateTime @index(month) .
 
 """
         return meeting_def
