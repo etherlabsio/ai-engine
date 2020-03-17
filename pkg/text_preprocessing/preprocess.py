@@ -128,7 +128,7 @@ class Preprocessor:
             sentence_pos.append(tags)
         return sentence_pos
 
-    def cleanText(self, text):
+    def clean_text(self, text):
         """
         Description : Clean the text with common preprocessing rules.
         input : A single string sentence.
@@ -194,7 +194,7 @@ class Preprocessor:
         for index, sent in enumerate(sentences):
             mod_sent = []
             mod_sent_post = []
-            mod_sent = self.cleanText(sent)
+            mod_sent = self.clean_text(sent)
             if stop_words:
                 mod_sent = self.remove_stopwords(mod_sent)
             if lemma:
