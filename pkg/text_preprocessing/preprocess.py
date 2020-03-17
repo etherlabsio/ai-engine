@@ -7,13 +7,13 @@ import nltk
 import nltk.data
 from nltk.stem import WordNetLemmatizer
 from nltk.tokenize import word_tokenize
-from .util import (
+from text_preprocessing.util import (
     get_stop_words,
     get_contraction_mapping,
     get_punct,
     get_web_url_regex,
 )
-
+from typing import List, Tuple, Union
 logger = logging.getLogger(__name__)
 
 sent_detector = nltk.data.load("tokenizers/punkt/PY3/english.pickle")
@@ -32,11 +32,11 @@ class Preprocessor:
         self.punct = get_punct()
         self.web_url_regex = get_web_url_regex()
 
-    def get_tokenized_sent(self, para_text):
+    def get_tokenized_sent(self, para_text) -> List[str]:
         sentences = sent_detector.tokenize(para_text.strip())
         return sentences
 
-    def expand_contractions(self, sentence):
+    def expand_contractions(self, sentence) -> str:
         """
         Description : Expand contractions like "y'all" to "you all" using known mapping.
         input : A single sentence as a string.
@@ -56,7 +56,7 @@ class Preprocessor:
                     sentence = sentence.replace(word, new_word)
         return sentence
 
-    def unkown_punct(self, sentence, remove_punct):
+    def unkown_punct(self, sentence, remove_punct) -> str:
         """
         Description : remove punctuation.
         input : A single sentence as a string.
@@ -74,7 +74,7 @@ class Preprocessor:
         sentence = sentence.replace("\n", " ")
         return sentence
 
-    def remove_number(self, sentence):
+    def remove_number(self, sentence) -> str:
         """
         Description : replace numbers with XnumberX.
         input : A single sentence as a string.
@@ -84,7 +84,7 @@ class Preprocessor:
         sentence = re.sub(r"\d+", "XnumberX", " " + sentence + " ")
         return sentence[2:-2]
 
-    def remove_stopwords(self, sentence):
+    def remove_stopwords(self, sentence) -> str:
         """
         Description : remove stopwords.
         input : A single sentence as a string.
@@ -97,7 +97,7 @@ class Preprocessor:
                     sentence = sentence.replace(" " + word + " ", " ")
         return sentence
 
-    def lemmatization(self, sentence):
+    def lemmatization(self, sentence) -> str:
         """
         Description : do Lemmatization.
         input : A single sentence as a string.
@@ -113,7 +113,7 @@ class Preprocessor:
                     )
         return sentence
 
-    def get_pos(self, sentence):
+    def get_pos(self, sentence) -> list[tuple(str, str)]:
         """
         Description : get pos tags of word tokenized sentence
         input : A single string sentence.
@@ -174,7 +174,7 @@ class Preprocessor:
         word_tokenize=False,
         remove_punct=False,
         pos=False,
-    ):
+    ) -> Union[List[str], Tuple[List[str], List[str]]]:
         """
         Description: Does all the basic pre-processing.
         Input: Set of sentence(s) as a string or list of sentence(s).

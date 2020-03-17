@@ -1,4 +1,4 @@
-from .preprocess import Preprocessor
+from text_preprocessing.preprocess import Preprocessor
 import os
 import nltk
 import nltk.data
