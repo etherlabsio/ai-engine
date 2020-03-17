@@ -1,14 +1,8 @@
 import string
 import itertools
 import nltk
-#from distilbert_pos_tagger import DistilBertPosTagger as dbpt
-#dbtag = dbpt()
-
 from distil_bilstm_pos_tagger import DistilBiLstmPosTagger as dblpt
 dbltag = dblpt()
-
-
-#def replaceContractions()
 
 contractions = {"ain't": "am not",
 "aren't": "are not",
@@ -173,14 +167,15 @@ class CandidateKPExtractor(object):
             ai_candidates = self.filter_phrases_by_word_lookup(text,ai_candidates,negating_words,1)
         return ai_candidates
         
-    def getregexChunks(self, text, grammar):
+    def getregexChunks(self, text, grammar, pos_name = 'bilstm'):
 
         chunker = nltk.chunk.regexp.RegexpParser(grammar)
-        #tagged_sents = nltk.pos_tag_sents(
-        #    nltk.word_tokenize(sent) for sent in nltk.sent_tokenize(text)
-        #)
-        #tagged_sents = [dbtag.get_sent_pos_tags(t) for t in nltk.sent_tokenize(text) ]
-        tagged_sents = [dbltag.get_sent_pos_tags(t) for t in nltk.sent_tokenize(text) ]
+        if(pos_name=='bilstm'):
+            tagged_sents = [dbltag.get_sent_pos_tags(t) for t in nltk.sent_tokenize(text) ]
+        else:
+            tagged_sents = nltk.pos_tag_sents(
+                nltk.word_tokenize(sent) for sent in nltk.sent_tokenize(text)
+            )
         all_chunks = list(
             itertools.chain.from_iterable(
                 nltk.chunk.tree2conlltags(chunker.parse(tagged_sent))

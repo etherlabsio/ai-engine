@@ -38,8 +38,6 @@ class BiLSTMTagger(nn.Module):
 class DistilBiLstmPosTagger:
     def __init__(self,model_path=None):
         self.tokenizer  = DistilBertTokenizer("bert-base-uncased-vocab.txt")
-        #config = DistilBertConfig(num_labels=37)
-        #self.model = DistilBertForTokenClassificationCustom(config)
         self.EMBEDDING_DIM = 256
         self.HIDDEN_DIM = 512
         self.lab_list = ['NNS', 'CD', 'TO', 'VBD', 'WP$', 'LS', 'RP', 'SYM', 'VBN', 'NNPS', 'RBR', 'JJS', 'VBP', 'MD', 'JJ', 'CC', 'VBG', 'IN', 'WP', 'PRP', 'PUNC', 'POS', 'FW', 'JJR', 'EX', 'WRB', 'DT', 'UH', 'VB', 'VBZ', 'RB', 'RBS', 'NN', 'WDT', 'NNP', 'PRP$', 'PDT']
