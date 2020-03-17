@@ -186,7 +186,6 @@ class community_detection:
                 meeting_graph.remove_edge(nodea, nodeb)
         for nodea, nodeb, weight in graph_data:
             if (self.segments_order[graph_list[nodeb][-1]] - self.segments_order[graph_list[nodea][-1]]) in [0]:
-                #meeting_graph[nodea][nodeb]["Weight"] = outlier_score[nodea]["weights_n"][1][1]["weight"]
                 meeting_graph[nodea][nodeb]["Weight"] = 1
 
         return meeting_graph, yetto_prune

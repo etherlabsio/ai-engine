@@ -24,7 +24,7 @@ def handler(event, context):
         json_request = json.loads(event['body'])
     else:
         json_request = event["body"]
-    if True:#try:
+    try:
         # To compute embeddings for the segment recieved
         if json_request["type"] == "segment_analyzer.extract_features":
             # preprocess the segment text.
@@ -80,11 +80,11 @@ def handler(event, context):
                 Request_obj.mind_id,
                 topics_extracted
             )
-    #except Exception as e:
-    #    logger.warning("Unable to compute PIMs", extra={"exception": e})
-    #    output_pims = {
-    #       "statusCode": 200,
-    #       "headers": {"Content-Type": "application/json"},
-    #       "body": json.dumps({"err": "Unable to extract topics " + str(e)}),
-    #    }
+    except Exception as e:
+       logger.warning("Unable to compute PIMs", extra={"exception": e})
+       output_pims = {
+          "statusCode": 200,
+          "headers": {"Content-Type": "application/json"},
+          "body": json.dumps({"err": "Unable to extract topics " + str(e)}),
+       }
     return output_pims
