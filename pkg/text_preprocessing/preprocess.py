@@ -45,15 +45,10 @@ class Preprocessor:
         words = sentence.split(" ")
         if words:
             for word in words:
-                if not not self.contraction_mapping.get(word):
+                if self.contraction_mapping.get(word):
                     sentence = sentence.replace(
                         word, self.contraction_mapping[word]
                     )
-                if "'s" in word or "’s" in word:
-                    new_word = word.replace("'s", " is")
-                    if new_word == word:
-                        new_word = word.replace("’s", "s")
-                    sentence = sentence.replace(word, new_word)
         return sentence
 
     def unkown_punct(self, sentence, remove_punct) -> str:
@@ -93,8 +88,8 @@ class Preprocessor:
         words = sentence.split(" ")
         if words:
             for word in words:
-                if word in self.stop_words:
-                    sentence = sentence.replace(" " + word + " ", " ")
+                if word.lower() in self.stop_words:
+                    sentence = sentence.replace(word, " ")
         return sentence
 
     def lemmatization(self, sentence) -> str:
@@ -157,10 +152,8 @@ class Preprocessor:
             text.replace(":", ". ")
             .replace("”", "'")
             .replace("“", "'")
-            .replace("̶", "")
         )
         text = text.replace("\u200a—\u200a", " ").replace("\xa0", "")
-        text = re.sub(r"\W", " ", text)
         text = re.sub(" +", " ", text)
         text = text.replace("\t", "")
         text = text.replace("\n", "")
