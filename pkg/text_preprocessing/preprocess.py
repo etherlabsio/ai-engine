@@ -160,7 +160,7 @@ class Preprocessor:
             .replace("̶", "")
         )
         text = text.replace("\u200a—\u200a", " ").replace("\xa0", "")
-        text = re.sub("\W", " ", text)
+        text = re.sub(r"\W", " ", text)
         text = re.sub(" +", " ", text)
         text = text.replace("\t", "")
         text = text.replace("\n", "")
