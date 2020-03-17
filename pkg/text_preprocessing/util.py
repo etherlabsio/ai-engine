@@ -342,17 +342,12 @@ WEB_URL_REGEX = r"""(?i)\b((?:https?:(?:/{1,3}|[a-z0-9%])|[a-z0-9.\-]+[.](?:com|
 def get_web_url_regex():
     return WEB_URL_REGEX
 
-
 def get_stop_words():
-    stop_words = list(
-        set(stop_words_nltk + stop_words_spacy + stop_words_extra)
-    )
+    stop_words = set(stop_words_nltk + stop_words_spacy + stop_words_extra)
     return stop_words
-
 
 def get_contraction_mapping():
     return contraction_mapping
-
 
 def get_punct():
     return punct
