@@ -11,42 +11,10 @@ from .util import (
     get_stop_words,
     get_contraction_mapping,
     get_punct,
-    get_web_url_regex
+    get_web_url_regex,
 )
 
 logger = logging.getLogger(__name__)
-
-if os.path.isdir(os.path.join(os.getcwd(), "vendor/nltk_data")):
-    nltk.data.path.append(os.path.join(os.getcwd(), "vendor/nltk_data"))
-    try:
-        nltk.data.find("wordnet")
-        nltk.data.find("stopwords")
-        nltk.data.find("tokenizers/punkt/PY3/english.pickle")
-    except LookupError:
-        nltk.download("wordnet")
-        nltk.download("stopwords")
-        nltk.download("punkt")
-
-else:
-    if os.path.isdir("/tmp/nltk_data"):
-        nltk.data.path.append("/tmp/nltk_data")
-        try:
-            nltk.data.find("wordnet")
-            nltk.data.find("stopwords")
-            nltk.data.find("tokenizers/punkt/PY3/english.pickle")
-
-        except LookupError:
-            nltk.download("wordnet", download_dir="/tmp/nltk_data")
-            nltk.download("stopwords", download_dir="/tmp/nltk_data")
-            nltk.download("averaged_perceptron_tagger", download_dir="/tmp/nltk_data")
-            nltk.download("punkt")
-
-    else:
-        nltk.download("wordnet", download_dir="/tmp/nltk_data")
-        nltk.download("stopwords", download_dir="/tmp/nltk_data")
-        nltk.download("averaged_perceptron_tagger", download_dir="/tmp/nltk_data")
-        nltk.download("punkt")
-        nltk.data.path.append("/tmp/nltk_data")
 
 sent_detector = nltk.data.load("tokenizers/punkt/PY3/english.pickle")
 
@@ -78,7 +46,9 @@ class Preprocessor:
         if words:
             for word in words:
                 if not not self.contraction_mapping.get(word):
-                    sentence = sentence.replace(word, self.contraction_mapping[word])
+                    sentence = sentence.replace(
+                        word, self.contraction_mapping[word]
+                    )
                 if "'s" in word or "’s" in word:
                     new_word = word.replace("'s", " is")
                     if new_word == word:
@@ -138,7 +108,9 @@ class Preprocessor:
         if words:
             for word in words:
                 if word == lemmatizer.lemmatize(word):
-                    sentence = sentence.replace(word, lemmatizer.lemmatize(word))
+                    sentence = sentence.replace(
+                        word, lemmatizer.lemmatize(word)
+                    )
         return sentence
 
     def get_pos(self, sentence):
@@ -162,25 +134,47 @@ class Preprocessor:
         input : A single string sentence.
         output : Cleaned string of text.
         """
-        emoji_pattern = re.compile("["
-            u"\U0001F600-\U0001F64F"
-            u"\U0001F300-\U0001F5FF"
-            u"\U0001F680-\U0001F6FF"
-            u"\U0001F1E0-\U0001F1FF""]+", flags=re.UNICODE)
-        text = emoji_pattern.sub(r'', text)
+        emoji_pattern = re.compile(
+            "["
+            "\U0001F600-\U0001F64F"
+            "\U0001F300-\U0001F5FF"
+            "\U0001F680-\U0001F6FF"
+            "\U0001F1E0-\U0001F1FF"
+            "]+",
+            flags=re.UNICODE,
+        )
+        text = emoji_pattern.sub(r"", text)
         text = self.expand_contractions(text)
         text = self.unkown_punct(text, remove_punct=False)
-        text = text.replace('\\n','').replace("’","'").replace('\\','').replace("‘","'")
-        text = re.sub(self.web_url_regex, '__url__', text)
-        text = text.replace(':','. ').replace("”","'").replace("“","'").replace('̶',"")
-        text = text.replace("\u200a—\u200a",' ').replace('\xa0','')
-        text = re.sub('\W', ' ', text)
-        text = re.sub(' +', ' ', text)
-        text = text.replace('\t', '')
-        text = text.replace('\n', '')
+        text = (
+            text.replace("\\n", "")
+            .replace("’", "'")
+            .replace("\\", "")
+            .replace("‘", "'")
+        )
+        text = re.sub(self.web_url_regex, "__url__", text)
+        text = (
+            text.replace(":", ". ")
+            .replace("”", "'")
+            .replace("“", "'")
+            .replace("̶", "")
+        )
+        text = text.replace("\u200a—\u200a", " ").replace("\xa0", "")
+        text = re.sub("\W", " ", text)
+        text = re.sub(" +", " ", text)
+        text = text.replace("\t", "")
+        text = text.replace("\n", "")
         return text.strip()
 
-    def get_preprocessed_text(self, text, lemma=False, stop_words=False, word_tokenize=False, remove_punct=False, pos=False):
+    def get_preprocessed_text(
+        self,
+        text,
+        lemma=False,
+        stop_words=False,
+        word_tokenize=False,
+        remove_punct=False,
+        pos=False,
+    ):
         """
         Description: Does all the basic pre-processing.
         Input: Set of sentence(s) as a string or list of sentence(s).
@@ -191,7 +185,9 @@ class Preprocessor:
         elif isinstance(text, list):
             sentences = text
         else:
-            raise Exception("Unknown type of input. Please, pass a string or list of sentences.")
+            raise Exception(
+                "Unknown type of input. Please, pass a string or list of sentences."
+            )
 
         preprocessed_text = []
         pos_tagged_sents = []

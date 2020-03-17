@@ -25,12 +25,16 @@ else:
         except LookupError:
             nltk.download("wordnet", download_dir="/tmp/nltk_data")
             nltk.download("stopwords", download_dir="/tmp/nltk_data")
-            nltk.download("averaged_perceptron_tagger", download_dir="/tmp/nltk_data")
+            nltk.download(
+                "averaged_perceptron_tagger", download_dir="/tmp/nltk_data"
+            )
             nltk.download("punkt")
 
     else:
         nltk.download("wordnet", download_dir="/tmp/nltk_data")
         nltk.download("stopwords", download_dir="/tmp/nltk_data")
-        nltk.download("averaged_perceptron_tagger", download_dir="/tmp/nltk_data")
+        nltk.download(
+            "averaged_perceptron_tagger", download_dir="/tmp/nltk_data"
+        )
         nltk.download("punkt")
         nltk.data.path.append("/tmp/nltk_data")
