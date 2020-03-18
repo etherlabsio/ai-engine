@@ -2,14 +2,12 @@ import logging
 import json as js
 import pydgraph
 
-from graph_schema import Schema
-
 logger = logging.getLogger(__name__)
 
 
 class GraphHandler(object):
-    def __init__(self, dgraph_url=None):
-        self.context_schema = Schema()
+    def __init__(self, dgraph_url=None, schema_generator_object=None):
+        self.context_schema = schema_generator_object
 
         self.client_stub = pydgraph.DgraphClientStub(dgraph_url)
         client = pydgraph.DgraphClient(self.client_stub)
@@ -60,7 +58,7 @@ class GraphHandler(object):
         return node_obj
 
     def set_schema(self):
-        schema = self.context_schema.fetch_schema()
+        schema = self.context_schema.generate().as_string()
         return self.dgraph.alter(pydgraph.Operation(schema=schema))
 
     def _query_uid(self, xid, ext_query=None):

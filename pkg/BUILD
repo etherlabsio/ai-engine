@@ -1,6 +1,6 @@
 python_library(
     name='common-libs',
-    sources=['*/*', '*']
+    sources=['*/*/*', '*', '*/*']
 )
 
 python_library(
@@ -18,6 +18,19 @@ python_library(
     name='s3-libs',
     sources=['s3client/*']
 )
+
+python_library(
+    name='distil_bilstm_pos_tagger-libs',
+    sources=['distil_bilstm_pos_tagger/*/*', 'distil_bilstm_pos_tagger/*'],
+    dependencies=[
+		'3rdparty/python:nltk',	
+		'3rdparty/python:boto3',	
+		'3rdparty/python:requests',	
+		'3rdparty/python:numpy'
+],
+    compatibility=['CPython>=3.7.*']
+)
+
 python_library(
     name='graphrank-pkg',
     sources=['graphrank/*.py'],
@@ -60,6 +73,33 @@ python_library(
         description='Text pre-processing package for almost every NLP task',
         author='Reagon Rewop',
         author_email='sri@etherlabs.io',
+        python_requires='>=3.6.0',
+        url='https://github.com/etherlabsio/ai-engine',
+        license='MIT',
+        classifiers=[
+            # Trove classifiers
+            # Full list: https://pypi.python.org/pypi?%3Aaction=list_classifiers
+            'License :: OSI Approved :: MIT License',
+            'Programming Language :: Python',
+            'Programming Language :: Python :: 3',
+            'Programming Language :: Python :: 3.7',
+            'Programming Language :: Python :: Implementation :: CPython',
+            'Programming Language :: Python :: Implementation :: PyPy'
+        ],
+    )
+)
+
+python_library(
+    name='distil_bilstm_pos_tagger-pkg',
+    dependencies=[
+        'pkg/distil_bilstm_pos_tagger:distil_bilstm_pos_tagger'
+    ],
+    provides=setup_py(
+        name='distil_bilstm_pos_tagger',
+        version='0.1',
+        description='Package to perform Pos tagging',
+        author='Shubham',
+        author_email='shubham@etherlabs.io',
         python_requires='>=3.6.0',
         url='https://github.com/etherlabsio/ai-engine',
         license='MIT',

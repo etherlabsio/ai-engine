@@ -37,8 +37,9 @@ class FileStore:
     f_name: str = None
 
     def __post_init__(self):
+        # Use version no. in filename once we start tracking it using DVC. Github can handle diffs if we use same file name
         self.f_name = (
-            f"schema_v{self.version}.schema" if self.f_name is None else self.f_name
+            f"ether_graph_schema.schema" if self.f_name is None else self.f_name
         )
 
     def write(self, content):
@@ -207,7 +208,7 @@ class SchemaGenerator(IndexGenerator):
             f"# Generated schema for Dgraph v{self.dgraph_version} \n\n"
         )
 
-    def _generate(self, io_handler: Any = None):
+    def _generate(self, io_handler: Any = None) -> StringIO:
         """
 
         Args:
@@ -228,6 +229,9 @@ class SchemaGenerator(IndexGenerator):
 
         return self.schema_string
 
+    def as_string(self):
+        return self.schema_string.getvalue()
+
     def __repr__(self):
         return f"{self.__class__.__name__}({self.schema_string.getvalue()})"
 
@@ -239,7 +243,3 @@ if __name__ == "__main__":
     s = SchemaGenerator(version="0.2")
     fs = FileStore(s.version)
     schema = s.generate(fs)
-
-    t = TypeGenerator()
-    ts = t.generate()
-    ts.as_string()

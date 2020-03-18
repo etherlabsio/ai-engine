@@ -1,10 +1,11 @@
 python_binary(
 	name="server",
 	dependencies = [
-		'pkg:common-libs',
+        'pkg:distil_bilstm_pos_tagger-libs',
+        'pkg:s3-libs',
+        'pkg:logger-libs',
 		'services/action_item_detector:action_item_detector-libs',
 		':action_item_detector-dep',
-		'services:action_item_detector',
 	],
 	source="main.py",
     compatibility=['CPython==3.7.*'],

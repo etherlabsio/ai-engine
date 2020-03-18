@@ -1,9 +1,6 @@
-import os
 import re
-
 import torch
 import torch.nn as nn
-from bert_utils.modeling_bert import BertPreTrainedModel, BertModel
 from bert_utils.tokenization_bert import BertTokenizer
 import nltk
 from nltk.tokenize import sent_tokenize
@@ -12,40 +9,6 @@ import tldextract
 nltk.data.path.append("/tmp/nltk_data")
 nltk.download("punkt", download_dir="/tmp/nltk_data")
 nltk.download("averaged_perceptron_tagger", download_dir="/tmp/nltk_data")
-
-
-class BertForTokenClassification_custom(BertPreTrainedModel):
-    def __init__(self, config):
-        super(BertForTokenClassification_custom, self).__init__(config)
-        self.num_labels = config.num_labels
-        self.bert = BertModel(config)
-        self.dropout = nn.Dropout(config.hidden_dropout_prob)
-        self.classifier = nn.Linear(config.hidden_size, config.num_labels)
-
-        self.apply(self.init_weights)
-
-    def forward(
-        self,
-        input_ids,
-        token_type_ids=None,
-        attention_mask=None,
-        labels=None,
-        position_ids=None,
-        head_mask=None,
-    ):
-        outputs = self.bert(
-            input_ids,
-            position_ids=position_ids,
-            token_type_ids=token_type_ids,
-            attention_mask=attention_mask,
-            head_mask=head_mask,
-        )
-        sequence_output = outputs[0]
-        sequence_output = self.dropout(sequence_output)
-        logits = self.classifier(sequence_output)
-
-        outputs = (logits,)
-        return outputs  # (scores)
 
 
 class BERT_NER:
@@ -321,12 +284,12 @@ class BERT_NER:
             "[A-Z]\. ", lambda mobj: mobj.group(0)[0] + mobj.group(0)[1], text
         )
         text = re.sub(
-            "([A-Z]\.)(\w{2,})", lambda mobj: mobj.group(1) + " " + mobj.group(2), text
+            "([A-Z])\.(\w{2,})", lambda mobj: mobj.group(1) + ". " + mobj.group(2), text
         )
         # Handle contractions
         for word in text.split(" "):
-            if self.contractions.get(word.casefold()):
-                text = text.replace(word, self.contractions[word.casefold()])
+            if self.contractions.get(word.lower()):
+                text = text.replace(word, self.contractions[word.lower()])
 
             if "." in word.strip("."):
                 if not re.match(self.url_regex, word) and any(
