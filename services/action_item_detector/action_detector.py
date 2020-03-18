@@ -98,7 +98,12 @@ stop_words = set(list(stop_words) + stop_words_spacy)
 stop_words = set(list(stop_words) + list(stop_words_spacy))
 stop_words = stop_words - set(["get", "give", "go", "do", "make", "please","see"])
 action_marker_list = ["we", "i", "you", "let's", "i'll", "we'll","go"]
+fixed_list = ["let's take an action",
+                     "can you","can we",
+                     "let's work","let's make"] 
+omit_fixed_list = ["can you hear"]
 
+contracted_fixed_list = [replace_contractions(i) for i in fixed_list]
 
 class BertForActionItemDetection(BertPreTrainedModel):
     def __init__(self, config):
@@ -180,6 +185,7 @@ class ActionItemDetector:
 
         action_item_subjects = []
         action_item_sentences = []
+        bypass_list = []
         if type(transcript_text) != str:
             return [], []
         else:
@@ -187,30 +193,43 @@ class ActionItemDetector:
             sent_list = sent_tokenize(transcript_text)
             for sent in sent_list:
                 if len(sent.split(" ")) > 2:
-                    # if (sent[-1]!="?" and sent[-2]!="?"):
                     sent_ai_prob = self.get_ai_probability(sent)
+                    omit_check = any([(i.lower() in replace_contractions(sent).lower()) for i in omit_fixed_list ])
+                    fixed_check  = any([(i.lower() in replace_contractions(sent).lower()) for i in contracted_fixed_list ])
                     
-                    if (
-                        sent_ai_prob >= ai_confidence_threshold
-                        and self.post_process_ai_check(sent)[0]
-                    ):
-                        
-                        curr_ai_subjects = self.post_process_ai_check(sent)[1]
-                        sent = replace_contractions(sent)
-                        if len(curr_ai_subjects) > 1:
-                            # merge action items
-                            start_idx = sent.lower().find(curr_ai_subjects[0].lower())
-                            end_idx = sent.lower().find(
-                                curr_ai_subjects[-1].lower()
-                            ) + len(curr_ai_subjects[-1].lower())
-                            ai_subject = sent[start_idx:end_idx]
+                    if (fixed_check and not omit_check) :
+                        if(sent_ai_prob>=0.5):
+                            action_item_subjects.append(sent)
+                            action_item_sentences.append(sent)
+                            bypass_list.append(True)
                         else:
-                            ai_subject = curr_ai_subjects[0]
-                        if len(ai_subject) > 0:
-                            ai_subject = ai_subject[0].upper() + ai_subject[1:]
-                        action_item_subjects.append(ai_subject)
-                        action_item_sentences.append(sent)
-        return action_item_subjects, action_item_sentences
+                            pass
+                    else:
+                        # if (sent[-1]!="?" and sent[-2]!="?"):
+                        #sent_ai_prob = self.get_ai_probability(sent)
+                        
+                        if (
+                            sent_ai_prob >= ai_confidence_threshold
+                            and self.post_process_ai_check(sent)[0]
+                        ):
+                            
+                            curr_ai_subjects = self.post_process_ai_check(sent)[1]
+                            sent = replace_contractions(sent)
+                            if len(curr_ai_subjects) > 1:
+                                # merge action items
+                                start_idx = sent.lower().find(curr_ai_subjects[0].lower())
+                                end_idx = sent.lower().find(
+                                    curr_ai_subjects[-1].lower()
+                                ) + len(curr_ai_subjects[-1].lower())
+                                ai_subject = sent[start_idx:end_idx]
+                            else:
+                                ai_subject = curr_ai_subjects[0]
+                            if len(ai_subject) > 0:
+                                ai_subject = ai_subject[0].upper() + ai_subject[1:]
+                            action_item_subjects.append(ai_subject)
+                            action_item_sentences.append(sent)
+                            bypass_list.append(False)
+        return action_item_subjects, action_item_sentences,bypass_list
 
     def get_quest_sentences(self, transcript_text):
 
@@ -254,6 +273,7 @@ class ActionItemDetector:
     def get_action_decision_subjects_list(self):
 
         ai_subject_list = []
+        ai_bypass_list = []
         ai_user_list = []
         segment_id_list = []
         quest_segment_id_list = []
@@ -270,7 +290,7 @@ class ActionItemDetector:
           
             transcript_text = seg_object["originalText"]
             # get the AI probabilities for each sentence in the transcript
-            curr_ai_list, curr_ai_sents = self.get_ai_candidates(transcript_text)
+            curr_ai_list, curr_ai_sents, curr_bypass = self.get_ai_candidates(transcript_text)
             curr_quest_list = self.get_quest_sentences(transcript_text)
             curr_ai_user_list = self.get_ai_users(curr_ai_sents)
             curr_segment_id_list = [seg_object["id"]] * len(curr_ai_list)
@@ -290,6 +310,7 @@ class ActionItemDetector:
                     curr_isAssigneeBoth_list.append(False)
 
             ai_subject_list += curr_ai_list
+            ai_bypass_list += curr_bypass
             ai_user_list += curr_ai_user_list
             segment_id_list += curr_segment_id_list
             assignees_list += curr_assignees_list
@@ -302,13 +323,14 @@ class ActionItemDetector:
         ai_response_list = []
         for i in range(len(ai_subject_list)):
             uuid_list.append(str(uuid.uuid1()))
-        for (uuid_, segment, action_item, assignee, is_prev_user, is_both,) in zip(
+        for (uuid_, segment, action_item, assignee, is_prev_user, is_both,ai_bypass,) in zip(
             uuid_list,
             segment_id_list,
             ai_subject_list,
             assignees_list,
             isAssigneePrevious_list,
             isAssigneeBoth_list,
+            ai_bypass_list,
         ):
 
             # fix to check if the noun is good enough for the bare grammar pattern
@@ -317,7 +339,18 @@ class ActionItemDetector:
             ]
             if assignee == "NoA":
                 assignee = ""
-            if len(filtered_ai) > 4:
+            if ai_bypass ==True:
+                ai_response_list.append(
+                    {
+                        "id": uuid_,
+                        "subject": action_item,
+                        "segment_ids": [segment],
+                        "assignees": [],
+                        "is_assignee_previous": is_prev_user,
+                        "is_assignee_both": is_both,
+                    }
+                )
+            elif len(filtered_ai) > 4:
                 ai_response_list.append(
                     {
                         "id": uuid_,
