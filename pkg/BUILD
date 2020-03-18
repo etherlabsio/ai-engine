@@ -1,9 +1,6 @@
 python_library(
     name='common-libs',
-    dependencies=[
-        ':logger-libs',
-        ':s3-libs'
-    ]
+    sources=['*/*/*', '*', '*/*']
 )
 
 python_library(
@@ -24,9 +21,7 @@ python_library(
 
 python_library(
     name='distil_bilstm_pos_tagger-libs',
-    dependencies=[
-        'pkg/distil_bilstm_pos_tagger:distil_bilstm_pos_tagger'
-    ]
+    sources=['distil_bilstm_pos_tagger/*/*', 'distil_bilstm_pos_tagger/*']
 )
 
 python_library(
