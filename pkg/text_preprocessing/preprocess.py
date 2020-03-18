@@ -60,10 +60,7 @@ class Preprocessor:
         for p in self.punct:
             if p in sentence:
                 if remove_punct:
-                    if p == "-":
-                        sentence = sentence.replace(p, "")
-                    else:
-                        sentence = sentence.replace(p, "")
+                    sentence = sentence.replace(p, "")
                 elif p not in [",", ".", "?", "!"]:
                     sentence = sentence.replace(p, "")
         sentence = sentence.replace("\n", " ")
