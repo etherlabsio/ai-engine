@@ -57,13 +57,11 @@ class Preprocessor:
         input : A single sentence as a string.
         output : A string.
         """
+        sentence = sentence.replace("\n", ". ")
         for p in self.punct:
             if p in sentence:
                 if remove_punct:
                     sentence = sentence.replace(p, "")
-                elif p not in [",", ".", "?", "!"]:
-                    sentence = sentence.replace(p, "")
-        sentence = sentence.replace("\n", " ")
         return sentence
 
     def remove_number(self, sentence) -> str:
@@ -120,7 +118,7 @@ class Preprocessor:
             sentence_pos.append(tags)
         return sentence_pos
 
-    def clean_text(self, text):
+    def clean_text(self, text, remove_punct=False, mask_numbers=False):
         """
         Description : Clean the text with common preprocessing rules.
         input : A single string sentence.
@@ -137,7 +135,9 @@ class Preprocessor:
         )
         text = emoji_pattern.sub(r"", text)
         text = self.expand_contractions(text)
-        text = self.unkown_punct(text, remove_punct=False)
+        text = self.unkown_punct(text, remove_punct)
+        if mask_numbers:
+            text = self.remove_number(text)
         text = (
             text.replace("\\n", "")
             .replace("’", "'")
@@ -163,6 +163,7 @@ class Preprocessor:
         stop_words=False,
         word_tokenize=False,
         remove_punct=False,
+        mask_numbers=False,
         pos=False,
     ) -> Union[List[str], Tuple[List[str], List[str]]]:
         """
@@ -184,7 +185,7 @@ class Preprocessor:
         for index, sent in enumerate(sentences):
             mod_sent = []
             mod_sent_post = []
-            mod_sent = self.clean_text(sent)
+            mod_sent = self.clean_text(sent, remove_punct, mask_numbers)
             if stop_words:
                 mod_sent = self.remove_stopwords(mod_sent)
             if lemma:
