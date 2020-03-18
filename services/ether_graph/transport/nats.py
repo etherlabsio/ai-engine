@@ -7,6 +7,7 @@ from ether_graph.service_definitions import (
     SessionRequest,
     ContextRequest,
     SummaryRequest,
+    UserMembershipRequest,
 )
 
 logger = logging.getLogger(__name__)
@@ -26,13 +27,6 @@ class NATSTransport(object):
         await self.nats_manager.subscribe(
             context_created_topic, handler=self.context_created_handler, queued=True,
         )
-
-        # # Drop all data before applying schema
-        # await self.eg_service.gh.drop_all()
-        # logger.info("Dropping data before applying schema ...")
-
-        # await self.eg_service.set_schema()
-        # logger.info("Updated schema",)
 
     async def context_created_handler(self, msg):
         msg_data = json.loads(msg.data)
@@ -74,6 +68,14 @@ class NATSTransport(object):
             handler=self.perform_query,
             queued=True,
         )
+        await self.nats_manager.subscribe(
+            topic="context.user_added", handler=self.add_user_membership, queued=True,
+        )
+        await self.nats_manager.subscribe(
+            topic="context.user_removed",
+            handler=self.delete_user_membership,
+            queued=True,
+        )
 
     async def unsubscribe_lifecycle_events(self):
         await self.nats_manager.unsubscribe(topic="context.instance.started")
@@ -83,6 +85,8 @@ class NATSTransport(object):
             topic="ether_graph_service.populate_summary"
         )
         await self.nats_manager.unsubscribe(topic="ether_graph_service.perform_query")
+        await self.nats_manager.unsubscribe(topic="context.user_added")
+        await self.nats_manager.unsubscribe(topic="context.user_removed")
 
     # NATS context handlers
 
@@ -151,4 +155,40 @@ class NATSTransport(object):
             await self.nats_manager.conn.publish(msg.reply, json.dumps(resp).encode())
         except Exception as e:
             logger.error("Error querying dgraph", extra={"err": e})
+            raise
+
+    async def add_user_membership(self, msg):
+        request = json.loads(msg.data)
+
+        try:
+            membership_req = UserMembershipRequest.get_object_from_dict(request)
+            resp = await self.eg_service.update_user_membership(
+                req_data=membership_req, status="added"
+            )
+
+            logger.info(
+                "Added user-context membership info",
+                extra={"response": resp.uids, "latency": resp.latency},
+            )
+        except Exception as e:
+            logger.error("Error updating user-context membership", extra={"err": e})
+            print(traceback.print_exc())
+            raise
+
+    async def delete_user_membership(self, msg):
+        request = json.loads(msg.data)
+
+        try:
+            membership_req = UserMembershipRequest.get_object_from_dict(request)
+            resp = await self.eg_service.update_user_membership(
+                req_data=membership_req, status="deleted"
+            )
+
+            logger.info(
+                "Deleted user-context membership info",
+                extra={"response": resp.uids, "latency": resp.latency},
+            )
+        except Exception as e:
+            logger.error("Error deleting user-context membership", extra={"err": e})
+            print(traceback.print_exc())
             raise

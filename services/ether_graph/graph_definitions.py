@@ -340,7 +340,10 @@ class IndexRules:
     description: str = field(metadata=dgconfig(index_type=["term, fulltext"]))
     type: str = field(metadata=dgconfig(index_type=["term"]))
     startTime: datetime = field(metadata=dgconfig(index_type=["month"]))
-    updatedAt: datetime = field(metadata=dgconfig(index=False))
+    updatedAt: datetime = field(metadata=dgconfig(index_type=["month"]))
+    deleted: bool = field(metadata=dgconfig(index=True, index_type=["bool"]))
+    deletedAt: datetime = field(metadata=dgconfig(index_type=["month"]))
+    createdAt: datetime = field(metadata=dgconfig(index_type=["month"]))
 
     # UID type relations
     associatedMind: Mind = field(metadata=dgconfig(directive=["@reverse"]))
