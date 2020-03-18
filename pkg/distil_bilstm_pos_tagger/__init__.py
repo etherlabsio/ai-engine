@@ -1,4 +1,4 @@
-from distil_bilstm_pos_tagger import DistilBiLstmPosTagger
+from distil_bilstm_pos_tagger.distil_bilstm_pos_tagger import DistilBiLstmPosTagger
 #from .distilbert_utils.modeling_distilbert import DistilBertPreTrainedModel,  DistilBertModel, DistilBertConfig
 #from .distilbert_utils.tokenization_distilbert import DistilBertTokenizer
-from distilbert_utils import *
+from distil_bilstm_pos_tagger.distilbert_utils import *

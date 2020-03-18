@@ -9,7 +9,7 @@ import os
 import io
 import boto3
 import requests
-from distilbert_utils.tokenization_distilbert import DistilBertTokenizer
+from distil_bilstm_pos_tagger.distilbert_utils.tokenization_distilbert import DistilBertTokenizer
 import nltk
 import numpy as np
 
@@ -34,7 +34,7 @@ class BiLSTMTagger(nn.Module):
         tag_space = self.hidden2tag(lstm_out.view(len(sentence), -1))
         tag_scores = F.log_softmax(tag_space, dim=1)
         return tag_scores,tag_space
-        
+
 class DistilBiLstmPosTagger:
     def __init__(self,model_path=None):
         self.tokenizer  = DistilBertTokenizer("bert-base-uncased-vocab.txt")
@@ -65,8 +65,8 @@ class DistilBiLstmPosTagger:
 
     def label_selector(self,predicted_label_list,tokenized_sent):
         predicted_list =[]
-        start = 0 
-        end = 1 
+        start = 0
+        end = 1
         for token in tokenized_sent:
             window_len = len(self.tokenizer.tokenize(token))
             if window_len ==1:
@@ -86,12 +86,12 @@ class DistilBiLstmPosTagger:
                         predicted_list.append(predicted_label_list[start])
                     else:
                         pass
-                else:       
+                else:
                     predicted_list.append(predicted_label_list[start])
                 start=end
                 end+=1
         return predicted_list
-            
+
     def get_sent_pos_tags(self, text):
         batch_size = 128
         predicted_label_list = []
@@ -100,8 +100,8 @@ class DistilBiLstmPosTagger:
         input_ids = self.tokenizer.encode(text,add_special_tokens=False)
         for i in range(0,len(input_ids),batch_size):
             batch_input_ids = input_ids[i:i+batch_size]
-            batch_input_ids = torch.tensor(batch_input_ids)    
-            with torch.no_grad(): 
+            batch_input_ids = torch.tensor(batch_input_ids)
+            with torch.no_grad():
                 tag_scores,_ = self.model(batch_input_ids)
             for sc in tag_scores:
                 predicted_label_list.append(self.ix_to_tag[int(np.argmax(sc.cpu().detach().numpy()))])
