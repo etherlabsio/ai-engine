@@ -21,7 +21,7 @@ python_library(
 
 python_library(
     name='distil_bilstm_pos_tagger-libs',
-    sources=['distil_bilstm_pos_tagger/*/*', 'distil_bilstm_pos_tagger/*']
+    sources=['distil_bilstm_pos_tagger/*/*', 'distil_bilstm_pos_tagger/*'],
     dependencies=[
         ':distilbert_utils',
 		'3rdparty/python:nltk',	
