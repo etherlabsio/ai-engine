@@ -1,40 +1,9 @@
 from __future__ import unicode_literals
-import logging
-import re
 from nltk.corpus import stopwords
-import nltk
-from nltk.stem import WordNetLemmatizer
-from nltk.tokenize import word_tokenize
 import itertools
 import string
 import os
 
-logger = logging.getLogger(__name__)
-
-if os.path.isdir(os.path.join(os.getcwd(), "vendor/nltk_data")):
-    nltk.data.path.append(os.path.join(os.getcwd(), "vendor/nltk_data"))
-    try:
-        nltk.data.find("wordnet")
-        nltk.data.find("stopwords")
-    except LookupError:
-        nltk.download("wordnet")
-        nltk.download("stopwords")
-
-else:
-    if os.path.isdir("/tmp/nltk_data"):
-        nltk.data.path.append("/tmp/nltk_data")
-        try:
-            nltk.data.find("wordnet")
-            nltk.data.find("stopwords")
-        except LookupError:
-            nltk.download("wordnet", download_dir="/tmp/nltk_data")
-            nltk.download("stopwords", download_dir="/tmp/nltk_data")
-            nltk.download("averaged_perceptron_tagger", download_dir="/tmp/nltk_data")
-    else:
-        nltk.download("wordnet", download_dir="/tmp/nltk_data")
-        nltk.download("stopwords", download_dir="/tmp/nltk_data")
-        nltk.download("averaged_perceptron_tagger", download_dir="/tmp/nltk_data")
-        nltk.data.path.append("/tmp/nltk_data")
 stop_words_nltk = stopwords.words("english")
 
 stop_words_extra = [
@@ -238,7 +207,6 @@ yet you your yours yourself yourselves
 """.split()
 )
 
-stop_words = list(set(stop_words_nltk + stop_words_spacy + stop_words_extra))
 
 contraction_mapping = {
     "ain't": "is not",
@@ -362,171 +330,24 @@ contraction_mapping = {
     "you're": "you are",
     "you've": "you have",
 }
-punct = r"/-'?!,#$%'()*+-/:;<=>@[\\]^_`{|}~" + r'""“”’' + r"∞θ÷α•à−β∅³π‘₹´°£€\×™√²—–&"
+punct = (
+    r"/-'?!,#$%'()*+-/:;<=>@[\\]^_`{|}~"
+    + r'""“”’'
+    + r"∞θ÷α•à−β∅³π‘₹´°£€\×™√²—–&"
+)
+
+WEB_URL_REGEX = r"""(?i)\b((?:https?:(?:/{1,3}|[a-z0-9%])|[a-z0-9.\-]+[.](?:com|net|org|edu|gov|mil|aero|asia|biz|cat|coop|info|int|jobs|mobi|museum|name|post|pro|tel|travel|xxx|ac|ad|ae|af|ag|ai|al|am|an|ao|aq|ar|as|at|au|aw|ax|az|ba|bb|bd|be|bf|bg|bh|bi|bj|bm|bn|bo|br|bs|bt|bv|bw|by|bz|ca|cc|cd|cf|cg|ch|ci|ck|cl|cm|cn|co|cr|cs|cu|cv|cx|cy|cz|dd|de|dj|dk|dm|do|dz|ec|ee|eg|eh|er|es|et|eu|fi|fj|fk|fm|fo|fr|ga|gb|gd|ge|gf|gg|gh|gi|gl|gm|gn|gp|gq|gr|gs|gt|gu|gw|gy|hk|hm|hn|hr|ht|hu|id|ie|il|im|in|io|iq|ir|is|it|je|jm|jo|jp|ke|kg|kh|ki|km|kn|kp|kr|kw|ky|kz|la|lb|lc|li|lk|lr|ls|lt|lu|lv|ly|ma|mc|md|me|mg|mh|mk|ml|mm|mn|mo|mp|mq|mr|ms|mt|mu|mv|mw|mx|my|mz|na|nc|ne|nf|ng|ni|nl|no|np|nr|nu|nz|om|pa|pe|pf|pg|ph|pk|pl|pm|pn|pr|ps|pt|pw|py|qa|re|ro|rs|ru|rw|sa|sb|sc|sd|se|sg|sh|si|sj|Ja|sk|sl|sm|sn|so|sr|ss|st|su|sv|sx|sy|sz|tc|td|tf|tg|th|tj|tk|tl|tm|tn|to|tp|tr|tt|tv|tw|tz|ua|ug|uk|us|uy|uz|va|vc|ve|vg|vi|vn|vu|wf|ws|ye|yt|yu|za|zm|zw)/)(?:[^\s()<>{}\[\]]+|\([^\s()]*?\([^\s()]+\)[^\s()]*?\)|\([^\s]+?\))+(?:\([^\s()]*?\([^\s()]+\)[^\s()]*?\)|\([^\s]+?\)|[^\s`!()\[\]{};:'".,<>?«»“”‘’])|(?:(?<!@)[a-z0-9]+(?:[.\-][a-z0-9]+)*[.](?:com|net|org|edu|gov|mil|aero|asia|biz|cat|coop|info|int|jobs|mobi|museum|name|post|pro|tel|travel|xxx|ac|ad|ae|af|ag|ai|al|am|an|ao|aq|ar|as|at|au|aw|ax|az|ba|bb|bd|be|bf|bg|bh|bi|bj|bm|bn|bo|br|bs|bt|bv|bw|by|bz|ca|cc|cd|cf|cg|ch|ci|ck|cl|cm|cn|co|cr|cs|cu|cv|cx|cy|cz|dd|de|dj|dk|dm|do|dz|ec|ee|eg|eh|er|es|et|eu|fi|fj|fk|fm|fo|fr|ga|gb|gd|ge|gf|gg|gh|gi|gl|gm|gn|gp|gq|gr|gs|gt|gu|gw|gy|hk|hm|hn|hr|ht|hu|id|ie|il|im|in|io|iq|ir|is|it|je|jm|jo|jp|ke|kg|kh|ki|km|kn|kp|kr|kw|ky|kz|la|lb|lc|li|lk|lr|ls|lt|lu|lv|ly|ma|mc|md|me|mg|mh|mk|ml|mm|mn|mo|mp|mq|mr|ms|mt|mu|mv|mw|mx|my|mz|na|nc|ne|nf|ng|ni|nl|no|np|nr|nu|nz|om|pa|pe|pf|pg|ph|pk|pl|pm|pn|pr|ps|pt|pw|py|qa|re|ro|rs|ru|rw|sa|sb|sc|sd|se|sg|sh|si|sj|Ja|sk|sl|sm|sn|so|sr|ss|st|su|sv|sx|sy|sz|tc|td|tf|tg|th|tj|tk|tl|tm|tn|to|tp|tr|tt|tv|tw|tz|ua|ug|uk|us|uy|uz|va|vc|ve|vg|vi|vn|vu|wf|ws|ye|yt|yu|za|zm|zw)\b/?(?!@)))"""
 
 
-def expand_contractions(sentence):
-    """
-    Description : Expand contractions like "y'all" to "you all" using known mapping.
-    input : A single sentence as a string.
-    output : A expanded contraction sentence as string
-    """
-    words = sentence.split(" ")
-    if words:
-        for word in words:
-            if not not contraction_mapping.get(word):
-                sentence = sentence.replace(word, contraction_mapping[word])
-            if "'s" in word or "’s" in word:
-                new_word = word.replace("'s", " is")
-                if new_word == word:
-                    new_word = word.replace("’s", "s")
-                sentence = sentence.replace(word, new_word)
-    return sentence
+def get_web_url_regex():
+    return WEB_URL_REGEX
 
+def get_stop_words():
+    stop_words = set(stop_words_nltk + stop_words_spacy + stop_words_extra)
+    return stop_words
 
-def unkown_punct(sentence, remove_punct):
-    """
-    Description : remove punctuation.
-    input : A single sentence as a string.
-    output : A string.
-    """
-    for p in punct:
-        if p in sentence:
-            if remove_punct:
-                if p == "-":
-                    sentence = sentence.replace(p, "")
-                else:
-                    sentence = sentence.replace(p, "")
-            elif p not in {",", ".", "?"}:
-                if p == "-":
-                    sentence = sentence.replace(p, "")
-                else:
-                    sentence = sentence.replace(p, "")
-    sentence = sentence.replace("\n", " ")
-    return sentence
+def get_contraction_mapping():
+    return contraction_mapping
 
-
-def remove_number(sentence):
-    """
-    Description : replace numbers with XnumberX.
-    input : A single sentence as a string.
-    output : A string.
-    """
-    sentence = re.sub(r"\d+\.+\d+", "XnumberX", " " + sentence + " ")
-    sentence = re.sub(r"\d+", "XnumberX", " " + sentence + " ")
-    return sentence[2:-2]
-
-
-def remove_stopwords(sentence):
-    """
-    Description : remove stopwords.
-    input : A single sentence as a string.
-    output : A string without stopwords.
-    """
-    words = sentence.split(" ")
-    if words:
-        for word in words:
-            if word in stop_words:
-                sentence = sentence.replace(" " + word + " ", " ")
-    return sentence
-
-
-def lemmatization(sentence):
-    """
-    Description : do Lemmatization.
-    input : A single sentence as a string.
-    output : A string with words lemmatized.
-    """
-    lemmatizer = WordNetLemmatizer()
-    words = sentence.split(" ")
-    if words:
-        for word in words:
-            if word == lemmatizer.lemmatize(word):
-                sentence = sentence.replace(word, lemmatizer.lemmatize(word))
-    return sentence
-
-
-def get_pos(sentence):
-    """
-    Description : get pos tags of word tokenized sentence
-    input : A single string sentence.
-    output : A list of sentence where each sentence contains a list of tuple with word, POS.
-    """
-    sentence_pos = []
-    filtered_sentence = sentence.replace(".", ". ")
-
-    tokenized_text = word_tokenize(filtered_sentence)
-    pos_tags = nltk.pos_tag(tokenized_text)
-    for tags in pos_tags:
-        sentence_pos.append(tags)
-    return sentence_pos
-
-
-def get_filtered_pos(sentence, filter_pos=["JJ", "VB", "NN", "NNP", "FW"]):
-    """
-    Description : Filter POS with respect to the given list.
-    Input : A list of sentence, where sentence consist of \
-            list of tuple with word,pos tag.
-    Output : return the filtered POS tag for pos tags\
-            which are present in filter_pos
-    """
-    text_pos = []
-    if filter_pos:
-        for sent in sentence:
-            sentence_pos = []
-            for word in sent:
-                if word[1] in filter_pos and word[0] != "XnumberX":
-                    sentence_pos.append(word)
-            text_pos.append(sentence_pos)
-        return text_pos
-    return sentence
-
-
-# def st_get_candidate_phrases(text, pos_search_pattern_list=[r"""base: {(<JJ.*>*<NN.*>+<IN>)?<JJ>*<NN.*>+}"""]):
-def st_get_candidate_phrases(
-    text,
-    pos_search_pattern_list=[
-        r"""base: {<(CD)|(DT)|(JJR)>* (<VB.>*)( (<NN>+ <NN>+)|((<JJ>|<NN>) <NN>)| ((<JJ>|<NN>)+|((<JJ>|<NN>)* (<NN> <NN.>)? (<JJ>|<NN>)*) <NN.>))}"""
-    ],
-):
-    punct = set(string.punctuation)
-    all_chunks = []
-
-    for pattern in pos_search_pattern_list:
-        all_chunks += st_getregexChunks(text, pattern)
-
-    candidates_tokens = [
-        " ".join(word for word, pos, chunk in group).lower()
-        for key, group in itertools.groupby(
-            all_chunks, lambda_unpack(lambda word, pos, chunk: chunk != "O")
-        )
-        if key
-    ]
-
-    candidate_phrases = [
-        cand
-        for cand in candidates_tokens
-        if cand not in stop_words and not all(char in punct for char in cand)
-    ]
-
-    return candidate_phrases
-
-
-def st_getregexChunks(text, grammar):
-
-    chunker = nltk.chunk.regexp.RegexpParser(grammar)
-    tagged_sents = nltk.pos_tag_sents(
-        nltk.word_tokenize(sent) for sent in nltk.sent_tokenize(text)
-    )
-    all_chunks = list(
-        itertools.chain.from_iterable(
-            nltk.chunk.tree2conlltags(chunker.parse(tagged_sent))
-            for tagged_sent in tagged_sents
-        )
-    )
-
-    return all_chunks
-
-
-def lambda_unpack(f):
-    return lambda args: f(*args)
+def get_punct():
+    return punct
