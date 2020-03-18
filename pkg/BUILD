@@ -1,9 +1,6 @@
 python_library(
     name='common-libs',
-    dependencies=[
-        ':logger-libs',
-        ':s3-libs'
-    ]
+    sources=['*/*/*', '*', '*/*']
 )
 
 python_library(
@@ -24,9 +21,14 @@ python_library(
 
 python_library(
     name='distil_bilstm_pos_tagger-libs',
+    sources=['distil_bilstm_pos_tagger/*/*', 'distil_bilstm_pos_tagger/*'],
     dependencies=[
-        'pkg/distil_bilstm_pos_tagger:distil_bilstm_pos_tagger'
-    ]
+		'3rdparty/python:nltk',	
+		'3rdparty/python:boto3',	
+		'3rdparty/python:requests',	
+		'3rdparty/python:numpy'
+],
+    compatibility=['CPython>=3.7.*']
 )
 
 python_library(

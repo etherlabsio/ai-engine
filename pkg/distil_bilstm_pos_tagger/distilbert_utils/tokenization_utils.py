@@ -15,10 +15,6 @@
 """Tokenization classes for OpenAI GPT."""
 from __future__ import (absolute_import, division, print_function,
                         unicode_literals)
-try:
-    import unzip_requirements
-except ImportError:
-    pass
 import logging
 import os
 import json
