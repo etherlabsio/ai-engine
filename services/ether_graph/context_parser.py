@@ -2,6 +2,8 @@ import logging
 import hashlib
 import json as js
 from typing import Tuple, List, Dict, Text, Union
+from datetime import datetime
+import ciso8601
 
 from graph_definitions import (
     Context,
@@ -20,6 +22,7 @@ from service_definitions import (
     SessionRequest,
     SegmentRequest,
     SummaryRequest,
+    UserMembershipRequest,
 )
 from schema_generator import SchemaGenerator
 from graph_handler import GraphHandler
@@ -59,6 +62,17 @@ class GraphPopulator(object):
         response = self.gh.mutate_info(
             ContextSession.get_dict_from_object(instance_node)
         )
+
+        return response
+
+    async def update_user_membership(
+        self, req_data: UserMembershipRequest, status: str
+    ):
+
+        context_node = self.parser.parse_user_membership_info(
+            req_data=req_data, status=status
+        )
+        response = self.gh.mutate_info(Context.get_dict_from_object(context_node))
 
         return response
 
@@ -220,6 +234,33 @@ class ContextSessionParser(object):
             segment_node_list.append(segment_node)
 
         return segment_node_list
+
+    def parse_user_membership_info(
+        self, req_data: UserMembershipRequest, status: str
+    ) -> Context:
+        context_id = req_data.contextId
+        user_id = req_data.userId
+
+        context_node = Context(contextId=context_id)
+        context_node = self.gh.query_transform_node(context_node)
+
+        user_node = User()
+        user_node.xid = user_id
+        user_node = self.gh.query_transform_node(user_node)
+        updated_time = ciso8601.parse_rfc3339(datetime.now().isoformat())
+
+        if status == "deleted":
+            user_node.deleted = True
+            user_node.deletedAt = updated_time
+            user_node.updatedAt = updated_time
+        else:
+            user_node.deleted = False
+            user_node.createdAt = updated_time
+            user_node.updatedAt = updated_time
+
+        context_node.hasMember = user_node
+
+        return context_node
 
     def parse_topic_marker(self):
         pass

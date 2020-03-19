@@ -80,6 +80,13 @@ class SummaryRequest(ObjectConversions):
     entities: List[Entity] = field(default_factory=list)
 
 
+@dataclass_json(undefined=Undefined.INCLUDE)
+@dataclass
+class UserMembershipRequest(ObjectConversions):
+    contextId: str
+    userId: str
+
+
 # Graph query requests
 @dataclass_json
 @dataclass
