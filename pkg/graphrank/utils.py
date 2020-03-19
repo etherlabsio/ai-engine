@@ -1,5 +1,5 @@
 import networkx as nx
-from text_preprocessing import preprocess as process_text
+from text_preprocessing.preprocess import Preprocessor
 
 try:
     import cPickle as pickle
@@ -110,7 +110,7 @@ class GraphUtils(object):
 
 class TextPreprocess(object):
     def __init__(self):
-        pass
+        self.process_text = Preprocessor()
 
     def preprocess_text(
         self,
@@ -139,7 +139,7 @@ class TextPreprocess(object):
             word_pos_list (list[tuples]): list of list[(word_token, POS)]
             filtered_word_pos (list[tuples]):
         """
-        original_tokens, word_pos_list = process_text.preprocess(
+        original_tokens, word_pos_list = self.process_text.get_preprocessed_text(
             text,
             stop_words=stop_words,
             remove_punct=remove_punct,
@@ -181,8 +181,21 @@ class TextPreprocess(object):
                 "FW",
             ]
 
-        filtered_word_pos = process_text.get_filtered_pos(
+        filtered_word_pos = self.get_filtered_pos(
             sentence=word_pos_tuple, filter_pos=pos_filter
         )
 
         return filtered_word_pos
+
+    def get_filtered_pos(self, sentence, filter_pos=["JJ", "VB", "NN", "NNP", "FW"]):
+
+        text_pos = []
+        if filter_pos:
+            for sent in sentence:
+                sentence_pos = []
+                for word in sent:
+                    if word[1] in filter_pos and word[0] != "XnumberX":
+                        sentence_pos.append(word)
+                text_pos.append(sentence_pos)
+            return text_pos
+        return sentence
