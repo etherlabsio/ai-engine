@@ -73,6 +73,10 @@ class GraphPopulator(object):
             req_data=req_data, status=status
         )
         response = self.gh.mutate_info(Context.get_dict_from_object(context_node))
+        logger.debug(
+            "User-update mutation performed",
+            extra={"node": context_node, "status": status, "response": response},
+        )
 
         return response
 
