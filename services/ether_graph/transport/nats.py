@@ -21,11 +21,30 @@ class NATSTransport(object):
     async def subscribe_context(self):
         context_created_topic = "context.instance.created"
         logger.info(
-            "Subscribing to context instance event",
+            "Subscribing to context instance event and context events",
             extra={"topic": context_created_topic},
         )
         await self.nats_manager.subscribe(
             context_created_topic, handler=self.context_created_handler, queued=True,
+        )
+
+        await self.nats_manager.subscribe(
+            topic="ether_graph_service.perform_query",
+            handler=self.perform_query,
+            queued=True,
+        )
+        await self.nats_manager.subscribe(
+            topic="context.user_added", handler=self.add_user_membership, queued=True,
+        )
+        await self.nats_manager.subscribe(
+            topic="context.user_removed",
+            handler=self.delete_user_membership,
+            queued=True,
+        )
+
+        logger.info(
+            "topics subscribed",
+            extra={"topics": list(self.nats_manager.subscriptions.keys())},
         )
 
     async def context_created_handler(self, msg):
@@ -61,19 +80,6 @@ class NATSTransport(object):
         await self.nats_manager.subscribe(
             topic="ether_graph_service.populate_summary",
             handler=self.populate_summary_data,
-            queued=True,
-        )
-        await self.nats_manager.subscribe(
-            topic="ether_graph_service.perform_query",
-            handler=self.perform_query,
-            queued=True,
-        )
-        await self.nats_manager.subscribe(
-            topic="context.user_added", handler=self.add_user_membership, queued=True,
-        )
-        await self.nats_manager.subscribe(
-            topic="context.user_removed",
-            handler=self.delete_user_membership,
             queued=True,
         )
 
@@ -161,9 +167,12 @@ class NATSTransport(object):
         request = json.loads(msg.data)
 
         try:
-            membership_req = UserMembershipRequest.get_object_from_dict(request)
+            membership_req = request["data"]
+            membership_req_info = UserMembershipRequest.get_object_from_dict(
+                membership_req
+            )
             resp = await self.eg_service.update_user_membership(
-                req_data=membership_req, status="added"
+                req_data=membership_req_info, status="added"
             )
 
             logger.info(
@@ -179,9 +188,12 @@ class NATSTransport(object):
         request = json.loads(msg.data)
 
         try:
-            membership_req = UserMembershipRequest.get_object_from_dict(request)
+            membership_req = request["data"]
+            membership_req_info = UserMembershipRequest.get_object_from_dict(
+                membership_req
+            )
             resp = await self.eg_service.update_user_membership(
-                req_data=membership_req, status="deleted"
+                req_data=membership_req_info, status="deleted"
             )
 
             logger.info(

@@ -85,6 +85,7 @@ class SummaryRequest(ObjectConversions):
 class UserMembershipRequest(ObjectConversions):
     contextId: str
     userId: str
+    unknown_fields: CatchAll
 
 
 # Graph query requests
