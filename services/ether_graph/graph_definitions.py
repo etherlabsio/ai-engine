@@ -107,7 +107,7 @@ class Entity(DgraphAttributes):
 @dataclass
 class User(DgraphAttributes):
 
-    spokenBy: str = field(default=None, metadata=dgconfig(field_name="xid"))
+    spokenBy: str = field(default="", repr=False, metadata=dgconfig(field_name="xid"))
     email: str = field(init=False, default=None)
     name: str = field(init=False, default=None)
     deleted: bool = field(init=False, default=False)
@@ -135,7 +135,9 @@ class User(DgraphAttributes):
 @dataclass_json(undefined=Undefined.EXCLUDE)
 @dataclass
 class TranscriptionProvider(DgraphAttributes):
-    transcriber: str = field(default="", metadata=dgconfig(field_name="xid"))
+    transcriber: str = field(
+        default="", repr=False, metadata=dgconfig(field_name="xid")
+    )
     name: str = field(init=False, default=None)
 
     attribute: str = field(default="segmentProvider")
@@ -150,7 +152,9 @@ class TranscriptionProvider(DgraphAttributes):
 @dataclass_json(undefined=Undefined.EXCLUDE)
 @dataclass
 class Source(DgraphAttributes):
-    recordingId: str = field(default=None, metadata=dgconfig(field_name="xid"))
+    recordingId: str = field(
+        default=None, repr=False, metadata=dgconfig(field_name="xid")
+    )
     type: str = field(default="recording")
     attribute: str = field(default="sourceId")
 
@@ -163,7 +167,7 @@ class Source(DgraphAttributes):
 @dataclass_json(undefined=Undefined.EXCLUDE)
 @dataclass
 class SummaryGroup(DgraphAttributes):
-    groupId: str = field(default="", metadata=dgconfig(field_name="xid"))
+    groupId: str = field(default="", repr=False, metadata=dgconfig(field_name="xid"))
     hasKeywords: List[Keyphrase] = field(default_factory=list)
     hasEntities: List[Entity] = field(default_factory=list)
     hasUser: List[User] = field(default_factory=list)
@@ -179,9 +183,13 @@ class SummaryGroup(DgraphAttributes):
 @dataclass_json(undefined=Undefined.EXCLUDE)
 @dataclass
 class TranscriptionSegment(DgraphAttributes):
-    id: str = field(default="", metadata=dgconfig(field_name="xid"))
-    originalText: str = field(default="", metadata=dgconfig(field_name="text"))
-    languageCode: str = field(default="", metadata=dgconfig(field_name="language"))
+    id: str = field(default="", repr=False, metadata=dgconfig(field_name="xid"))
+    originalText: str = field(
+        default="", repr=False, metadata=dgconfig(field_name="text")
+    )
+    languageCode: str = field(
+        default="", repr=False, metadata=dgconfig(field_name="language")
+    )
     startTime: str = field(default=None, metadata=dgconfig(dg_field=datetime))
     endTime: str = field(default=None, metadata=dgconfig(dg_field=datetime))
     duration: int = field(default=None)
@@ -233,7 +241,7 @@ class Marker(DgraphAttributes):
 @dataclass_json(undefined=Undefined.EXCLUDE)
 @dataclass
 class Mind(DgraphAttributes):
-    mindId: str = field(default="", metadata=dgconfig(field_name="xid"))
+    mindId: str = field(default="", repr=False, metadata=dgconfig(field_name="xid"))
     name: str = field(default=None, init=False)
     type: str = field(default=None, init=False)
 
@@ -248,7 +256,9 @@ class Mind(DgraphAttributes):
 @dataclass_json(undefined=Undefined.EXCLUDE)
 @dataclass
 class ContextSession(DgraphAttributes):
-    instanceId: str = field(default=None, metadata=dgconfig(field_name="xid"))
+    instanceId: str = field(
+        default=None, repr=False, metadata=dgconfig(field_name="xid")
+    )
     startTime: str = field(default=None, metadata=dgconfig(dg_field=datetime))
     attribute: str = field(default="instanceId")
 
@@ -265,7 +275,7 @@ class ContextSession(DgraphAttributes):
 @dataclass_json(undefined=Undefined.EXCLUDE)
 @dataclass
 class Context(DgraphAttributes):
-    contextId: str = field(default="", metadata=dgconfig(field_name="xid"))
+    contextId: str = field(repr=False, default="", metadata=dgconfig(field_name="xid"))
     attribute: str = field(default="contextId")
 
     hasMeeting: List[ContextSession] = field(default_factory=list)
@@ -280,7 +290,7 @@ class Context(DgraphAttributes):
 @dataclass_json(undefined=Undefined.EXCLUDE)
 @dataclass
 class Customer(DgraphAttributes):
-    customerId: str = field(default="", metadata=dgconfig(field_name="xid"))
+    customerId: str = field(default="", repr=False, metadata=dgconfig(field_name="xid"))
     attribute: str = field(default="customerId")
 
     hasUser: List[User] = field(default_factory=list)
@@ -294,7 +304,9 @@ class Customer(DgraphAttributes):
 @dataclass_json(undefined=Undefined.EXCLUDE)
 @dataclass
 class Workspace(DgraphAttributes):
-    workspaceId: str = field(default="", metadata=dgconfig(field_name="xid"))
+    workspaceId: str = field(
+        default="", repr=False, metadata=dgconfig(field_name="xid")
+    )
     attribute: str = field(default="workspaceId")
     name: str = field(default="")
 
@@ -310,7 +322,7 @@ class Workspace(DgraphAttributes):
 @dataclass_json(undefined=Undefined.EXCLUDE)
 @dataclass
 class Channel(DgraphAttributes):
-    channelId: str = field(default="", metadata=dgconfig(field_name="xid"))
+    channelId: str = field(default="", repr=False, metadata=dgconfig(field_name="xid"))
     attribute: str = field(default="channelId")
     name: str = field(default="")
 

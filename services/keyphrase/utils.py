@@ -170,6 +170,7 @@ class KeyphraseUtils(object):
                 )
             except Exception:
                 phrase_object = phrase_object
+                logger.warning("No graph filtration is performed")
 
         return phrase_object
 
@@ -205,13 +206,15 @@ class KeyphraseUtils(object):
                         )
                         entity_graph = self.mind_store.get_object(key=session_id)
                     except Exception as e:
-                        logger.error(
-                            "Error while setting entity graph object", extra={"err": e}
+                        logger.warning(
+                            "Error while setting entity graph object", extra={"warn": e}
                         )
-                        raise
+                        entity_graph = mind_filter_graph
+                        mind_filter_graph.clear()
+                        # raise
 
             except Exception as e:
-                logger.warning("Unable to download entity graph", extra={"warn": e})
+                logger.error("Unable to download entity graph", extra={"err": e})
                 raise
 
         segment_text = phrase_object.originalText

@@ -3,7 +3,6 @@ import hashlib
 import json as js
 from typing import Tuple, List, Dict, Text, Union
 from datetime import datetime
-import ciso8601
 
 from graph_definitions import (
     Context,
@@ -248,20 +247,19 @@ class ContextSessionParser(object):
         context_node = Context(contextId=context_id)
         context_node = self.gh.query_transform_node(context_node)
 
-        user_node = User()
+        user_node = User(spokenBy=user_id)
         user_node.xid = user_id
         user_node = self.gh.query_transform_node(user_node)
-        updated_time = ciso8601.parse_rfc3339(datetime.now().isoformat())
+        updated_time = datetime.now().isoformat()
 
         if status == "deleted":
             user_node.deleted = True
             user_node.deletedAt = updated_time
-            user_node.updatedAt = updated_time
         else:
             user_node.deleted = False
             user_node.createdAt = updated_time
-            user_node.updatedAt = updated_time
 
+        user_node.updatedAt = updated_time
         context_node.hasMember = user_node
 
         return context_node
