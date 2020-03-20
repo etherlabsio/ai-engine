@@ -3,7 +3,7 @@ import logging
 import json
 import numpy as np
 from copy import deepcopy
-from artifacts_updater.graph_updater import get_grouped_segments, form_sentence_graph, get_base_graph, update_entity_nodes, update_kp_nodes, update_edges, update_kp_tokens, update_entity_feat_dict, get_common_entities, get_most_similar_entities, get_agreable_communities, update_communitiy_artifacts, combine_sent_dicts
+from artifacts_updater.graph_updater import get_grouped_segments, extract_information_from_groups, get_base_graph, update_entity_nodes, update_kp_nodes, update_edges, update_kp_tokens, update_entity_feat_dict, get_common_entities, get_most_similar_entities, get_agreable_communities, update_communitiy_artifacts, combine_sent_dicts
 from group_segments.artifacts_uploader import  upload_graph, upload_all_mind_artifacts
 
 logger = logging.getLogger()
@@ -12,7 +12,7 @@ def update_artifacts(Request, Artifacts):
     logger.info("Updating Artifacts:")
     try:
         master_paragraphs, master_ids = get_grouped_segments(Request.groups)
-        ent_sent_dict, kp_sent_dict, label_dict, noun_list, entity_dict = form_sentence_graph(master_paragraphs, master_ids, Artifacts.label_dict)
+        ent_sent_dict, kp_sent_dict, label_dict, noun_list, entity_dict = extract_information_from_groups(master_paragraphs, master_ids, Artifacts.label_dict)
         all_sent_dict = combine_sent_dicts(ent_sent_dict, kp_sent_dict)
         logger.info("Updating Graph related Artifacts:")
         Artifacts.kp_entity_graph = get_base_graph(Artifacts.kp_entity_graph)

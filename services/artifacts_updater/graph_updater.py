@@ -19,7 +19,7 @@ def get_grouped_segments(groups):
     return meeting_groups, ids
 
 
-def form_sentence_graph(master_paragraphs, master_ids, multi_label_dict):
+def extract_information_from_groups(master_paragraphs, master_ids, multi_label_dict):
     ent_sent_dict = {}
     kp_sent_dict = {}
     label_dict = multi_label_dict
@@ -146,11 +146,10 @@ def update_entity_nodes(ent_kp_graph, ent_sent_dict, multi_label_dict):
             ent_kp_graph.nodes()[ent]['node_type'] = "entity"
             #ent_kp_graph.nodes()[ent]['node_label'] = ent_single_label_dict.get(ent,"N/A")
             ent_kp_graph.nodes()[ent]['node_label'] = multi_label_dict.get(ent, "N/A")
-            ent_kp_graph.nodes()[ent]['ether_grp_ctr'] = len(ent_sent_dict[ent])
-            ent_kp_graph.nodes()[ent]['ether_meet_ctr'] = len(meet_dict)
-            ent_kp_graph.nodes()[ent]['ether_sent_ctr'] = sum(meet_freq)
-            ent_kp_graph.nodes()[ent]['ether_meet_freq_list'] = list(map(lambda sent_list: len(sent_list),ent_sent_dict[ent].values()))
-
+            ent_kp_graph.nodes()[ent]['ether_grp_ctr'] = ent_kp_graph.nodes()[ent].get('ether_grp_ctr',0) + len(ent_sent_dict[ent])
+            ent_kp_graph.nodes()[ent]['ether_meet_ctr'] = ent_kp_graph.nodes()[ent].get('ether_meet_ctr',0) + len(meet_dict)
+            ent_kp_graph.nodes()[ent]['ether_sent_ctr'] = ent_kp_graph.nodes()[ent].get('ether_sent_ctr',0) + sum(meet_freq)
+            ent_kp_graph.nodes()[ent]['ether_meet_freq_list'] = ent_kp_graph.nodes()[ent].get('ether_meet_freq_list',[]) + list(map(lambda sent_list: len(sent_list),ent_sent_dict[ent].values()))
         else:
             ent_kp_graph.add_node(ent,
                                   node_type = "entity",
@@ -176,16 +175,17 @@ def update_kp_nodes(ent_kp_graph, ent_sent_dict, node_list, kp_sent_dict):
         for p,s in kp_sent_dict[kp].items():
             meet_dict[p.split("_")[0]] = meet_dict.get(p.split("_")[0],[]) + s
         meet_freq = list(map(lambda sent_list: len(sent_list),meet_dict.values()))
-        if kp.lower() in ent_kp_graph:
-            ent_kp_graph.nodes()[kp.lower()]['is_ether_node'] = True
-            ent_kp_graph.nodes()[kp.lower()]['node_type'] = "key_phrase"
-            ent_kp_graph.nodes()[kp.lower()]['node_label'] = "N/A"
-            ent_kp_graph.nodes()[kp.lower()]['ether_grp_ctr'] = len(kp_sent_dict[kp])
-            ent_kp_graph.nodes()[kp.lower()]['ether_meet_ctr'] = len(meet_dict)
-            ent_kp_graph.nodes()[kp.lower()]['ether_meet_freq_list'] = meet_freq
-            ent_kp_graph.nodes()[kp.lower()]['ether_sent_ctr'] = sum(meet_freq)
+        lower_kp = kp.lower()
+        if lower_kp in ent_kp_graph:
+            ent_kp_graph.nodes()[lower_kp]['is_ether_node'] = True
+            ent_kp_graph.nodes()[lower_kp]['node_type'] = "key_phrase"
+            ent_kp_graph.nodes()[lower_kp]['node_label'] = "N/A"
+            ent_kp_graph.nodes()[lower_kp]['ether_grp_ctr'] = ent_kp_graph.nodes()[lower_kp].get('ether_grp_ctr',0) + len(kp_sent_dict[kp])
+            ent_kp_graph.nodes()[lower_kp]['ether_meet_ctr'] = ent_kp_graph.nodes()[lower_kp].get('ether_meet_ctr',0) + len(meet_dict)
+            ent_kp_graph.nodes()[lower_kp]['ether_meet_freq_list'] = ent_kp_graph.nodes()[lower_kp].get('ether_meet_freq_list',[]) + meet_freq
+            ent_kp_graph.nodes()[lower_kp]['ether_sent_ctr'] = ent_kp_graph.nodes()[lower_kp].get('ether_sent_ctr',0) + sum(meet_freq)
         else:
-            ent_kp_graph.add_node(kp.lower(),
+            ent_kp_graph.add_node(lower_kp,
                                   node_type = "key_phrase",
                                   node_label = "N/A",
                                   is_ether_node = True,
@@ -218,23 +218,22 @@ def update_edges(ent_kp_graph, node_list, all_sent_dict):
                 sent_set_a = set(list(itertools.chain(*list(all_sent_dict[node_a].values()))))
                 sent_set_b = set(list(itertools.chain(*list(all_sent_dict[node_b].values()))))
                 sent_intersection = sent_set_a & sent_set_b
-                if node_typestring_a=="kp" and len(sent_intersection)<2:
-                    continue
                 if node_typestring_b=="kp" and len(sent_intersection)<1:
                     continue
                 if ent_kp_graph.has_edge(node_a,node_b):
-                    ent_kp_graph[node_a][node_b]['ether_meet_ctr'] = len(meet_intersection)
-                    ent_kp_graph[node_a][node_b]['ether_grp_ctr'] = len(grp_intersection)
-                    ent_kp_graph[node_a][node_b]['ether_sent_ctr'] = len(sent_intersection)
-                ent_kp_graph.add_edge(node_a,
-                                      node_b,
-                                      edge_type = node_typestring_a + "_to_" + node_typestring_b,
-                                      ether_meet_ctr = len(meet_intersection),
-                                      ether_grp_ctr = len(grp_intersection),
-                                      ether_sent_ctr = len(sent_intersection),
-                                      art_ctr = 0,
-                                      para_ctr = 0,
-                                      sent_ctr = 0)
+                    ent_kp_graph[node_a][node_b]['ether_meet_ctr'] = ent_kp_graph[node_a][node_b].get('ether_meet_ctr',0) + len(meet_intersection)
+                    ent_kp_graph[node_a][node_b]['ether_grp_ctr'] = ent_kp_graph[node_a][node_b].get('ether_grp_ctr',0) + len(grp_intersection)
+                    ent_kp_graph[node_a][node_b]['ether_sent_ctr'] = ent_kp_graph[node_a][node_b].get('ether_sent_ctr',0) + len(sent_intersection)
+                else:
+                    ent_kp_graph.add_edge(node_a,
+                                          node_b,
+                                          edge_type = node_typestring_a + "_to_" + node_typestring_b,
+                                          ether_meet_ctr = len(meet_intersection),
+                                          ether_grp_ctr = len(grp_intersection),
+                                          ether_sent_ctr = len(sent_intersection),
+                                          art_ctr = 0,
+                                          para_ctr = 0,
+                                          sent_ctr = 0)
     return ent_kp_graph
 
 def update_kp_tokens(ent_kp_graph, noun_list):
