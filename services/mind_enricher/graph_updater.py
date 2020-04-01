@@ -1,6 +1,6 @@
-from artifacts_updater.kp_extractor import cleanText, CandidateKPExtractor
-from artifacts_updater.scorer import get_ner
-from artifacts_updater.scorer import get_feature_vector, cosine
+from mind_enricher.kp_extractor import cleanText, CandidateKPExtractor
+from mind_enricher.scorer import get_ner
+from mind_enricher.scorer import get_feature_vector, cosine
 import nltk, itertools
 from nltk.tokenize import sent_tokenize
 from collections import Counter
@@ -122,7 +122,7 @@ def get_base_graph(ent_kp_graph):
             ent_kp_graph.nodes[node]['ether_meet_ctr'] = 0
             ent_kp_graph.nodes[node]['ether_grp_ctr'] = 0
             ent_kp_graph.nodes[node]['ether_sent_ctr'] = 0
-            ent_kp_graph.nodes[node]['ether_meet_freq_list'] = 0
+            ent_kp_graph.nodes[node]['ether_meet_freq_list'] = []
             for j,node1 in enumerate(nodes_list):
                 if j>i:
                     if ent_kp_graph.has_edge(node,node1):
@@ -149,7 +149,9 @@ def update_entity_nodes(ent_kp_graph, ent_sent_dict, multi_label_dict):
             ent_kp_graph.nodes()[ent]['ether_grp_ctr'] = ent_kp_graph.nodes()[ent].get('ether_grp_ctr',0) + len(ent_sent_dict[ent])
             ent_kp_graph.nodes()[ent]['ether_meet_ctr'] = ent_kp_graph.nodes()[ent].get('ether_meet_ctr',0) + len(meet_dict)
             ent_kp_graph.nodes()[ent]['ether_sent_ctr'] = ent_kp_graph.nodes()[ent].get('ether_sent_ctr',0) + sum(meet_freq)
+            print("updating entity nodes")
             ent_kp_graph.nodes()[ent]['ether_meet_freq_list'] = ent_kp_graph.nodes()[ent].get('ether_meet_freq_list',[]) + list(map(lambda sent_list: len(sent_list),ent_sent_dict[ent].values()))
+            print ("updated entity nodes")
         else:
             ent_kp_graph.add_node(ent,
                                   node_type = "entity",
@@ -166,6 +168,7 @@ def update_entity_nodes(ent_kp_graph, ent_sent_dict, multi_label_dict):
     return ent_kp_graph, node_list
 
 def update_kp_nodes(ent_kp_graph, ent_sent_dict, node_list, kp_sent_dict):
+    print ("updating kp nodes.")
     all_ent_sents = []
     x = [all_ent_sents.extend(sents)  for p_dict in ent_sent_dict.values() for sents in p_dict.values() ]
     all_ent_sents = set(all_ent_sents)
@@ -196,9 +199,11 @@ def update_kp_nodes(ent_kp_graph, ent_sent_dict, node_list, kp_sent_dict):
                                   art_ctr = 0,
                                   para_ctr = 0,
                                   sent_ctr = 0)
+    print ("updated kp nodes")
     return ent_kp_graph, node_list
 
 def update_edges(ent_kp_graph, node_list, all_sent_dict):
+    print ("updating edges")
     node_type_map = {"entity":"ent","key_phrase":"kp"}
     for a, node_a in enumerate(node_list):
         for b, node_b in enumerate(node_list):
@@ -294,7 +299,7 @@ def update_kp_tokens(ent_kp_graph, noun_list):
 
 def update_entity_feat_dict(ent_sent_dict, ent_feat_dict, mind_id):
     for ent in ent_sent_dict:
-        ent_feat = np.sum(get_feature_vector(ent_sent_dict[ent] , lambda_function="mind-"+mind_id), axis=0)
+        ent_feat = np.sum(get_feature_vector(ent_sent_dict[ent] , lambda_function="mind-"+(mind_id).lower()), axis=0)
         if "<ETHER>-"+ent in ent_feat_dict:
             ent_feat_dict["<ETHER>-"+ent] += ent_feat
         else:

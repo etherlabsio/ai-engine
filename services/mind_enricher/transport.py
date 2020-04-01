@@ -38,8 +38,8 @@ def decode_json_request(event) -> Request:
 
     try:
         groups = decode_segments(req['group'])
-        entity_dict_full = load_entity_features(req["mindId"].lower(), req["contextId"].lower())
-        kp_entity_graph, entity_community_map, label_dict, gc, lc = load_entity_graph(req["mindId"].lower(), req["contextId"].lower())
+        entity_dict_full = load_entity_features(req["mindId"], req["contextId"])
+        kp_entity_graph, entity_community_map, label_dict, gc, lc = load_entity_graph(req["mindId"], req["contextId"])
         common_entities = entity_dict_full.keys() & entity_community_map.keys()
 
         ent_fv = {}
@@ -51,7 +51,7 @@ def decode_json_request(event) -> Request:
         raise Exception("Decoding error: {}".format(e))
 
     return ( Request(
-        req["mindId"].lower(),
-        req["contextId"].lower(),
+        req["mindId"],
+        req["contextId"],
         groups
     ), Artifacts(ent_fv, kp_entity_graph, entity_community_map, label_dict, gc, lc))

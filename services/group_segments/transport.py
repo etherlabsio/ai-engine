@@ -52,7 +52,7 @@ def decode_json_request(req) -> Request:
             index += 1
 
     return Request(
-        req["mindId"].lower(),
+        req["mindId"],
         req["instanceId"],
         req["contextId"],
         segments,

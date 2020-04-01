@@ -1,4 +1,4 @@
 python_library(
-	name="artifacts_updater-libs",
+	name="mind_enricher-libs",
 	sources=["*"]
 )

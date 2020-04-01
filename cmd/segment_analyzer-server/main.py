@@ -42,7 +42,7 @@ def handler(event, context):
             vector_list = list(
                 map(
                     lambda s: get_score(
-                        Request.mind_id,
+                        (Request.mind_id).lower(),
                         s,
                         Request.context_id,
                         Request.instance_id,
@@ -61,7 +61,7 @@ def handler(event, context):
         else:
             logger.info("POST request Recieved: ", extra={"Request": json_request['detail']})
             Request_obj = tp_gs.decode_json_request(json_request['detail'])
-            lambda_function = "mind-" + Request_obj.mind_id
+            lambda_function = "mind-" + (Request_obj.mind_id).upper()
             if not Request_obj.segments:
                 # To Do: It's better to raise an error than directly return an error.
                 return json({"msg": "No segments to process"})

@@ -3,7 +3,7 @@ import logging
 import json
 import numpy as np
 from copy import deepcopy
-from artifacts_updater.graph_updater import get_grouped_segments, extract_information_from_groups, get_base_graph, update_entity_nodes, update_kp_nodes, update_edges, update_kp_tokens, update_entity_feat_dict, get_common_entities, get_most_similar_entities, get_agreable_communities, update_communitiy_artifacts, combine_sent_dicts
+from mind_enricher.graph_updater import get_grouped_segments, extract_information_from_groups, get_base_graph, update_entity_nodes, update_kp_nodes, update_edges, update_kp_tokens, update_entity_feat_dict, get_common_entities, get_most_similar_entities, get_agreable_communities, update_communitiy_artifacts, combine_sent_dicts
 from group_segments.artifacts_uploader import  upload_graph, upload_all_mind_artifacts
 
 logger = logging.getLogger()

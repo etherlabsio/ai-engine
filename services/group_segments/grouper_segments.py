@@ -52,21 +52,8 @@ class community_detection:
         self.lambda_function = lambda_function
         self.compute_fv = compute_fv
         self.mind_id = Request.mind_id
-        self.context_id = Request.context_id
+        self.context_id = (Request.context_id).upper()
         self.instance_id = Request.instance_id
-
-    def get_noun_graph(self):
-        bucket = "io.etherlabs.artifacts"
-        s3_obj = S3Manager(bucket_name=bucket)
-        s3_path = (
-            os.getenv("ACTIVE_ENV", "staging2")
-            + "/minds/"
-            + (self.mind_id).lower()
-            + "/noun_graph.pkl"
-        )
-        bytestream = (s3_obj.download_file(file_name=s3_path))["Body"].read()
-        se_graph = pickle.loads(bytestream)
-        return se_graph
 
     def compute_feature_vector_gpt(self):
         graph_list = {}
@@ -966,8 +953,11 @@ class community_detection:
                 if rank_index==5:
                     break
 
-        upload_mind_artifacts(self.mind_id, self.context_id, gc, lc)
-        return ranked_groups
+        upload_mind_artifacts((self.mind_id).upper(), (self.context_id).upper(), gc, lc)
+        topics = {}
+        for groupid in ranked_groups.keys():
+            topics[groupid] = list(set([ent for ent, score in sorted(group_ent[groupid], key=lambda kv:kv[1],reverse=True)]))[:2]
+        return ranked_groups, topics
 
     def itr_communities(self):
         v = 0
@@ -1036,10 +1026,9 @@ class community_detection:
         print ("Computed phase 2 Groups")
         logger.info("Intermediate PIMs", extra={"PIMs": pims})
 
-        ranked_groups = self.rank_groups(pims)
+        ranked_groups, topics_extracted = self.rank_groups(pims)
         logger.info("Final PIMs based on roun_graph, entity graph ranking and filteration", extra={"PIMs": ranked_groups})
-        topics_extracted = get_topics(ranked_groups)
-
+        # topics_extracted = get_topics(ranked_groups)
         return ranked_groups, topics_extracted
 
 

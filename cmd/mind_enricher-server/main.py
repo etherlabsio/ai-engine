@@ -2,7 +2,7 @@ import sys
 import logging
 import json
 from copy import deepcopy
-from artifacts_updater import update_artifacts, transport
+from mind_enricher import update_artifacts, transport
 from log.logger import setup_server_logger
 
 logger = logging.getLogger()

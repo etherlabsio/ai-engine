@@ -2,8 +2,8 @@ python_binary(
 	name="server",
 	dependencies = [
 		'pkg:common-libs',
-		'services/artifacts_updater:artifacts_updater-libs',
-		':artifacts_updater-dep',
+		'services/mind_enricher:mind_enricher-libs',
+		':mind_enricher-dep',
 		'services:global-services',
 	],
 	source="main.py",
@@ -12,7 +12,7 @@ python_binary(
 )
 
 python_library(
-	name="artifacts_updater-dep",
+	name="mind_enricher-dep",
 	dependencies=[
 		'3rdparty/python:iso8601',
         '3rdparty/python:boto3',
@@ -20,16 +20,14 @@ python_library(
         '3rdparty/python:numpy',
         '3rdparty/python:python-json-logger',
         '3rdparty/python:nltk',
-        '3rdparty/python:python-louvain',
         '3rdparty/python:networkx',
-        '3rdparty/python:scikit-learn',
         '3rdparty/python:requests',
 	],
 
 )
 
 python_awslambda(
-    name='artifacts_updater_lambda',
+    name='mind_enricher_lambda',
     binary=':server',
     handler='main:handler',
 )   
