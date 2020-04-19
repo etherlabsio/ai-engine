@@ -1,0 +1,11 @@
+md5: e909104d5ad124429976efafc0b1a6b7
+cmd: scp query.sh ubuntu@3.93.90.169:~/dvc_test/query.sh
+deps:
+- md5: 49043b49f4c628a6217cf0c23657c763
+  path: query.sh
+outs:
+- md5: 49043b49f4c628a6217cf0c23657c763
+  path: ssh://ubuntu@3.93.90.169:/home/ubuntu/dvc_test/query.sh
+  cache: false
+  metric: false
+  persist: false

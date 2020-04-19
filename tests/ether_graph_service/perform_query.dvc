@@ -1,0 +1,11 @@
+md5: a2c0629ae6c60fd7f02ab71d84382959
+cmd: ssh ubuntu@3.93.90.169 "bash -s" "<" /home/ubuntu/dvc_test/query.sh ">" /home/ubuntu/dvc_test/query_test.json
+deps:
+- md5: 49043b49f4c628a6217cf0c23657c763
+  path: ssh://ubuntu@3.93.90.169:/home/ubuntu/dvc_test/query.sh
+outs:
+- md5: 427df3d4e54bfe72fb963d9adc9f1b0f
+  path: ssh://ubuntu@3.93.90.169:/home/ubuntu/dvc_test/query_test.json
+  cache: false
+  metric: false
+  persist: false

@@ -1,0 +1,11 @@
+md5: 06e4ac3b57b6783e150652c47c1f76a4
+cmd: scp ubuntu@3.93.90.169:/home/ubuntu/dvc_test/query_test.json query_test.json
+deps:
+- md5: 427df3d4e54bfe72fb963d9adc9f1b0f
+  path: ssh://ubuntu@3.93.90.169:/home/ubuntu/dvc_test/query_test.json
+outs:
+- md5: 427df3d4e54bfe72fb963d9adc9f1b0f
+  path: query_test.json
+  cache: true
+  metric: false
+  persist: false
