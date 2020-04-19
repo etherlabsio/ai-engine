@@ -1,0 +1,156 @@
+# EtherGraph Schema v0.1
+
+```graphql
+# EtherGraph Schema v0.1 
+# Generated schema for Dgraph v1.1.0 
+
+type Context {
+	xid       : string
+	attribute : string
+	associatedMind: Mind
+	hasMeeting: [ContextSession]
+	hasMember : [User]
+}
+
+type ContextSession {
+	xid       : string
+	attribute : string
+	startTime : dateTime
+	hasSegment: [TranscriptionSegment]
+	hasMarker : [Marker]
+}
+
+type TranscriptionSegment {
+	xid       : string
+	attribute : string
+	startTime : dateTime
+	endTime   : dateTime
+	duration  : int
+	analyzedText: string
+	embedding_vector_uri: string
+	embedding_model: string
+	embedding_vector_group_uri: string
+	groupId   : string
+	highlight : bool
+	authoredBy: User
+	providedBy: TranscriptionProvider
+	hasSource : Source
+	hasKeywords: [Keyphrase]
+	hasEntities: [Entity]
+	belongsTo : SummaryGroup
+	text      : string
+	language  : string
+}
+
+type TranscriptionProvider {
+	xid       : string
+	attribute : string
+	name      : string
+}
+
+type Keyphrase {
+	xid       : string
+	attribute : string
+	originalForm: string
+	type      : string
+	value     : string
+}
+
+type Entity {
+	xid       : string
+	attribute : string
+	originalForm: string
+	value     : string
+	label     : string
+	related_to_keyphrase: bool
+}
+
+type Mind {
+	xid       : string
+	attribute : string
+	name      : string
+	type      : string
+}
+
+type User {
+	xid       : string
+	attribute : string
+	email     : string
+	name      : string
+	deleted   : bool
+	createdAt : dateTime
+	deletedAt : dateTime
+	updatedAt : dateTime
+	userEntities: [Entity]
+	groupedWith: [User]
+}
+
+type Source {
+	xid       : string
+	attribute : string
+	type      : string
+}
+
+type SummaryGroup {
+	xid       : string
+	attribute : string
+	hasKeywords: [Keyphrase]
+	hasEntities: [Entity]
+	hasUser   : [User]
+}
+
+type Customer {
+	xid       : string
+	attribute : string
+	hasUser   : [User]
+}
+
+type Workspace {
+	xid       : string
+	attribute : string
+	name      : string
+	belongsTo : Customer
+	hasMember : [User]
+}
+
+type Channel {
+	xid       : string
+	attribute : string
+	name      : string
+	belongsTo : Workspace
+	hasContext: Context
+	hasMember : [User]
+}
+
+# Defining indices
+
+xid: string @index(exact) @upsert .
+attribute: string @index(hash)  .
+name: string @index(term)  .
+email: string @index(exact)  .
+value: string @index(term, fulltext)  .
+originalForm: string @index(term, fulltext)  .
+label: string @index(exact)  .
+text: string @index(fulltext)  .
+embedding_vector_uri: string  .
+embedding_vector_group_uri: string  .
+description: string @index(term, fulltext)  .
+type: string @index(term)  .
+startTime: dateTime @index(month)  .
+associatedMind: uid @reverse .
+hasMeeting: [uid] @reverse .
+hasSegment: [uid] @reverse .
+hasKeywords: [uid] @reverse .
+hasEntities: [uid] @reverse .
+authoredBy: uid @reverse .
+providedBy: uid  .
+hasSource: uid  .
+belongsTo: [uid] @reverse .
+hasMember: [uid] @reverse .
+hasContext: uid @reverse .
+hasMarker: [uid] @reverse .
+hasUser: [uid] @reverse .
+createdBy: uid @reverse .
+groupedWith: [uid]  .
+userEntities: [uid]  .
+```
