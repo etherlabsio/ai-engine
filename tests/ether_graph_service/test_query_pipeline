@@ -1,0 +1,35 @@
+dvc run -v -d query_schema.sh \
+  -O ssh://ubuntu@3.93.90.169:/home/ubuntu/dvc_test/query_schema.sh \
+  -f send_schema.dvc \
+  scp query_schema.sh ubuntu@3.93.90.169:~/dvc_test/query_schema.sh
+
+
+dvc run -v -d ssh://ubuntu@3.93.90.169:/home/ubuntu/dvc_test/query_schema.sh \
+  -O ssh://ubuntu@3.93.90.169:/home/ubuntu/dvc_test/schema_test.json \
+  -f perform_schema_query.dvc \
+  'ssh ubuntu@3.93.90.169 "bash -s" "<" /home/ubuntu/dvc_test/query_schema.sh ">" /home/ubuntu/dvc_test/schema_test.json'
+
+
+dvc run -v -d ssh://ubuntu@3.93.90.169:/home/ubuntu/dvc_test/schema_test.json \
+  -o schema_test.json \
+  -f get_schema_result.dvc \
+  scp ubuntu@3.93.90.169:/home/ubuntu/dvc_test/schema_test.json schema_test.json
+
+############
+
+dvc run -v -d query.sh \
+  -O ssh://ubuntu@3.93.90.169:/home/ubuntu/dvc_test/query.sh \
+  -f send_query.dvc \
+  scp query.sh ubuntu@3.93.90.169:~/dvc_test/query.sh
+
+
+dvc run -v -d ssh://ubuntu@3.93.90.169:/home/ubuntu/dvc_test/query.sh \
+  -O ssh://ubuntu@3.93.90.169:/home/ubuntu/dvc_test/query_test.json \
+  -f perform_query.dvc \
+  'ssh ubuntu@3.93.90.169 "bash -s" "<" /home/ubuntu/dvc_test/query.sh ">" /home/ubuntu/dvc_test/query_test.json'
+
+
+dvc run -v -d ssh://ubuntu@3.93.90.169:/home/ubuntu/dvc_test/query_test.json \
+  -o query_test.json \
+  -f get_result.dvc \
+  scp ubuntu@3.93.90.169:/home/ubuntu/dvc_test/query_test.json query_test.json

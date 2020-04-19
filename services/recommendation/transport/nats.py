@@ -20,12 +20,12 @@ class NATSTransport(object):
             "01DBB3SN874B4V18DCP4ATMRXA",
         ]
         self.test_contexts = [
-            "01DBCR0S832GDJS7NGF9YW11WH",
+            "01E36HF5E4BM4S0V0JX8C53SZW",
             "01DBB3SNC86R968E1ESMQFCYK7",
             "01DBCSCC4YWZD0D1E1KT4A4RJC",
             "01DBCS96Y867PTEH9Z5B6TAACM",
         ]
-        self.production_testing = ["01DBB3SN6EVW6Y4CZ6ETFC9Y9X"]
+        self.production_testing = ["01E36HF5E4BM4S0V0JX8C53SZW"]
 
     async def subscribe_context(self):
         context_created_topic = "context.instance.created"
@@ -118,9 +118,8 @@ class NATSTransport(object):
                     "query_by": "keywords",
                 }
 
-            if context_id in self.production_testing:
-                logger.info("using engineering context instead ...")
-                context_id = "01DBB3SN874B4V18DCP4ATMRXA"
+                logger.info("Using test contexts ...")
+
             if extra_options is not None:
                 kwargs.update(extra_options)
             (

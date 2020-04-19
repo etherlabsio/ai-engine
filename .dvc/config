@@ -1,5 +1,10 @@
-['remote "s2models"']
-url = s3://io.etherlabs.staging2.contexts/models/
-profile = staging2
 [core]
-remote = s2models
+    remote = s2models
+[cache]
+    ssh = graphQuery
+['remote "s2models"']
+    url = s3://io.etherlabs.staging2.contexts/models/
+    profile = staging2
+['remote "dev_ssh"']
+    url = ssh://ubuntu@3.93.90.169/dvc_test/
+    keyfile = /Users/shashank/.ssh/dev.pem
